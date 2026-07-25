@@ -2,8 +2,8 @@
  * endpoints.js — @vulos/relay-client multi-endpoint failover.
  *
  * Shared cloud↔LAN endpoint failover for every Vulos web surface (the OS shell,
- * vulos-office). Previously duplicated as `vulos/src/lib/endpoints.js` and
- * `vulos-office/src/lib/endpoints.js`. Promoted here from the vulos OS copy
+ * the office suite). This is the single shared implementation the web
+ * surfaces consume
  * (the richest — it owned `seedFromResolveBackend`) with two new opt-in config
  * seams so consumers can migrate without disturbing their existing user state:
  *
