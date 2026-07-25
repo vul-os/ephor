@@ -1,4 +1,4 @@
-# Contributing to Vulos Relay
+# Contributing to Ephor
 
 This repo ships **two deliverables in two languages**:
 
@@ -112,5 +112,5 @@ handling, session isolation, SSRF guards) require explicit test coverage.
 
 ## Licensing
 
-Vulos Relay — both the `@vulos/relay-client` SDK and the Go tunnel service —
+Ephor — both the `@vulos/relay-client` SDK and the Go tunnel service —
 is MIT-licensed. Contributions inherit MIT. No CLA required.

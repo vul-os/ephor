@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// cpclient.go — WAVE24-RELAY-BILLING: the relay's client to Vulos Cloud (CP).
+// cpclient.go — WAVE24-RELAY-BILLING: the relay's client to a control plane (CP).
 //
 // The relay talks to the CP for two things, reusing the CP's existing seams:
 //

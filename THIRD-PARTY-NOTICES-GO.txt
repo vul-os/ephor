@@ -1,5 +1,5 @@
 ==============================================================================
-THIRD-PARTY NOTICES -- Vulos Relay daemons (Go binaries)
+THIRD-PARTY NOTICES -- Ephor daemons (Go binaries)
 ==============================================================================
 
 This software's production dependency graph contains the third-party

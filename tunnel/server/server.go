@@ -97,7 +97,7 @@ type Config struct {
 	// with 408 and its slot freed. 0 => default 30s; a negative value DISABLES it.
 	RequestBodyTimeout time.Duration
 
-	// CP (WAVE24-RELAY-BILLING, optional) links this relay to Vulos Cloud so that
+	// CP (WAVE24-RELAY-BILLING, optional) links this relay to an operator's control plane so that
 	// account-bound tokens are gated against their relay entitlement and their
 	// traffic is metered to POST /api/relay/usage. When nil, the relay runs
 	// UNBILLED (self-host): tokens are still authorized (name grants) but no

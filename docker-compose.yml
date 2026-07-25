@@ -40,7 +40,7 @@ services:
       # (preserves the real client IP). Leave OFF if directly internet-facing
       # (default; the relay overwrites X-Forwarded-* so clients can't spoof).
       VULOS_RELAY_TRUST_PROXY_HEADERS: ${VULOS_RELAY_TRUST_PROXY_HEADERS:-1}
-      # Optional Vulos Cloud account-linking/metering. Empty ⇒ UNBILLED self-host.
+      # Optional control-plane account-linking/metering. Empty ⇒ UNBILLED self-host.
       VULOS_CP_URL: ${VULOS_CP_URL:-}
       CP_SHARED_SECRET: ${CP_SHARED_SECRET:-}
       VULOS_RELAY_POP_ID: ${VULOS_RELAY_POP_ID:-}

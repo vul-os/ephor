@@ -129,16 +129,16 @@ func main() {
 		heartbeat      = flag.Duration("heartbeat-period", envDuration("VULOS_RELAY_HEARTBEAT", 0), "PoP load-heartbeat cadence to the CP (0=default 12s, <0=disable)")
 		hostMemLimit   = flag.Int64("host-mem-limit-bytes", envInt64("VULOS_RELAY_HOST_MEM_LIMIT", 0), "host/cgroup memory limit for the heartbeat mem_pct gauge (0=report 0)")
 
-		// WAVE24-RELAY-BILLING: link this relay to Vulos Cloud so account-bound
+		// WAVE24-RELAY-BILLING: link this relay to a control plane so account-bound
 		// tokens are gated + metered. All optional — omit to run UNBILLED (self-host).
-		cpURL       = flag.String("cp-url", envOr("VULOS_CP_URL", ""), "Vulos Cloud base URL for entitlement/usage (e.g. https://cloud.vulos.dev)")
+		cpURL       = flag.String("cp-url", envOr("VULOS_CP_URL", ""), "control-plane base URL for entitlement/usage (e.g. https://cp.example.com)")
 		cpSecret    = flag.String("cp-shared-secret", envOr("CP_SHARED_SECRET", ""), "CP_SHARED_SECRET for usage HMAC + entitlement service auth")
 		popID       = flag.String("pop-id", envOr("VULOS_RELAY_POP_ID", ""), "this relay's PoP id (usage reports dedup per-PoP)")
 		cpTokenMode = flag.Bool("cp-token-store", envOr("VULOS_RELAY_CP_TOKENS", "") == "1", "resolve agent tokens as CP install credentials instead of a static grants file")
 
 		// RENDEZVOUS ROLE: the open key-addressed reachability substrate
 		// (announce/resolve/signal/mailbox + ICE). CP-OPTIONAL and self-hostable — it
-		// holds only soft-state and needs no Vulos Cloud. Served on the relay's apex
+		// holds only soft-state and needs no control plane. Served on the relay's apex
 		// host under -rendezvous-prefix. OFF by default (a plain reverse-tunnel relay).
 		enableRDV    = flag.Bool("rendezvous", envOr("VULOS_RELAY_RENDEZVOUS", "") == "1", "enable the open announce/resolve/signal/mailbox + ICE rendezvous role (or VULOS_RELAY_RENDEZVOUS=1)")
 		rdvPrefix    = flag.String("rendezvous-prefix", envOr("VULOS_RELAY_RENDEZVOUS_PREFIX", "/rendezvous"), "mount prefix for the rendezvous role")
@@ -205,7 +205,7 @@ func main() {
 			pid = "relay-" + sanitizePoP(*domain)
 		}
 		cp = &server.CPClient{BaseURL: *cpURL, SharedSecret: *cpSecret, PoPID: pid, Region: *region}
-		log.Printf("vulos-relayd: Vulos Cloud billing ENABLED cp=%s pop=%s region=%q", *cpURL, pid, *region)
+		log.Printf("vulos-relayd: control-plane billing ENABLED cp=%s pop=%s region=%q", *cpURL, pid, *region)
 	} else if *cpTokenMode {
 		log.Fatal("vulos-relayd: -cp-token-store requires -cp-url and -cp-shared-secret")
 	} else {

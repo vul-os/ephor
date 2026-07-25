@@ -37,7 +37,7 @@ primary_region = "PLACEHOLDER"   # Fly region code (e.g. "iad", "lhr", "fra")
 # Agent grants: provide via the VULOS_RELAY_TOKENS secret (JSON), NOT here —
 # never bake tokens into the config:
 #   fly secrets set VULOS_RELAY_TOKENS='[{"token":"SECRET","names":["box1"]}]'
-# Optional Vulos Cloud billing/gating: set VULOS_CP_URL + CP_SHARED_SECRET secrets.
+# Optional control-plane billing/gating: set VULOS_CP_URL + CP_SHARED_SECRET secrets.
 
 [http_service]
   internal_port        = 8443          # matches cmd/vulos-relayd -addr default

@@ -1,7 +1,7 @@
 package server
 
 // standalone_test.go — the SELF-HOST / no-CP contract. A relay run without any
-// Vulos Cloud link (no -cp-url/-cp-shared-secret) must still fully function:
+// control-plane link (no -cp-url/-cp-shared-secret) must still fully function:
 // tokens authorize, tunnels route, and NOTHING is metered or gated against a CP.
 // These tests pin that contract at the unit level so a future change to the
 // billing seam cannot silently make a CP mandatory. The end-to-end no-CP routing

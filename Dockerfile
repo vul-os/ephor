@@ -36,7 +36,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" \
 
 # ── Stage 2: minimal non-root runtime ─────────────────────────────────────────
 FROM alpine:3.20
-# ca-certificates for the optional Vulos Cloud billing/entitlement calls + agent
+# ca-certificates for the optional control-plane billing/entitlement calls + agent
 # TLS dial; wget for the container healthcheck.
 RUN apk add --no-cache ca-certificates wget \
  && adduser -D -u 10001 vulos

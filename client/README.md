@@ -1,11 +1,9 @@
 # @vulos/relay-client
 
-> <img src="../docs/assets/vulos-logo.png" height="14" alt="VulOS"> Part of **[VulOS](https://vulos.org)** — the open, self-hostable web OS &amp; app suite. This is the client SDK for **Vulos Relay**, the suite's connectivity fabric. Runs standalone, or as an app hosted by the Vulos OS.
+> <img src="../docs/assets/vulos-logo.png" height="14" alt="VulOS"> Part of **[VulOS](https://vulos.org)** — the open, self-hostable web OS &amp; app suite. This is the client SDK for **Ephor**, the suite's connectivity fabric. Runs standalone, or as an app hosted by the Vulos OS.
 
-MIT-licensed JS client for the Vulos peer-fabric relay. Shared by every
-VulOS web surface (the Vulos OS shell, `vulos-office`); previously
-duplicated as `src/lib/{endpoints,offlineBootstrap,signaling,fabric,
-presence,call,useLiveCursors,roundTripCheck}.js` across those repos.
+MIT-licensed JS client for the Vulos peer-fabric relay. It runs in the browser
+and is consumable by any web surface that speaks the peering contract.
 
 This package runs in the browser and talks to the **host application's peering
 backend** (e.g. the Vulos OS `/api/peering/*` endpoints) over HTTP / WebSocket.
@@ -13,11 +11,11 @@ It does not bundle a server.
 
 ## Part of VulOS
 
-**Vulos Relay** is the connectivity fabric of the [VulOS](https://vulos.org)
-suite — open, self-hostable products (OS, Ofisi, Board, Files, Relay, llmux),
+**Ephor** is the connectivity fabric of the [VulOS](https://vulos.org)
+suite — open, self-hostable products (OS, Ofisi, Board, Files, Ephor, llmux),
 each usable alone and hosted as apps by the **Vulos OS** (the shell). This SDK is
 consumed directly by the suite's web surfaces (the Vulos OS shell, Ofisi);
-the OS surfaces Relay-powered features but never imports product code. The package
+the OS surfaces Ephor-powered features but never imports product code. The package
 has no Vulos-specific runtime dependency — it **runs standalone** against any
 backend that implements the peering contract, **and** slots into the OS-hosted suite.
 
@@ -29,15 +27,11 @@ Published to npm:
 npm install @vulos/relay-client
 ```
 
-Inside the VulOS monorepo, consumed as a `file:` dependency from the sibling
-repos:
+Or, for local development against a checkout, as a `file:` dependency pointing
+at this package's directory:
 
 ```jsonc
-// vulos/package.json  (sibling, ../vulos-relay/client/)
-"@vulos/relay-client": "file:../vulos-relay/client"
-
-// vulos-office/package.json  (sibling)
-"@vulos/relay-client": "file:../vulos-relay/client"
+"@vulos/relay-client": "file:../ephor/client"
 ```
 
 ## Subpath exports
@@ -61,9 +55,8 @@ peer dependencies so consumers dedupe them.
 
 ## Security model
 
-Vulos Relay is a **core cloud job** (the suite's connectivity fabric runs
-alongside provisioning and the control plane), and this client is a
-trust-boundary participant. Two properties matter:
+Ephor is the suite's connectivity fabric, and this client is a trust-boundary
+participant. Two properties matter:
 
 **Transport of the credential.** The client holds a short-lived Bearer JWT (the
 box/app session token). It is attached to the signaling WebSocket (as a

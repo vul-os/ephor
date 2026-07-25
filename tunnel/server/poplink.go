@@ -15,7 +15,7 @@ import (
 // poplink.go — SMART-AUTOSCALE (relay side): PoP REGISTRATION + LOAD HEARTBEAT.
 //
 // This is the relay half of the CP↔relay autoscaler contract. A managed relay PoP
-// announces itself to Vulos Cloud (CP) and then heartbeats its live load, so a
+// announces itself to a control plane (CP) and then heartbeats its live load, so a
 // CP-side autoscaler can (a) hand agents their nearest/least-loaded PoP and (b)
 // decide when to provision a new PoP or drain an existing one. The relay reuses the
 // EXISTING CP link (CPClient + CP_SHARED_SECRET + the same HMAC X-Pop-Sig scheme

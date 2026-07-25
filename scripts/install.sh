@@ -117,7 +117,7 @@ else
     echo "VULOS_RELAY_TRUST_PROXY_HEADERS=1"
     echo "RELAY_PUBLIC_PORT=8443"
     [ -n "$IMAGE" ] && echo "RELAY_IMAGE=$IMAGE"
-    echo "# Optional Vulos Cloud account-linking/metering (empty ⇒ unbilled self-host):"
+    echo "# Optional control-plane account-linking/metering (empty ⇒ unbilled self-host):"
     echo "# VULOS_CP_URL="
     echo "# CP_SHARED_SECRET="
     echo "# VULOS_RELAY_POP_ID="
