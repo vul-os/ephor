@@ -2,7 +2,7 @@
   "name": "ephor",
   "private": true,
   "license": "MIT OR Apache-2.0",
-  "description": "Root workspace for vulos-relay. The publishable package is in client/. Dev scripts (screenshots, etc.) are in scripts/.",
+  "description": "Root workspace for Ephor. The publishable package is in client/. Dev scripts (screenshots, etc.) are in scripts/.",
   "scripts": {
     "screenshots": "cd scripts && npm ci --prefer-offline 2>/dev/null || npm ci && node screenshots.mjs",
     "notices:go": "node scripts/gen-third-party-notices.mjs --no-npm --go-dir . --out THIRD-PARTY-NOTICES-GO.txt --title \"Ephor daemons (Go binaries)\""

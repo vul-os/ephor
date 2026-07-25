@@ -2,7 +2,7 @@
   "name": "@vulos/relay-client-scripts",
   "version": "1.0.0",
   "private": true,
-  "description": "Dev scripts for vulos-relay (screenshot generation)",
+  "description": "Dev scripts for Ephor (screenshot generation)",
   "type": "module",
   "scripts": {
     "screenshots": "node screenshots.mjs"

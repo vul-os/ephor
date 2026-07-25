@@ -1,7 +1,7 @@
 /**
  * health.js — @vulos/relay-client health-check export.
  *
- * vulos-relay is a pure JavaScript client SDK — there is no bundled Go
+ * @vulos/relay-client is a pure JavaScript client SDK — there is no bundled Go
  * signaling/PoP server in this repo.  The health interface is therefore
  * provided as a set of composable helpers that the host backend (Node.js
  * HTTP server, Express, Fastify, Hono, etc.) can wire up as it sees fit.
