@@ -8,9 +8,9 @@ indefinitely, instead of holding them only as long as they happen to be popular.
 document is the *role*, not the product. It is part of the DMTAP substrate's
 [infrastructure roles](https://github.com/vul-os/dmtap) (`substrate/ROLES.md` § 6)
 over the DMTAP-PUB public-object profile (§ 22.2, § 22.5.1, § 5.5.2). **Any node
-may serve it.** A Vulos-operated pin service is just a well-run instance of this
-code; a self-hoster runs the identical binary with the identical guarantees and
-no billing in it at all.
+may serve it.** An operator's pin service is just a well-run instance of this
+code, run by whoever chooses to run it; a self-hoster runs the identical binary
+with the identical guarantees and no billing in it at all.
 
 > **Why the role exists:** availability in a decentralised network is
 > **emergent**. A content address is *a name, not a promise* (§ 5.5.1) — an

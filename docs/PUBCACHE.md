@@ -9,9 +9,9 @@ first published.
 document is the *role*, not the product. It is one of the DMTAP substrate's
 [infrastructure roles](https://github.com/vul-os/dmtap) (`substrate/ROLES.md` § 6),
 over the DMTAP-PUB public-object profile (§ 22.5.1, `substrate/FEEDS.md` § 5).
-**Any node may serve it**; a Vulos-operated PoP is simply a well-run instance,
-with no privileged position, no registry to join, and nothing a client must
-trust it for.
+**Any node may serve it**; an operator's PoP is simply a well-run instance, run
+by whoever chooses to run it, with no privileged position, no registry to join,
+and nothing a client must trust it for.
 
 > **The whole security argument in one line: a cache cannot forge, only fail to
 > serve.** Every object on this surface is authenticated by the address it is

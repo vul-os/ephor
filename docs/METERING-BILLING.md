@@ -2,11 +2,14 @@
 
 This chapter explains how the relay measures transfer, how account tiers and quotas gate
 it, exactly what happens when you hit a cap, and how to check your usage against the
-control plane. The headline first: **billing is opt-in**. A self-hosted relay with no
-control-plane wiring runs *unbilled* — tokens are authorized by their name grants and
-nothing is measured, gated, or phoned home. Everything below applies only when a relay
-is linked to Vulos Cloud (`-cp-url` + `-cp-shared-secret`) **and** the agent's
-credential is bound to an account.
+control plane. The headline first: **billing is opt-in, and there is no Vulos-operated
+billing service.** A self-hosted relay with no control-plane wiring runs *unbilled* —
+tokens are authorized by their name grants and nothing is measured, gated, or phoned
+home. Everything below is a **contract** the relay speaks to a control plane (CP) over
+HTTP (`-cp-url` + `-cp-shared-secret`) — it only takes effect once an operator points
+the relay at a CP they run themselves, and only when the agent's credential is bound to
+an account on that CP. This project does not run or sell that CP; if you want tiers,
+quotas, and billing, you (or whoever is operating your relay for you) run one.
 
 ---
 
@@ -95,14 +98,16 @@ background loop flushes **deltas** to the CP:
 ## Tiers and quotas
 
 Quotas are decided by the **control plane**, not the relay: the relay asks and
-enforces, the CP answers from the same billing source as the rest of the suite
-(`GET /api/relay/entitlement`, backed by the CP's quota table joined with
+enforces, the CP answers from whatever quota source its operator wired up
+(`GET /api/relay/entitlement`, expected to be backed by a quota table joined with
 current-month usage). The relay allowance is a **monthly byte budget** plus a
-concurrency cap, per tier. As defined in the CP's quota table at the time of writing
-(`vulos-cloud` `internal/billing/quota_table.go` — the CP's live values govern; check
-your entitlement rather than trusting docs):
+concurrency cap, per tier. Tier names and numbers are entirely the operator's CP's
+own policy — this relay has no built-in tier table and no opinion on what one should
+say. The shape below is illustrative, to show what an entitlement response looks like
+in practice; always check your actual entitlement rather than trusting any table in
+these docs:
 
-| Tier | Relay transfer / month | Relay concurrency |
+| Tier (example) | Relay transfer / month | Relay concurrency |
 |---|---|---|
 | Free | 5 GiB | 5 |
 | Personal | 15 GiB | 10 |
@@ -110,7 +115,7 @@ your entitlement rather than trusting docs):
 | Team | 30 GiB | 20 |
 | Enterprise | 60 GiB | 100 |
 
-Notes on how the CP applies these:
+Notes on how a CP would typically apply these:
 
 - A cap of 0 GiB means "no relay allowance" and is treated as exceeded as soon as any
   usage exists.
@@ -183,11 +188,11 @@ the structured log.
 and consumption right now". Two credential forms are accepted (both fail-closed):
 
 1. **Your install credential** (the one minted by the device-link flow — see
-   [GETTING-STARTED.md](GETTING-STARTED.md#path-b--vulos-hosted-relay-account-linked)):
+   [GETTING-STARTED.md](GETTING-STARTED.md#path-b--operator-hosted-relay-account-linked)):
 
    ```bash
    curl -H "Authorization: Bearer $INSTALL_CREDENTIAL" \
-        https://cloud.vulos.dev/api/relay/entitlement
+        https://cp.example.com/api/relay/entitlement
    ```
 
    The CP also accepts the credential in an `X-Install-Credential` header.
@@ -348,7 +353,7 @@ full flag table):
 
 | Flag | Env | Purpose |
 |---|---|---|
-| `-cp-url` | `VULOS_CP_URL` | Vulos Cloud base URL for entitlement + usage |
+| `-cp-url` | `VULOS_CP_URL` | Your control plane's base URL, for entitlement + usage |
 | `-cp-shared-secret` | `CP_SHARED_SECRET` | HMAC key for `X-Pop-Sig` + service auth for entitlement reads |
 | `-pop-id` | `VULOS_RELAY_POP_ID` | This relay's PoP id (report-id namespace; default derived from the domain) |
 | `-region` | `VULOS_RELAY_REGION` | This relay's geo tag, stamped on usage reports for per-region GB pricing (e.g. `eu-central`, `af-south`); also drives nearest-node routing |

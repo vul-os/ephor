@@ -280,7 +280,7 @@ then `request cut: over quota / entitlement denied`; `over_quota_cuts_total` cli
 
    ```bash
    curl -H "Authorization: Bearer $INSTALL_CREDENTIAL" \
-        https://cloud.vulos.dev/api/relay/entitlement
+        https://cp.example.com/api/relay/entitlement
    ```
 
    Compare `used_bytes` vs `byte_cap` and `used_sessions` vs `turn_cap`; `over_quota`

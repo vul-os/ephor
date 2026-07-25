@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide takes you from zero to a publicly reachable Vulos box: you will run (or point at) a relay server, authorize an agent, expose a local service, and verify the tunnel end to end. The reverse tunnel lets a loopback-bound box publish itself on the public internet with **no inbound ports, no static IP, and no third-party tunnel service** — the box's agent dials one outbound `wss://` connection to a relay, and the relay reverse-proxies public HTTP + WebSocket traffic back down it. There are two paths through this guide: **self-hosted** (you run the relay server too — fully sovereign, no Vulos account required) and **Vulos-hosted** (you run only the agent, link it to a Vulos account, and use a relay operated for you).
+This guide takes you from zero to a publicly reachable Vulos box: you will run (or point at) a relay server, authorize an agent, expose a local service, and verify the tunnel end to end. The reverse tunnel lets a loopback-bound box publish itself on the public internet with **no inbound ports, no static IP, and no third-party tunnel service** — the box's agent dials one outbound `wss://` connection to a relay, and the relay reverse-proxies public HTTP + WebSocket traffic back down it. There are two paths through this guide: **self-hosted** (you run the relay server too — fully sovereign, no account with anyone required) and **operator-hosted** (someone else runs the relay and its control plane; you run only the agent and link it to an account on their control plane). This project neither runs nor sells that second path — it's just what "someone else's already-running relay" looks like from the agent's side.
 
 > Looking for the JS/TS peer-fabric SDK (`@vulos/relay-client` — WebRTC data channels, presence, live cursors)? That is the repo's other deliverable; see the [README quick start](../README.md#quick-start-standalone), [CONFIGURATION.md](CONFIGURATION.md), and [`client/README.md`](../client/README.md). This chapter covers the Go reverse tunnel.
 
@@ -58,7 +58,7 @@ docker pull ghcr.io/vul-os/vulos-relayd:latest
 
 ---
 
-## Path A — self-hosted relay (sovereign, no Vulos account)
+## Path A — self-hosted relay (sovereign, no account with anyone)
 
 ### A1. Create an agent grant
 
@@ -77,7 +77,7 @@ Generate a strong token, e.g. `openssl rand -hex 32`. Names must be DNS-label-sa
 
 Optional grant fields (see [`tunnel/server/auth.go`](../tunnel/server/auth.go)):
 
-- `"account_id"` — links the token to a Vulos account for metering/gating (Path B territory; omit for pure self-host).
+- `"account_id"` — links the token to an account on your control plane for metering/gating (Path B territory; omit for pure self-host).
 - `"expires_at"` (RFC 3339) — the grant stops authorizing after this time (fail-closed self-revocation for leaked tokens).
 - `"previous_token"` — the old secret accepted alongside `token` during a rotation window, so agents roll to a new token without a flag day.
 
@@ -146,16 +146,16 @@ The relay **verifies** the endpoint before advertising it (it must be reachable 
 
 ---
 
-## Path B — Vulos-hosted relay (account-linked)
+## Path B — operator-hosted relay (account-linked)
 
-Here someone else (Vulos Cloud, or any operator running `vulos-relayd` with the control-plane integration) runs the relay; you run only the agent, and your usage is metered against your Vulos account's tier. See [METERING-BILLING.md](METERING-BILLING.md) for tiers and quotas.
+Here someone else — an operator running `vulos-relayd` with the control-plane integration switched on — runs the relay; you run only the agent, and your usage is metered against your tier on their control plane. Nobody named Vulos runs this relay or this control plane for you: this is what it looks like whenever *any* operator, including yourself for a second box, chooses to run one. See [METERING-BILLING.md](METERING-BILLING.md) for tiers and quotas.
 
 ### B1. Link the install to your account (device-code flow)
 
-The control plane mints an **install credential** — an opaque, account-bound bearer token — via a headless device-code flow (endpoints served by Vulos Cloud, not by the relay):
+The control plane mints an **install credential** — an opaque, account-bound bearer token — via a headless device-code flow (endpoints served by that control plane, not by the relay):
 
 1. The install `POST`s `{cp}/api/link/device/start` → `{device_code, user_code, verification_url, interval, expires_in}`.
-2. You open `verification_url` in a browser, sign in to your Vulos account, and enter the `user_code` (this hits `POST {cp}/api/link/device/approve`).
+2. You open `verification_url` in a browser, sign in to your account on that control plane, and enter the `user_code` (this hits `POST {cp}/api/link/device/approve`).
 3. The install polls `POST {cp}/api/link/device/poll` with the `device_code` — `428` while pending, then `{install_credential, account_id}` once approved. The credential is issued exactly once (a second poll gets `410`).
 
 Inside VulOS this flow is driven for you by the OS; a standalone agent install can drive it with three `curl` calls.
@@ -177,15 +177,15 @@ With the CP token store, any valid (DNS-label-safe) name is accepted for a valid
 - **Metering:** bytes and sessions through the relay are flushed to `POST {cp}/api/relay/usage` against your account.
 - **Mid-session (fail-open):** a transient control-plane blip never cuts a live tunnel; a definitive over-quota or revoke verdict does (over-quota returns `402` on your next request).
 
-A static grant with **no** `account_id`, on an unbilled relay, is served with none of this — pure self-host needs no Vulos account.
+A static grant with **no** `account_id`, on an unbilled relay, is served with none of this — pure self-host needs no account with anyone.
 
 ### For operators: hosting the linked relay yourself
 
-To run the account-linked relay tier yourself, give `vulos-relayd` the control-plane wiring:
+To run the account-linked relay tier yourself, give `vulos-relayd` the control-plane wiring, pointed at a control plane you run:
 
 ```bash
 ./vulos-relayd -domain relay.example.com \
-  -cp-url https://cloud.vulos.dev \
+  -cp-url https://cp.example.com \
   -cp-shared-secret "$CP_SHARED_SECRET" \
   -pop-id relay-eu-1 \
   -cp-token-store        # agent tokens ARE CP install credentials

@@ -161,9 +161,9 @@ itself is the **TURN-equivalent fallback** for HTTP/WS reachability; it is delib
   surfaces; non-HTTP protocols are out of scope for now.
 - **Token stores.** Two are built in: a JSON grants file / env var (`server.NewStaticTokenStore`,
   with a static + runtime revoked-list), and a CP-backed store (`-cp-token-store`)
-  that resolves each agent's install credential to its Vulos account against the
-  control plane. `server.TokenStore` is still the seam for a signed-token or fully
-  DB-backed store — those aren't implemented yet.
+  that resolves each agent's install credential to its account against whatever
+  control plane it's linked to. `server.TokenStore` is still the seam for a
+  signed-token or fully DB-backed store — those aren't implemented yet.
 - **No multi-relay HA / sticky sessions.** A name is served by whichever single
   relay instance the agent connected to. Horizontal scaling of the relay tier needs
   a shared session directory (future work); today, run one relay per region/cell.
@@ -258,7 +258,7 @@ UNBILLED (pure self-host).
 
 | Flag | Env | Default | Purpose |
 |------|-----|---------|---------|
-| `-cp-url` | `VULOS_CP_URL` | — | Vulos Cloud base URL for entitlement/usage. |
+| `-cp-url` | `VULOS_CP_URL` | — | Your control plane's base URL, for entitlement/usage. |
 | `-cp-shared-secret` | `CP_SHARED_SECRET` | — | Shared secret for the usage HMAC + entitlement service auth. |
 | `-pop-id` | `VULOS_RELAY_POP_ID` | derived from domain | This relay's PoP id (usage dedup per-PoP). |
 | `-cp-token-store` | `VULOS_RELAY_CP_TOKENS=1` | `false` | Resolve agent tokens as CP install credentials instead of a static grants file (requires `-cp-url` + `-cp-shared-secret`). |
@@ -282,10 +282,11 @@ caps that bound abuse. When any soft cap is set, the node publishes
 `vulos_relay_saturation_ratio` on `/metrics`. See the pool/autoscale section below.
 
 **Smart autoscaler — CP PoP registration + heartbeat (optional, CP-driven)** —
-register this PoP with Vulos Cloud and heartbeat its load so a CP-side autoscaler
-can place agents and drive graceful drains (see "Smart autoscaler — the CP↔relay
-contract" below). Requires the CP link (`-cp-url`/`-cp-shared-secret`); with no CP
-or no `-public-endpoint` the relay runs unregistered (self-host / CP-optional).
+register this PoP with your control plane and heartbeat its load so a CP-side
+autoscaler can place agents and drive graceful drains (see "Smart autoscaler — the
+CP↔relay contract" below). Requires the CP link (`-cp-url`/`-cp-shared-secret`);
+with no CP or no `-public-endpoint` the relay runs unregistered (self-host /
+CP-optional).
 
 | Flag | Env | Default | Purpose |
 |------|-----|---------|---------|
@@ -330,8 +331,8 @@ is cached or served unless its bytes match its content address.
 | `-pubcache-serve-feeds` | `VULOS_RELAY_PUBCACHE_SERVE_FEEDS` | `off` | Also proxy the **mutable** feed head/range reads. Never cached — a feed head is signature-authenticated, which this node cannot verify. |
 
 **Grants JSON:** each grant is a token, the names it may serve, and an optional
-`account_id` (link the token to a Vulos account for gating + metering; omit it to
-serve the token unbilled).
+`account_id` (link the token to an account on your control plane for gating +
+metering; omit it to serve the token unbilled).
 ```json
 [
   {"token": "SECRET1", "names": ["box1"]},
@@ -424,11 +425,11 @@ node's `-pop-id` (set it per node/region so usage dedups and attributes per PoP)
 
 ## Smart autoscaler — the CP↔relay contract
 
-The pool above is the in-process/library view; the **managed** service adds a
-**CP-driven** control loop so a Vulos Cloud autoscaler can place agents on the
-nearest, least-loaded PoP and scale the pool up/down **gracefully** (relay tunnels
-are sticky and stateful — a scale-down must never drop a live tunnel). It is
-**CP-OPTIONAL**: a self-host relay with no CP configured runs none of this; a
+The pool above is the in-process/library view; a **CP-linked** deployment adds a
+**CP-driven** control loop so its operator's own autoscaler can place agents on
+the nearest, least-loaded PoP and scale the pool up/down **gracefully** (relay
+tunnels are sticky and stateful — a scale-down must never drop a live tunnel). It
+is **CP-OPTIONAL**: a self-host relay with no CP configured runs none of this; a
 standalone agent with no directory dials `-server` statically. All of it reuses the
 existing CP link (`CP_SHARED_SECRET` + the same `X-Pop-Sig` HMAC as usage reports).
 
@@ -526,7 +527,7 @@ its **CP-assigned** PoP (nearest + least-loaded) instead of a fixed `-server`, a
 migrates automatically when its PoP drains:
 
 ```
-vulos-relay-agent -directory https://cloud.vulos.org -region eu-central \
+vulos-relay-agent -directory https://cp.example.com -region eu-central \
   -server wss://relay.example.com \   # fallback if the directory is unreachable
   -token SECRET1 -name box1 -local 127.0.0.1:8080
 ```
@@ -541,10 +542,10 @@ vulos-relay-agent -directory https://cloud.vulos.org -region eu-central \
 ## Account-linking + usage metering (optional)
 
 A self-host relay runs **UNBILLED** by default: tokens are authorized (name grants)
-but no account gating or metering happens — no Vulos account required.
+but no account gating or metering happens — no account with anyone required.
 
 Linking is opt-in. Run `vulos-relayd` with `-cp-url` + `-cp-shared-secret` (+
-`-pop-id`) to connect it to Vulos Cloud, after which the relay:
+`-pop-id`) to connect it to your control plane, after which the relay:
 
 - **Gates** each account-bound token against its relay entitlement
   (`GET /api/relay/entitlement`) — fails **closed** at connect (a denied or

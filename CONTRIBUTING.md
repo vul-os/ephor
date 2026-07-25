@@ -34,8 +34,8 @@ The SDK targets browser environments (WebSocket, BroadcastChannel, WebRTC).
 Unit tests run under Vitest with jsdom. There's also a real-browser boot-guard
 suite (`npm run test:e2e`, Playwright/Chromium) that builds the library and
 imports it through its actual `exports` map, catching build-output breakage
-the jsdom unit tests can't see (Office/Meet/Talk import the built `dist-lib/`,
-not the source).
+the jsdom unit tests can't see (Ofisi imports the built `dist-lib/`, not the
+source).
 
 ### Relay service (Go: `cmd/`, `tunnel/`)
 
@@ -105,7 +105,9 @@ handling, session isolation, SSRF guards) require explicit test coverage.
 - **No Google SSO / OAuth.**
 - **No Stripe billing.**
 - **No Rust rewrites.**
-- Features that require vulos-cloud coordination belong in vulos-cloud, not here.
+- Features that require centralized account-linking or billing coordination
+  belong in a control plane an operator runs, not in this relay — this repo
+  stays control-plane-optional and fully self-hostable on its own.
 - New external dependencies (npm or Go module) without prior issue discussion.
 
 ## Licensing

@@ -14,8 +14,8 @@ name is not final — see Open decisions.)
 
 ## Current state (as of handover)
 
-- Renamed from `vulos-relay` (folder + remote → `git@github.com:vul-os/ephor.git`). GitHub
-  description/topics may still read "relay" — update them.
+- This repo lives at `git@github.com:vul-os/ephor.git`. GitHub description/topics
+  may still read "relay" — update them.
 - Existing code is **Go** (a reverse-tunnel server, frp/ngrok replacement, wss + yamux,
   SSRF-guarded) + a **JS client SDK** (`@vulos/relay-client`, WebRTC peer-fabric). Clean tree,
   157 commits, all preserved.
