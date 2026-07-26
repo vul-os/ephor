@@ -1,5 +1,5 @@
 // Package autoscale is the relay's app-level, provider-agnostic capacity control
-// plane. It is the machinery that lets the sovereign Vulos relay run as a
+// plane. It is the machinery that lets the sovereign Ephor relay run as a
 // geo-distributed POOL of nodes (Hetzner primary, Vultr edge/HA — flat-bandwidth
 // hosts with NO managed autoscaler) and grow/shrink that pool as load moves.
 //

@@ -1,4 +1,4 @@
-// Command vulos-relayd runs the sovereign Vulos relay server: the public half of
+// Command vulos-relayd runs the sovereign Ephor relay server: the public half of
 // the reverse tunnel. It replaces a third-party frp server with a self-hosted one.
 //
 // Deployment shape:

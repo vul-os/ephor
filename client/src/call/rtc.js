@@ -13,7 +13,7 @@
 //   * ICE/STUN/TURN: ICE servers come from /api/turn/credentials (the cloud
 //     issues short-lived TURN creds — the same path the OS fabric uses).
 //     We force iceTransportPolicy='relay' as a fallback when a peer fails
-//     to reach 'connected' via direct ICE, which is the Vulos relay/TURN
+//     to reach 'connected' via direct ICE, which is the Ephor relay/TURN
 //     fallback equivalent for media.
 //   * Active speaker: WebAudio AnalyserNodes on every incoming MediaStream;
 //     the loudest peer ID is emitted on 'active-speaker' (throttled).
@@ -139,7 +139,7 @@ class PeerConn {
       }
       if (s === 'failed') {
         if (!this.usingRelay) {
-          // Tear down and rebuild forcing TURN relay — Vulos relay fallback.
+          // Tear down and rebuild forcing TURN relay — Ephor relay fallback.
           console.warn('[call] ICE failed; retrying via TURN relay for', this.remotePeerId)
           this.usingRelay = true
           this._rebuild(true)

@@ -1,4 +1,4 @@
-// Package server is the sovereign Vulos relay: the public half of the reverse
+// Package server is the sovereign Ephor relay: the public half of the reverse
 // tunnel. It replaces a third-party frp server with our own, self-hostable relay.
 //
 // It runs TWO logical surfaces on one HTTPS listener:

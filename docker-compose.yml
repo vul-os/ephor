@@ -1,4 +1,4 @@
-# docker-compose.yml — one-command self-host of a sovereign Vulos relay.
+# docker-compose.yml — one-command self-host of a sovereign Ephor relay.
 #
 #   ./scripts/install.sh          # generates .env + grants.json, then brings this up
 #   docker compose up -d          # if you prefer to configure by hand

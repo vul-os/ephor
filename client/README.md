@@ -2,7 +2,7 @@
 
 > <img src="../docs/assets/vulos-logo.png" height="14" alt="VulOS"> Part of **[VulOS](https://vulos.org)** — the open, self-hostable web OS &amp; app suite. This is the client SDK for **Ephor**, the suite's connectivity fabric. Runs standalone, or as an app hosted by the Vulos OS.
 
-MIT-licensed JS client for the Vulos peer-fabric relay. It runs in the browser
+MIT-licensed JS client for the Ephor peer-fabric relay. It runs in the browser
 and is consumable by any web surface that speaks the peering contract.
 
 This package runs in the browser and talks to the **host application's peering
