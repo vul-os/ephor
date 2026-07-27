@@ -1,0 +1,34 @@
+# Caddyfile — TLS terminator in front of vulos-relayd.
+#
+# Caddy obtains and renews Let's Encrypt certificates automatically and proxies
+# HTTPS (443) + HTTP (80) to the relay's loopback plain-HTTP port (127.0.0.1:8443).
+# WebSocket upgrades pass through reverse_proxy transparently — no extra config.
+#
+# Install:  sudo install -Dm644 deploy/Caddyfile /etc/caddy/Caddyfile
+#           sudo systemctl reload caddy
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# PATH MODE (recommended to start) — single hostname, HTTP-01 challenge, stock
+# Caddy, no DNS-provider plugin. Set VULOS_RELAY_PATH_MODE=1 in relayd.env.
+# Reach a box at https://relay.example.com/t/box1/
+# ─────────────────────────────────────────────────────────────────────────────
+relay.example.com {
+	reverse_proxy 127.0.0.1:8443
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SUBDOMAIN MODE (nicer URLs: https://box1.relay.example.com) — needs a WILDCARD
+# certificate, which Let's Encrypt only issues over the DNS-01 challenge. That
+# requires a Caddy built with your DNS provider's plugin (e.g. via xcaddy:
+#   xcaddy build --with github.com/caddy-dns/cloudflare
+# or the caddy Docker image with the plugin baked in) and an API token.
+#
+# Unset VULOS_RELAY_PATH_MODE, add wildcard DNS (see docs/CLOUD-SETUP.md), then
+# replace the block above with this one (Cloudflare shown; swap for your DNS provider):
+#
+# *.relay.example.com, relay.example.com {
+#	tls {
+#		dns cloudflare {env.CF_API_TOKEN}
+#	}
+#	reverse_proxy 127.0.0.1:8443
+# }

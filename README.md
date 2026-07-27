@@ -331,6 +331,9 @@ static IP, no third-party relay.
 ./scripts/install.sh --domain relay.example.com   # one command, needs Docker Compose
 ```
 
+Standing it up on a fresh cloud VPS with a static IP (DNS, Let's Encrypt, systemd,
+firewall — the copy-pasteable golden path): **[docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md)**.
+
 or run the binaries directly:
 
 ```bash
@@ -390,6 +393,7 @@ design) and is off by default, explicit opt-in.
 | [console/README.md](console/README.md) | Operator console views, stack, mock mode, screenshot pipeline |
 | [brand/README.md](brand/README.md) | The Bronze comma mark — concept, palette, file map, usage rules |
 | [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) | Zero-to-reachable-box walkthrough (Go relay) |
+| [docs/CLOUD-SETUP.md](docs/CLOUD-SETUP.md) | Golden path: run a relay on a VPS with a static IP — DNS, Let's Encrypt/Caddy, systemd, firewall |
 | [docs/SECURITY.md](docs/SECURITY.md) | Go relay trust model — what the operator can/cannot see |
 | [docs/TUNNEL.md](docs/TUNNEL.md) | Full server flag/env reference & deploy notes (Go relay) |
 | [docs/TUNNEL-GUIDE.md](docs/TUNNEL-GUIDE.md) | Protocol/lifecycle deep dive — wss+yamux, reconnects |

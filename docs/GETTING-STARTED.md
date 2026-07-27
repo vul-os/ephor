@@ -60,6 +60,8 @@ docker pull ghcr.io/vul-os/vulos-relayd:latest
 
 ## Path A — self-hosted relay (sovereign, no account with anyone)
 
+> **Deploying on a fresh cloud VPS with a static IP?** Follow the copy-pasteable golden path in **[CLOUD-SETUP.md](CLOUD-SETUP.md)** — it walks the whole thing (DNS A record, Let's Encrypt via Caddy, a systemd unit that survives reboots, firewall, then pointing a box at it) using the ready-made units in [`deploy/`](../deploy). The steps below are the same pieces explained flag-by-flag.
+
 ### A1. Create an agent grant
 
 The relay refuses to run "open": it requires a token store. The simplest is a static grants file — a JSON array of `{token, names}` entries. A token may serve **only** the names it is granted.

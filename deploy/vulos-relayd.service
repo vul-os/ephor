@@ -1,0 +1,46 @@
+[Unit]
+# Ephor relay server (vulos-relayd) — the PUBLIC half of the reverse tunnel.
+# Runs on a host with a static IP / public interface. See docs/CLOUD-SETUP.md.
+Description=Ephor relay server (vulos-relayd)
+Documentation=https://github.com/vul-os/vulos-relay/blob/main/docs/CLOUD-SETUP.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# All configuration comes from the env file (every relayd flag used here has an
+# env twin: VULOS_RELAY_ADDR, VULOS_RELAY_DOMAIN, VULOS_RELAY_TOKENS,
+# VULOS_RELAY_PATH_MODE, VULOS_RELAY_TRUST_PROXY_HEADERS, VULOS_RELAY_ADMIN_ADDR).
+# Keep this file 0600 root:root — VULOS_RELAY_TOKENS holds bearer credentials.
+EnvironmentFile=/etc/vulos-relayd/relayd.env
+ExecStart=/usr/local/bin/vulos-relayd
+Restart=on-failure
+RestartSec=2s
+
+# Graceful drain: main() traps SIGTERM and finishes in-flight requests before
+# exiting, so give it room before systemd escalates to SIGKILL.
+KillSignal=SIGTERM
+TimeoutStopSec=30s
+
+# ── Hardening — this process needs no privileges, no write access, no home ────
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+# The relay binds a low-numbered port only if you set VULOS_RELAY_ADDR=:443 for
+# in-process TLS. The golden path binds loopback :8443 behind Caddy and needs no
+# capability. Uncomment the next two lines only for the direct :443 bind.
+#AmbientCapabilities=CAP_NET_BIND_SERVICE
+#CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+[Install]
+WantedBy=multi-user.target
