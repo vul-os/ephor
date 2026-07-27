@@ -60,7 +60,10 @@ fn coord1_reachability_adapter_descriptor_signature_really_verifies() {
     let ik = IdentityKey::from_seed(&[0x61; 32]);
     let d = own_domain_descriptor(&ik);
     let signed = d.sign(&ik);
-    assert!(signed.verify().is_ok(), "a genuinely-signed adapter descriptor must verify");
+    assert!(
+        signed.verify().is_ok(),
+        "a genuinely-signed adapter descriptor must verify"
+    );
 }
 
 /// **Proves:** a descriptor tampered with after signing (its visibility claim flipped) fails
@@ -73,7 +76,10 @@ fn coord1_tampered_reachability_adapter_descriptor_fails_verification() {
     let ik = IdentityKey::from_seed(&[0x62; 32]);
     let d = own_domain_descriptor(&ik);
     let mut signed = d.sign(&ik);
-    assert!(signed.verify().is_ok(), "sanity: untampered descriptor verifies");
+    assert!(
+        signed.verify().is_ok(),
+        "sanity: untampered descriptor verifies"
+    );
 
     // Tamper: silently downgrade/alter the visibility claim after signing — exactly the
     // misrepresentation COORD-5 forbids.
@@ -95,7 +101,10 @@ fn coord1_reachability_adapter_descriptor_signed_by_wrong_key_fails_verification
     let actual_signer = IdentityKey::from_seed(&[0x64; 32]);
     let d = own_domain_descriptor(&claimed);
     let signed = d.sign(&actual_signer);
-    assert!(signed.verify().is_err(), "signed-by-the-wrong-key must not verify");
+    assert!(
+        signed.verify().is_err(),
+        "signed-by-the-wrong-key must not verify"
+    );
 }
 
 // =================================================================================================
@@ -116,7 +125,10 @@ fn reach1a_own_domain_is_structural_and_signature_verifies() {
     assert!(!a.descriptor().visibility.must_not_present_as_verified());
 
     let signed = a.descriptor().sign(&ik);
-    assert!(signed.verify().is_ok(), "a real signature over an own-domain descriptor verifies");
+    assert!(
+        signed.verify().is_ok(),
+        "a real signature over an own-domain descriptor verifies"
+    );
 }
 
 /// **Proves:** a bare adapter-zone vanity (the adapter is the zone's sole writer and COULD mint
@@ -188,8 +200,13 @@ async fn spawn_fake_box(
         let mut services = HashSet::new();
         services.insert(service);
         let ik = IdentityKey::generate();
-        let registration = Registration { name, allowed_services: services };
-        authenticate_as_box(&mut ctrl, &ik, &registration).await.unwrap();
+        let registration = Registration {
+            name,
+            allowed_services: services,
+        };
+        authenticate_as_box(&mut ctrl, &ik, &registration)
+            .await
+            .unwrap();
 
         use tokio_util::compat::TokioAsyncReadCompatExt;
         let io = ctrl.compat();
@@ -316,7 +333,10 @@ async fn coord5_adapter_holds_no_decrypting_key_and_splices_ciphertext_like_byte
     let ingress_server = server.clone();
     tokio::spawn(async move {
         let (socket, _) = ingress_listener.accept().await.unwrap();
-        ingress_server.handle_ingress_connection(socket, "https").await.unwrap();
+        ingress_server
+            .handle_ingress_connection(socket, "https")
+            .await
+            .unwrap();
     });
 
     let mut client = TcpStream::connect(ingress_addr).await.unwrap();
@@ -335,8 +355,9 @@ async fn coord5_adapter_holds_no_decrypting_key_and_splices_ciphertext_like_byte
     // no recognizable structure — exactly what the adapter would see if it were actually carrying
     // an encrypted TLS session, and exactly what it could NOT reproduce byte-for-byte if it were
     // decrypting and re-encrypting (it holds no key to do either).
-    let ciphertext_like: Vec<u8> =
-        (0..4096u32).map(|i| ((i.wrapping_mul(2654435761u32)) >> 21) as u8).collect();
+    let ciphertext_like: Vec<u8> = (0..4096u32)
+        .map(|i| ((i.wrapping_mul(2654435761u32)) >> 21) as u8)
+        .collect();
     assert!(
         std::str::from_utf8(&ciphertext_like).is_err(),
         "sanity: the probe payload is not valid UTF-8 / plaintext-shaped, like real ciphertext"
@@ -368,14 +389,20 @@ async fn coord5_routing_depends_on_sni_alone_not_on_payload_content() {
     let control_addr_a = control_listener_a.local_addr().unwrap();
     let _box_a = spawn_fake_box(control_listener_a, "a.reach.example", "https").await;
     let control_client_a = TcpStream::connect(control_addr_a).await.unwrap();
-    server.accept_box_connection(control_client_a).await.unwrap();
+    server
+        .accept_box_connection(control_client_a)
+        .await
+        .unwrap();
     wait_until_registered(&server, "a.reach.example").await;
 
     let control_listener_b = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let control_addr_b = control_listener_b.local_addr().unwrap();
     let _box_b = spawn_fake_box(control_listener_b, "b.reach.example", "https").await;
     let control_client_b = TcpStream::connect(control_addr_b).await.unwrap();
-    server.accept_box_connection(control_client_b).await.unwrap();
+    server
+        .accept_box_connection(control_client_b)
+        .await
+        .unwrap();
     wait_until_registered(&server, "b.reach.example").await;
 
     // Byte-identical application payload for BOTH connections — only the SNI differs.
@@ -387,7 +414,10 @@ async fn coord5_routing_depends_on_sni_alone_not_on_payload_content() {
         let ingress_server = server.clone();
         tokio::spawn(async move {
             let (socket, _) = ingress_listener.accept().await.unwrap();
-            ingress_server.handle_ingress_connection(socket, "https").await.unwrap();
+            ingress_server
+                .handle_ingress_connection(socket, "https")
+                .await
+                .unwrap();
         });
 
         let mut client = TcpStream::connect(ingress_addr).await.unwrap();
@@ -421,7 +451,9 @@ async fn coord5_unregistered_name_fails_closed_never_falls_back() {
     let ingress_server = server.clone();
     let handled = tokio::spawn(async move {
         let (socket, _) = ingress_listener.accept().await.unwrap();
-        ingress_server.handle_ingress_connection(socket, "https").await
+        ingress_server
+            .handle_ingress_connection(socket, "https")
+            .await
     });
 
     let mut client = TcpStream::connect(ingress_addr).await.unwrap();

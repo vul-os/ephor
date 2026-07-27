@@ -84,7 +84,10 @@ impl ComputeCoordinator {
     /// `broker_conformance::check` finding. Prefer [`ComputeCoordinator::signed`] for the common
     /// case of minting a fresh, correctly-shaped descriptor.
     pub fn new(descriptor: Descriptor, metered: bool) -> Self {
-        Self { descriptor, metered }
+        Self {
+            descriptor,
+            metered,
+        }
     }
 
     /// Build **and sign** a fresh, correctly-shaped `compute` descriptor from a real `kotva-core`
@@ -161,18 +164,34 @@ mod tests {
 
     #[test]
     fn signed_compute_descriptor_verifies_and_declares_terminating_by_default() {
-        let (_coord, signed) =
-            ComputeCoordinator::signed(&ik(1), ComputeChannel::Terminating, Cbor::empty(), None, false);
-        assert!(signed.verify().is_ok(), "a real kotva-core signature must verify");
+        let (_coord, signed) = ComputeCoordinator::signed(
+            &ik(1),
+            ComputeChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
+        assert!(
+            signed.verify().is_ok(),
+            "a real kotva-core signature must verify"
+        );
         assert_eq!(signed.descriptor.kind.as_str(), "compute");
-        assert_eq!(signed.descriptor.visibility.class, VisibilityClass::Terminating);
+        assert_eq!(
+            signed.descriptor.visibility.class,
+            VisibilityClass::Terminating
+        );
         assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Declared);
     }
 
     #[test]
     fn attested_blind_compute_declares_blind_attested() {
-        let (_coord, signed) =
-            ComputeCoordinator::signed(&ik(2), ComputeChannel::Attested, Cbor::empty(), None, false);
+        let (_coord, signed) = ComputeCoordinator::signed(
+            &ik(2),
+            ComputeChannel::Attested,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert_eq!(signed.descriptor.visibility.class, VisibilityClass::Blind);
         assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Attested);
         assert!(signed.descriptor.visibility.is_verifiably_blind());
@@ -180,16 +199,26 @@ mod tests {
 
     #[test]
     fn a_free_compute_coordinator_is_fully_conformant() {
-        let (coord, _signed) =
-            ComputeCoordinator::signed(&ik(3), ComputeChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = ComputeCoordinator::signed(
+            &ik(3),
+            ComputeChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         let report = check(&coord);
         assert!(report.is_conformant(), "{:?}", report.findings);
     }
 
     #[test]
     fn a_metered_compute_coordinator_is_also_conformant() {
-        let (coord, _signed) =
-            ComputeCoordinator::signed(&ik(4), ComputeChannel::Terminating, Cbor::empty(), None, true);
+        let (coord, _signed) = ComputeCoordinator::signed(
+            &ik(4),
+            ComputeChannel::Terminating,
+            Cbor::empty(),
+            None,
+            true,
+        );
         let report = check(&coord);
         assert!(report.is_conformant(), "{:?}", report.findings);
         assert!(matches!(coord.metering(), Metering::SignedReceiptsToPayer));
@@ -197,23 +226,38 @@ mod tests {
 
     #[test]
     fn compute_has_no_delivery_path_to_gate() {
-        let (coord, _signed) =
-            ComputeCoordinator::signed(&ik(5), ComputeChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = ComputeCoordinator::signed(
+            &ik(5),
+            ComputeChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.delivery_path_gate(), Gate::NoDeliveryPath));
     }
 
     #[test]
     fn compute_is_not_the_scarce_reachability_exception() {
         assert!(!CoordinatorKind::Compute.is_scarce_reachability());
-        let (coord, _signed) =
-            ComputeCoordinator::signed(&ik(6), ComputeChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = ComputeCoordinator::signed(
+            &ik(6),
+            ComputeChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.self_host(), SelfHost::Backstop));
     }
 
     #[test]
     fn compute_mints_no_token() {
-        let (coord, _signed) =
-            ComputeCoordinator::signed(&ik(7), ComputeChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = ComputeCoordinator::signed(
+            &ik(7),
+            ComputeChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.settlement(), Settlement::ExistingAssetsOnly));
     }
 

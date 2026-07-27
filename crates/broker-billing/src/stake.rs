@@ -34,7 +34,8 @@ pub trait StakeVerifier {
     /// staked/locked on the rail right now. Any inability to verify — a query failure, an
     /// unrecognized identity, a stale/unreachable rail — MUST surface as `Ok(false)` or `Err`,
     /// never as `Ok(true)` by default.
-    fn verify_stake(&self, identity: &[u8], asset: &str, minimum: u64) -> Result<bool, Self::Error>;
+    fn verify_stake(&self, identity: &[u8], asset: &str, minimum: u64)
+        -> Result<bool, Self::Error>;
 }
 
 /// The fail-closed reference [`StakeVerifier`]: no rail is wired in, so every claim is
@@ -48,7 +49,12 @@ pub struct NoStakeRail;
 impl StakeVerifier for NoStakeRail {
     type Error = std::convert::Infallible;
 
-    fn verify_stake(&self, _identity: &[u8], _asset: &str, _minimum: u64) -> Result<bool, Self::Error> {
+    fn verify_stake(
+        &self,
+        _identity: &[u8],
+        _asset: &str,
+        _minimum: u64,
+    ) -> Result<bool, Self::Error> {
         Ok(false)
     }
 }

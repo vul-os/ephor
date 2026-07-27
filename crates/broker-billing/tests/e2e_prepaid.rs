@@ -27,7 +27,10 @@ fn e2e_full_prepaid_lifecycle_through_a_recommended_tariff() {
     let schedule = recommended_tariff(CoordinatorPricingKind::Relay, &HostingProfile::HETZNER_CX);
     assert_eq!(schedule.currency, "USD");
     let price_per_gib = *schedule.prices.get(&ResourceKind::BytesForwarded).unwrap();
-    assert!(price_per_gib > 0, "a recommended tariff must never silently price at zero");
+    assert!(
+        price_per_gib > 0,
+        "a recommended tariff must never silently price at zero"
+    );
 
     // The operator signs the recommended schedule with their real coordinator identity — proves
     // it rides the same signed-Tariff mechanism as any hand-authored schedule (CONTRACT §6: the
@@ -49,7 +52,11 @@ fn e2e_full_prepaid_lifecycle_through_a_recommended_tariff() {
 
     // 3. Simulated billing events driving the real pipeline deterministically.
     let events = vec![
-        BillingEvent::TopUp { payer: payer.clone(), amount: price_per_gib * 10, funding_ref: "patala-topup-ref-1".into() },
+        BillingEvent::TopUp {
+            payer: payer.clone(),
+            amount: price_per_gib * 10,
+            funding_ref: "patala-topup-ref-1".into(),
+        },
         BillingEvent::MeteredUsage {
             payer: payer.clone(),
             kind: ResourceKind::BytesForwarded,
@@ -59,7 +66,9 @@ fn e2e_full_prepaid_lifecycle_through_a_recommended_tariff() {
     let outcomes = engine.replay(&events);
 
     // top-up, then a successful debit with receipts issued.
-    assert!(matches!(outcomes[0], BillingOutcome::ToppedUp(ref r) if r.amount == price_per_gib * 10));
+    assert!(
+        matches!(outcomes[0], BillingOutcome::ToppedUp(ref r) if r.amount == price_per_gib * 10)
+    );
     let (debit_amount, receipts) = match &outcomes[1] {
         BillingOutcome::Debited { record, receipts } => (record.amount, receipts.clone()),
         other => panic!("expected a successful debit, got {other:?}"),
@@ -88,7 +97,9 @@ fn e2e_full_prepaid_lifecycle_through_a_recommended_tariff() {
     let card_rail = InMemoryLedger::new();
     card_rail.deposit(&payer, 5_000, "USD");
     let subscription = Subscription::new(payer.clone(), 999, "USD");
-    let settlement_receipt = subscription.charge(&card_rail).expect("mock rail has funds");
+    let settlement_receipt = subscription
+        .charge(&card_rail)
+        .expect("mock rail has funds");
     assert_eq!(settlement_receipt.amount, 999);
     assert_eq!(card_rail.balance(&payer, "USD").unwrap(), 5_000 - 999);
     // Wholly independent of the prepaid ledger's own balance.
@@ -115,8 +126,16 @@ fn e2e_low_balance_and_exhausted_transitions() {
     let mut engine = SimEngine::new(ledger, schedule, ik, &rail);
 
     let outcomes = engine.replay(&[
-        BillingEvent::TopUp { payer: payer.clone(), amount: 200, funding_ref: "ref-a".into() },
-        BillingEvent::MeteredUsage { payer: payer.clone(), kind: ResourceKind::Messages, units: 14 }, // -140 -> insufficient? balance 200
+        BillingEvent::TopUp {
+            payer: payer.clone(),
+            amount: 200,
+            funding_ref: "ref-a".into(),
+        },
+        BillingEvent::MeteredUsage {
+            payer: payer.clone(),
+            kind: ResourceKind::Messages,
+            units: 14,
+        }, // -140 -> insufficient? balance 200
     ]);
     // 14 messages * 10 = 140; balance 200 -> 60, still Ok (> 50 threshold).
     assert!(matches!(outcomes[1], BillingOutcome::Debited { .. }));
@@ -140,17 +159,29 @@ fn e2e_low_balance_and_exhausted_transitions() {
         units: 6, // 60 needed, only 50 available
     }]);
     assert!(matches!(outcomes[0], BillingOutcome::DebitFailed { .. }));
-    assert_eq!(engine.ledger().balance(&payer), 50, "a failed debit must not change the balance");
+    assert_eq!(
+        engine.ledger().balance(&payer),
+        50,
+        "a failed debit must not change the balance"
+    );
     assert_eq!(engine.receipt_log().receipts().len(), before_receipts);
 
     // Drain to exactly zero -> Exhausted.
-    let outcomes = engine.replay(&[BillingEvent::MeteredUsage { payer: payer.clone(), kind: ResourceKind::Messages, units: 5 }]);
+    let outcomes = engine.replay(&[BillingEvent::MeteredUsage {
+        payer: payer.clone(),
+        kind: ResourceKind::Messages,
+        units: 5,
+    }]);
     assert!(matches!(outcomes[0], BillingOutcome::Debited { .. }));
     assert!(matches!(outcomes[1], BillingOutcome::Exhausted { .. }));
     assert_eq!(engine.ledger().balance(&payer), 0);
 
     // A top-up recovers the account.
-    engine.replay(&[BillingEvent::TopUp { payer: payer.clone(), amount: 1_000, funding_ref: "ref-b".into() }]);
+    engine.replay(&[BillingEvent::TopUp {
+        payer: payer.clone(),
+        amount: 1_000,
+        funding_ref: "ref-b".into(),
+    }]);
     assert_eq!(engine.ledger().balance(&payer), 1_000);
 }
 
@@ -175,9 +206,20 @@ fn e2e_refund_conservation_through_the_event_stream() {
     let mut engine = SimEngine::new(ledger, schedule, ik, &rail);
 
     engine.replay(&[
-        BillingEvent::TopUp { payer: payer.clone(), amount: 900, funding_ref: "ref-1".into() },
-        BillingEvent::MeteredUsage { payer: payer.clone(), kind: ResourceKind::ComputeSeconds, units: 100 }, // -300
-        BillingEvent::Refund { payer: payer.clone(), amount: 150 },
+        BillingEvent::TopUp {
+            payer: payer.clone(),
+            amount: 900,
+            funding_ref: "ref-1".into(),
+        },
+        BillingEvent::MeteredUsage {
+            payer: payer.clone(),
+            kind: ResourceKind::ComputeSeconds,
+            units: 100,
+        }, // -300
+        BillingEvent::Refund {
+            payer: payer.clone(),
+            amount: 150,
+        },
     ]);
 
     let total_topped_up: u64 = engine.ledger().top_ups().iter().map(|r| r.amount).sum();
@@ -186,7 +228,10 @@ fn e2e_refund_conservation_through_the_event_stream() {
     assert_eq!(total_topped_up, 900);
     assert_eq!(total_debited, 300);
     assert_eq!(total_refunded, 150);
-    assert_eq!(engine.ledger().balance(&payer), total_topped_up - total_debited - total_refunded);
+    assert_eq!(
+        engine.ledger().balance(&payer),
+        total_topped_up - total_debited - total_refunded
+    );
     assert_eq!(engine.ledger().balance(&payer), 450);
 }
 
@@ -216,7 +261,9 @@ fn e2e_fabricated_operations_receipt_still_verifies() {
         .evaluate(&BTreeMap::from([(ResourceKind::BytesForwarded, 100u64)]))
         .unwrap();
     let mut log = ReceiptLog::new();
-    let (real_debit, real_receipts) = ledger.debit_and_receipt(&payer, &bill, &mut log, &ik).unwrap();
+    let (real_debit, real_receipts) = ledger
+        .debit_and_receipt(&payer, &bill, &mut log, &ik)
+        .unwrap();
     assert_eq!(real_debit.amount, 100);
     assert!(real_receipts[0].verify().is_ok());
     assert_eq!(ledger.balance(&payer), 900);

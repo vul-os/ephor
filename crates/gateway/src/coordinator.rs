@@ -8,7 +8,9 @@
 //! (SPF/DKIM/DMARC authentication + the pre-`DATA` anti-abuse gate) and does **not** run spam
 //! scoring or ML content filters on the delivery path (CONTRACT §4, spec §7.11.4).
 
-use broker_conformance::{Coordinator, Gate, LockIn, Metering, SelfHost, Settlement};
+use broker_conformance::{
+    Coordinator, Gate, LockIn, Metering, ScarceResource, SelfHost, Settlement,
+};
 use broker_economics::descriptor::Descriptor;
 use broker_economics::kinds::CoordinatorKind;
 use broker_economics::visibility::{AssuranceLevel, ContentVisibility, VisibilityClass};
@@ -75,7 +77,10 @@ impl Coordinator for GatewayCoordinator {
     fn self_host(&self) -> SelfHost {
         // The disclosed exception: a reputable IP + unblocked port 25 is a scarce network resource
         // an ISP/host allocates (CONTRACT §2.3, THREAT-MODEL R-6).
-        SelfHost::ScarceReachabilityException
+        //
+        // Named explicitly rather than inferred from the kind, because §26 puts
+        // legacy-rail adapters in this same kind and they need no such resource.
+        SelfHost::ScarceReachabilityException(ScarceResource::SmtpEgress)
     }
 
     fn delivery_path_gate(&self) -> Gate {
@@ -120,10 +125,7 @@ mod tests {
     #[test]
     fn gateway_declares_terminating_and_is_contract_conformant() {
         let g = gw(false);
-        assert_eq!(
-            g.descriptor().visibility.class,
-            VisibilityClass::Terminating
-        );
+        assert_eq!(g.descriptor().visibility.class, VisibilityClass::Terminating);
         // Terminating is disclosed, not mispresented as verified-blind.
         assert!(!g.descriptor().visibility.is_verifiably_blind());
         assert!(!g.descriptor().visibility.must_not_present_as_verified());

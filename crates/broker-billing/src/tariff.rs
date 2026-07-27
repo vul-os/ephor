@@ -184,7 +184,11 @@ impl TariffSchedule {
 fn resource_price_map(cv: Cv) -> Result<BTreeMap<ResourceKind, u64>, BillingError> {
     let entries = match cv {
         Cv::Map(m) => m,
-        _ => return Err(BillingError::Malformed("expected a resource-kind price map")),
+        _ => {
+            return Err(BillingError::Malformed(
+                "expected a resource-kind price map",
+            ))
+        }
     };
     let mut out = BTreeMap::new();
     for (tag, v) in entries {
@@ -304,7 +308,10 @@ mod tests {
         let mut usage = BTreeMap::new();
         usage.insert(ResourceKind::Messages, 10);
         let err = s.evaluate(&usage).expect_err("must fail closed");
-        assert!(matches!(err, BillingError::UnpricedKind(ResourceKind::Messages)));
+        assert!(matches!(
+            err,
+            BillingError::UnpricedKind(ResourceKind::Messages)
+        ));
     }
 
     #[test]

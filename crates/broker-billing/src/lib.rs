@@ -67,8 +67,8 @@
 #![forbid(unsafe_code)]
 
 pub mod meter;
-pub mod pricing;
 pub mod prepaid;
+pub mod pricing;
 pub mod receipt;
 pub mod settlement;
 pub mod sim;
@@ -77,8 +77,8 @@ pub mod subscription;
 pub mod tariff;
 
 pub use meter::{InMemoryMeter, Meter, ResourceKind};
-pub use pricing::{CoordinatorPricingKind, HostingProfile};
 pub use prepaid::{BillingState, PrepaidError, PrepaidLedger};
+pub use pricing::{CoordinatorPricingKind, HostingProfile};
 pub use receipt::{BilledOperation, ReceiptError, ReceiptLog};
 pub use settlement::{InMemoryLedger, LedgerError, PaymentProof, PaymentRequired, SettlementRail};
 pub use sim::{BillingEvent, BillingOutcome, SimEngine};
@@ -177,7 +177,9 @@ mod one_directional_audit {
         // it. No verification the payer can run detects the omission; only an external audit
         // (out of this crate's/the CONTRACT's scope) could.
         assert_eq!(
-            silently_charged_but_unreceipted.usage(&payer).get(&ResourceKind::BytesForwarded),
+            silently_charged_but_unreceipted
+                .usage(&payer)
+                .get(&ResourceKind::BytesForwarded),
             Some(&50),
             "usage exists on the coordinator's own meter with nothing forcing a receipt to be \
              issued for it — the other direction of the same one-directional-audit gap"

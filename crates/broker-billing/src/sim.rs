@@ -18,9 +18,11 @@
 use broker_economics::IdentityKey;
 
 use crate::meter::{InMemoryMeter, Meter, ResourceKind};
-use crate::prepaid::{BillingState, DebitRecord, PrepaidError, PrepaidLedger, RefundRecord, TopUpRecord};
+use crate::prepaid::{
+    BillingState, DebitRecord, PrepaidError, PrepaidLedger, RefundRecord, TopUpRecord,
+};
 use crate::receipt::ReceiptLog;
-use crate::settlement::{SettlementReceipt, SettlementRail};
+use crate::settlement::{SettlementRail, SettlementReceipt};
 use crate::tariff::TariffSchedule;
 use broker_economics::UsageReceipt;
 
@@ -28,12 +30,20 @@ use broker_economics::UsageReceipt;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BillingEvent {
     /// A prepaid top-up lands (see [`crate::prepaid::PrepaidLedger::top_up`]).
-    TopUp { payer: Vec<u8>, amount: u64, funding_ref: String },
+    TopUp {
+        payer: Vec<u8>,
+        amount: u64,
+        funding_ref: String,
+    },
     /// `units` of `kind` were metered for `payer` since their last billed usage. The engine
     /// immediately evaluates and debits this event's usage against the engine's current tariff
     /// (see the module doc) — each `MeteredUsage` event is its own billed increment, deterministic
     /// and order-sensitive.
-    MeteredUsage { payer: Vec<u8>, kind: ResourceKind, units: u64 },
+    MeteredUsage {
+        payer: Vec<u8>,
+        kind: ResourceKind,
+        units: u64,
+    },
     /// The operator republishes a new tariff — every subsequent `MeteredUsage` event evaluates
     /// against `schedule` instead of whatever was active before.
     TariffChange { schedule: TariffSchedule },
@@ -42,7 +52,11 @@ pub enum BillingEvent {
     Refund { payer: Vec<u8>, amount: u64 },
     /// An optional postpaid monthly charge rides the engine's [`crate::settlement::SettlementRail`]
     /// directly (see [`crate::subscription::Subscription`]) — independent of the prepaid ledger.
-    MonthlyCharge { payer: Vec<u8>, amount: u64, currency: String },
+    MonthlyCharge {
+        payer: Vec<u8>,
+        amount: u64,
+        currency: String,
+    },
 }
 
 /// One outcome of processing a [`BillingEvent`] (or a derived notification the engine raises on
@@ -55,24 +69,38 @@ pub enum BillingOutcome {
     ToppedUp(TopUpRecord),
     /// A `MeteredUsage` event was evaluated and successfully debited, with the receipts issued
     /// for it.
-    Debited { record: DebitRecord, receipts: Vec<UsageReceipt> },
+    Debited {
+        record: DebitRecord,
+        receipts: Vec<UsageReceipt>,
+    },
     /// A `MeteredUsage` event was metered but could NOT be debited (insufficient prepaid credit)
     /// — fail-closed: no receipt is issued for unpaid usage (see
     /// [`crate::prepaid::PrepaidLedger::debit_and_receipt`]).
-    DebitFailed { payer: Vec<u8>, error: PrepaidError },
+    DebitFailed {
+        payer: Vec<u8>,
+        error: PrepaidError,
+    },
     TariffChanged,
     Refunded(RefundRecord),
     /// Derived: raised immediately after a debit/refund left `payer` at
     /// [`BillingState::LowBalance`].
-    LowBalance { payer: Vec<u8>, balance: u64 },
+    LowBalance {
+        payer: Vec<u8>,
+        balance: u64,
+    },
     /// Derived: raised immediately after a debit/refund left `payer` at
     /// [`BillingState::Exhausted`].
-    Exhausted { payer: Vec<u8> },
+    Exhausted {
+        payer: Vec<u8>,
+    },
     MonthlyCharged(SettlementReceipt),
     /// A `MonthlyCharge` event's settlement-rail charge failed (e.g. no funds on the rail) — the
     /// error is rail-specific, so this variant carries its `Debug` rendering rather than the
     /// generic type (kept engine-generic over `R::Error`, which is not necessarily `Clone`).
-    MonthlyChargeFailed { payer: Vec<u8>, error: String },
+    MonthlyChargeFailed {
+        payer: Vec<u8>,
+        error: String,
+    },
 }
 
 /// Drives [`crate::prepaid::PrepaidLedger`], a [`crate::meter::Meter`], a
@@ -96,8 +124,20 @@ where
     /// a different currency than `ledger` tracks is refused per-event, surfaced as
     /// [`BillingOutcome::DebitFailed`], never silently converted). `rail` backs any
     /// `MonthlyCharge` events; `ik` signs every issued [`broker_economics::UsageReceipt`].
-    pub fn new(ledger: PrepaidLedger, schedule: TariffSchedule, ik: IdentityKey, rail: &'a R) -> Self {
-        SimEngine { meter: InMemoryMeter::new(), ledger, schedule, log: ReceiptLog::new(), ik, rail }
+    pub fn new(
+        ledger: PrepaidLedger,
+        schedule: TariffSchedule,
+        ik: IdentityKey,
+        rail: &'a R,
+    ) -> Self {
+        SimEngine {
+            meter: InMemoryMeter::new(),
+            ledger,
+            schedule,
+            log: ReceiptLog::new(),
+            ik,
+            rail,
+        }
     }
 
     /// The underlying [`crate::prepaid::PrepaidLedger`] — for asserting on balances after a
@@ -129,7 +169,11 @@ where
 
     fn apply(&mut self, event: &BillingEvent, out: &mut Vec<BillingOutcome>) {
         match event {
-            BillingEvent::TopUp { payer, amount, funding_ref } => {
+            BillingEvent::TopUp {
+                payer,
+                amount,
+                funding_ref,
+            } => {
                 let record = self.ledger.top_up(payer, *amount, funding_ref.clone());
                 out.push(BillingOutcome::ToppedUp(record));
             }
@@ -137,13 +181,21 @@ where
                 self.meter.record(payer, *kind, *units);
                 let usage = self.meter.reset(payer);
                 match self.schedule.evaluate(&usage) {
-                    Ok(bill) => match self.ledger.debit_and_receipt(payer, &bill, &mut self.log, &self.ik) {
-                        Ok((record, receipts)) => {
-                            out.push(BillingOutcome::Debited { record, receipts });
-                            self.push_state_notification(payer, out);
+                    Ok(bill) => {
+                        match self
+                            .ledger
+                            .debit_and_receipt(payer, &bill, &mut self.log, &self.ik)
+                        {
+                            Ok((record, receipts)) => {
+                                out.push(BillingOutcome::Debited { record, receipts });
+                                self.push_state_notification(payer, out);
+                            }
+                            Err(error) => out.push(BillingOutcome::DebitFailed {
+                                payer: payer.clone(),
+                                error,
+                            }),
                         }
-                        Err(error) => out.push(BillingOutcome::DebitFailed { payer: payer.clone(), error }),
-                    },
+                    }
                     Err(_) => out.push(BillingOutcome::DebitFailed {
                         payer: payer.clone(),
                         error: PrepaidError::CurrencyMismatch {
@@ -162,26 +214,34 @@ where
                     out.push(BillingOutcome::Refunded(record));
                     self.push_state_notification(payer, out);
                 }
-                Err(error) => out.push(BillingOutcome::DebitFailed { payer: payer.clone(), error }),
+                Err(error) => out.push(BillingOutcome::DebitFailed {
+                    payer: payer.clone(),
+                    error,
+                }),
             },
-            BillingEvent::MonthlyCharge { payer, amount, currency } => {
-                match self.rail.charge(payer, *amount, currency) {
-                    Ok(receipt) => out.push(BillingOutcome::MonthlyCharged(receipt)),
-                    Err(e) => out.push(BillingOutcome::MonthlyChargeFailed {
-                        payer: payer.clone(),
-                        error: format!("{e:?}"),
-                    }),
-                }
-            }
+            BillingEvent::MonthlyCharge {
+                payer,
+                amount,
+                currency,
+            } => match self.rail.charge(payer, *amount, currency) {
+                Ok(receipt) => out.push(BillingOutcome::MonthlyCharged(receipt)),
+                Err(e) => out.push(BillingOutcome::MonthlyChargeFailed {
+                    payer: payer.clone(),
+                    error: format!("{e:?}"),
+                }),
+            },
         }
     }
 
     fn push_state_notification(&self, payer: &[u8], out: &mut Vec<BillingOutcome>) {
         match self.ledger.state(payer) {
-            BillingState::LowBalance => {
-                out.push(BillingOutcome::LowBalance { payer: payer.to_vec(), balance: self.ledger.balance(payer) })
-            }
-            BillingState::Exhausted => out.push(BillingOutcome::Exhausted { payer: payer.to_vec() }),
+            BillingState::LowBalance => out.push(BillingOutcome::LowBalance {
+                payer: payer.to_vec(),
+                balance: self.ledger.balance(payer),
+            }),
+            BillingState::Exhausted => out.push(BillingOutcome::Exhausted {
+                payer: payer.to_vec(),
+            }),
             BillingState::Ok => {}
         }
     }
@@ -196,7 +256,12 @@ mod tests {
     fn schedule(price: u64) -> TariffSchedule {
         let mut prices = BTreeMap::new();
         prices.insert(ResourceKind::BytesForwarded, price);
-        TariffSchedule { currency: "USD".to_string(), prices, free_allowance: BTreeMap::new(), period_seconds: None }
+        TariffSchedule {
+            currency: "USD".to_string(),
+            prices,
+            free_allowance: BTreeMap::new(),
+            period_seconds: None,
+        }
     }
 
     #[test]
@@ -207,16 +272,31 @@ mod tests {
         let mut engine = SimEngine::new(ledger, schedule(1), ik, &rail);
 
         let events = vec![
-            BillingEvent::TopUp { payer: b"payer".to_vec(), amount: 1_000, funding_ref: "f1".into() },
-            BillingEvent::MeteredUsage { payer: b"payer".to_vec(), kind: ResourceKind::BytesForwarded, units: 500 },
-            BillingEvent::MeteredUsage { payer: b"payer".to_vec(), kind: ResourceKind::BytesForwarded, units: 450 },
-            BillingEvent::Refund { payer: b"payer".to_vec(), amount: 20 },
+            BillingEvent::TopUp {
+                payer: b"payer".to_vec(),
+                amount: 1_000,
+                funding_ref: "f1".into(),
+            },
+            BillingEvent::MeteredUsage {
+                payer: b"payer".to_vec(),
+                kind: ResourceKind::BytesForwarded,
+                units: 500,
+            },
+            BillingEvent::MeteredUsage {
+                payer: b"payer".to_vec(),
+                kind: ResourceKind::BytesForwarded,
+                units: 450,
+            },
+            BillingEvent::Refund {
+                payer: b"payer".to_vec(),
+                amount: 20,
+            },
         ];
         let outcomes = engine.replay(&events);
 
         assert!(matches!(outcomes[0], BillingOutcome::ToppedUp(_)));
         assert!(matches!(outcomes[1], BillingOutcome::Debited { .. })); // balance 1000 -> 500
-        // Second debit of 450 brings balance to 50, at the threshold -> LowBalance follows.
+                                                                        // Second debit of 450 brings balance to 50, at the threshold -> LowBalance follows.
         assert!(matches!(outcomes[2], BillingOutcome::Debited { .. }));
         assert!(matches!(outcomes[3], BillingOutcome::LowBalance { .. }));
         assert!(matches!(outcomes[4], BillingOutcome::Refunded(_)));
@@ -231,7 +311,11 @@ mod tests {
         let ik = IdentityKey::from_seed(&[0x56; 32]);
         let mut engine = SimEngine::new(ledger, schedule(1), ik, &rail);
 
-        engine.replay(&[BillingEvent::TopUp { payer: b"payer".to_vec(), amount: 1_000, funding_ref: "f1".into() }]);
+        engine.replay(&[BillingEvent::TopUp {
+            payer: b"payer".to_vec(),
+            amount: 1_000,
+            funding_ref: "f1".into(),
+        }]);
         engine.replay(&[BillingEvent::MeteredUsage {
             payer: b"payer".to_vec(),
             kind: ResourceKind::BytesForwarded,
@@ -239,7 +323,9 @@ mod tests {
         }]);
         assert_eq!(engine.ledger().balance(b"payer"), 900); // 1 usd/unit * 100
 
-        engine.replay(&[BillingEvent::TariffChange { schedule: schedule(5) }]);
+        engine.replay(&[BillingEvent::TariffChange {
+            schedule: schedule(5),
+        }]);
         engine.replay(&[BillingEvent::MeteredUsage {
             payer: b"payer".to_vec(),
             kind: ResourceKind::BytesForwarded,
@@ -295,6 +381,9 @@ mod tests {
             amount: 999,
             currency: "USD".to_string(),
         }]);
-        assert!(matches!(outcomes[0], BillingOutcome::MonthlyChargeFailed { .. }));
+        assert!(matches!(
+            outcomes[0],
+            BillingOutcome::MonthlyChargeFailed { .. }
+        ));
     }
 }

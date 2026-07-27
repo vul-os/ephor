@@ -56,15 +56,31 @@ pub enum BillingState {
 pub enum PrepaidError {
     /// The bill's currency does not match this ledger's configured currency — refused rather
     /// than silently cross-charged.
-    #[error("bill currency {bill_currency} does not match this ledger's currency {ledger_currency}")]
-    CurrencyMismatch { bill_currency: String, ledger_currency: String },
+    #[error(
+        "bill currency {bill_currency} does not match this ledger's currency {ledger_currency}"
+    )]
+    CurrencyMismatch {
+        bill_currency: String,
+        ledger_currency: String,
+    },
     /// The payer's balance is insufficient to cover the bill — [`BillingState::Exhausted`] (or
     /// simply not enough left), never partially debited.
-    #[error("insufficient prepaid credit: payer {payer:?} has {balance} {currency}, bill was {amount}")]
-    Exhausted { payer: Vec<u8>, balance: u64, amount: u64, currency: String },
+    #[error(
+        "insufficient prepaid credit: payer {payer:?} has {balance} {currency}, bill was {amount}"
+    )]
+    Exhausted {
+        payer: Vec<u8>,
+        balance: u64,
+        amount: u64,
+        currency: String,
+    },
     /// A refund request exceeded the payer's current balance — refused, never clamped silently.
     #[error("refund amount {amount} exceeds current balance {balance} for payer {payer:?}")]
-    RefundExceedsBalance { payer: Vec<u8>, amount: u64, balance: u64 },
+    RefundExceedsBalance {
+        payer: Vec<u8>,
+        amount: u64,
+        balance: u64,
+    },
 }
 
 /// A record of one accepted [`PrepaidLedger::top_up`] — the credit-claim bookkeeping entry, not a
@@ -165,7 +181,10 @@ impl PrepaidLedger {
     }
 
     fn next_seq(&self) -> u64 {
-        let mut seq = self.next_tx_seq.lock().expect("prepaid ledger mutex poisoned");
+        let mut seq = self
+            .next_tx_seq
+            .lock()
+            .expect("prepaid ledger mutex poisoned");
         let v = *seq;
         *seq += 1;
         v
@@ -181,7 +200,10 @@ impl PrepaidLedger {
         // check, the balance credit, and the record push are one atomic step: a replayed
         // funding_ref (e.g. a retried payment webhook) does NOT credit again — it returns the
         // original record unchanged. Guards against double-crediting a single funding event.
-        let mut credited = self.credited_refs.lock().expect("prepaid ledger mutex poisoned");
+        let mut credited = self
+            .credited_refs
+            .lock()
+            .expect("prepaid ledger mutex poisoned");
         if credited.contains(&fref) {
             drop(credited);
             return self
@@ -206,7 +228,10 @@ impl PrepaidLedger {
             funding_ref: fref.clone(),
             tx_seq: self.next_seq(),
         };
-        self.top_ups.lock().expect("prepaid ledger mutex poisoned").push(record.clone());
+        self.top_ups
+            .lock()
+            .expect("prepaid ledger mutex poisoned")
+            .push(record.clone());
         credited.insert(fref);
         drop(credited);
         record
@@ -267,7 +292,10 @@ impl PrepaidLedger {
             currency: self.currency.clone(),
             tx_seq: self.next_seq(),
         };
-        self.debits.lock().expect("prepaid ledger mutex poisoned").push(record.clone());
+        self.debits
+            .lock()
+            .expect("prepaid ledger mutex poisoned")
+            .push(record.clone());
         Ok(record)
     }
 
@@ -298,7 +326,11 @@ impl PrepaidLedger {
         let mut balances = self.balances.lock().expect("prepaid ledger mutex poisoned");
         let balance = balances.get(payer).copied().unwrap_or(0);
         if amount > balance {
-            return Err(PrepaidError::RefundExceedsBalance { payer: payer.to_vec(), amount, balance });
+            return Err(PrepaidError::RefundExceedsBalance {
+                payer: payer.to_vec(),
+                amount,
+                balance,
+            });
         }
         balances.insert(payer.to_vec(), balance - amount);
         drop(balances);
@@ -309,24 +341,36 @@ impl PrepaidLedger {
             currency: self.currency.clone(),
             tx_seq: self.next_seq(),
         };
-        self.refunds.lock().expect("prepaid ledger mutex poisoned").push(record.clone());
+        self.refunds
+            .lock()
+            .expect("prepaid ledger mutex poisoned")
+            .push(record.clone());
         Ok(record)
     }
 
     /// Every accepted top-up, in acceptance order — the ledger's own audit trail (distinct from a
     /// payer-facing [`ReceiptLog`]).
     pub fn top_ups(&self) -> Vec<TopUpRecord> {
-        self.top_ups.lock().expect("prepaid ledger mutex poisoned").clone()
+        self.top_ups
+            .lock()
+            .expect("prepaid ledger mutex poisoned")
+            .clone()
     }
 
     /// Every accepted debit, in acceptance order.
     pub fn debits(&self) -> Vec<DebitRecord> {
-        self.debits.lock().expect("prepaid ledger mutex poisoned").clone()
+        self.debits
+            .lock()
+            .expect("prepaid ledger mutex poisoned")
+            .clone()
     }
 
     /// Every accepted refund, in acceptance order.
     pub fn refunds(&self) -> Vec<RefundRecord> {
-        self.refunds.lock().expect("prepaid ledger mutex poisoned").clone()
+        self.refunds
+            .lock()
+            .expect("prepaid ledger mutex poisoned")
+            .clone()
     }
 }
 
@@ -376,9 +420,20 @@ mod tests {
         let ledger = PrepaidLedger::new("USD", 100);
         let first = ledger.top_up(b"payer", 500, "rail-tx-abc");
         let replay = ledger.top_up(b"payer", 500, "rail-tx-abc"); // same funding_ref
-        assert_eq!(ledger.balance(b"payer"), 500, "duplicate funding_ref must not re-credit");
-        assert_eq!(replay.tx_seq, first.tx_seq, "replay returns the original record, not a new one");
-        assert_eq!(ledger.top_ups().len(), 1, "only one top-up record for one funding event");
+        assert_eq!(
+            ledger.balance(b"payer"),
+            500,
+            "duplicate funding_ref must not re-credit"
+        );
+        assert_eq!(
+            replay.tx_seq, first.tx_seq,
+            "replay returns the original record, not a new one"
+        );
+        assert_eq!(
+            ledger.top_ups().len(),
+            1,
+            "only one top-up record for one funding event"
+        );
         // A genuinely distinct funding event (different funding_ref) still credits.
         ledger.top_up(b"payer", 250, "rail-tx-def");
         assert_eq!(ledger.balance(b"payer"), 750);
@@ -437,16 +492,24 @@ mod tests {
         let key = IdentityKey::from_seed(&[0x44; 32]);
         let mut log = ReceiptLog::new();
 
-        let (record, receipts) = ledger.debit_and_receipt(b"payer", &bill(300, "USD"), &mut log, &key).unwrap();
+        let (record, receipts) = ledger
+            .debit_and_receipt(b"payer", &bill(300, "USD"), &mut log, &key)
+            .unwrap();
         assert_eq!(record.amount, 300);
         assert_eq!(receipts.len(), 1);
         assert!(log.verify_all().is_ok());
 
         // A failing debit (exhausted) must issue no receipt at all.
         let before = log.receipts().len();
-        let err = ledger.debit_and_receipt(b"payer", &bill(999_999, "USD"), &mut log, &key).unwrap_err();
+        let err = ledger
+            .debit_and_receipt(b"payer", &bill(999_999, "USD"), &mut log, &key)
+            .unwrap_err();
         assert!(matches!(err, PrepaidError::Exhausted { .. }));
-        assert_eq!(log.receipts().len(), before, "no receipt issued on a failed debit");
+        assert_eq!(
+            log.receipts().len(),
+            before,
+            "no receipt issued on a failed debit"
+        );
     }
 
     #[test]
@@ -487,6 +550,10 @@ mod tests {
         let d1 = ledger.debit(b"payer", &bill(100, "USD")).unwrap();
         let r1 = ledger.refund(b"payer", 100).unwrap();
         let seqs = [t1.tx_seq, d1.tx_seq, r1.tx_seq];
-        assert_eq!(seqs.iter().collect::<std::collections::BTreeSet<_>>().len(), 3, "all distinct");
+        assert_eq!(
+            seqs.iter().collect::<std::collections::BTreeSet<_>>().len(),
+            3,
+            "all distinct"
+        );
     }
 }

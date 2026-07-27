@@ -184,7 +184,10 @@ pub async fn read_announce(stream: &mut TcpStream) -> Result<AuthAnnounce, AuthE
 
 /// Write an [`AuthAnnounce`] frame — the box side. Exposed for tests and for a future real box
 /// agent to drive the same wire format [`read_announce`] expects.
-pub async fn write_announce(stream: &mut TcpStream, announce: &AuthAnnounce) -> Result<(), AuthError> {
+pub async fn write_announce(
+    stream: &mut TcpStream,
+    announce: &AuthAnnounce,
+) -> Result<(), AuthError> {
     stream.write_all(&announce.claimed_ik).await?;
     write_registration(stream, &announce.registration).await?;
     Ok(())
@@ -196,7 +199,10 @@ pub async fn read_challenge(stream: &mut TcpStream) -> Result<[u8; NONCE_LEN], A
 }
 
 /// Write a [`Challenge`] nonce — the adapter side.
-pub async fn write_challenge(stream: &mut TcpStream, nonce: &[u8; NONCE_LEN]) -> Result<(), AuthError> {
+pub async fn write_challenge(
+    stream: &mut TcpStream,
+    nonce: &[u8; NONCE_LEN],
+) -> Result<(), AuthError> {
     stream.write_all(nonce).await?;
     Ok(())
 }
@@ -312,7 +318,10 @@ pub async fn authenticate_as_box(
     write_announce(stream, &announce).await?;
 
     let nonce = read_challenge(stream).await?;
-    let sig = ik.sign_domain(TUNNEL_AUTH_DS, &signing_preimage(&nonce, &registration.name));
+    let sig = ik.sign_domain(
+        TUNNEL_AUTH_DS,
+        &signing_preimage(&nonce, &registration.name),
+    );
     let sig: [u8; SIG_LEN] = sig
         .as_slice()
         .try_into()
@@ -347,12 +356,16 @@ mod tests {
         let box_reg = reg.clone();
         let box_task = tokio::spawn(async move {
             let mut client = TcpStream::connect(addr).await.unwrap();
-            authenticate_as_box(&mut client, &ik, &box_reg).await.unwrap();
+            authenticate_as_box(&mut client, &ik, &box_reg)
+                .await
+                .unwrap();
         });
 
         let (mut sock, _) = listener.accept().await.unwrap();
         let nonces = NonceRegistry::new();
-        let authed = authenticate_box_connection(&mut sock, &nonces).await.unwrap();
+        let authed = authenticate_box_connection(&mut sock, &nonces)
+            .await
+            .unwrap();
 
         assert_eq!(authed.authenticated_ik, expected_pub);
         assert_eq!(authed.registration.name, "svc.alice.reach.example");
@@ -380,14 +393,19 @@ mod tests {
             write_announce(&mut client, &announce).await.unwrap();
             let nonce = read_challenge(&mut client).await.unwrap();
             // Signed under the WRONG key.
-            let sig = signing_ik.sign_domain(TUNNEL_AUTH_DS, &signing_preimage(&nonce, &announce.registration.name));
+            let sig = signing_ik.sign_domain(
+                TUNNEL_AUTH_DS,
+                &signing_preimage(&nonce, &announce.registration.name),
+            );
             let sig: [u8; SIG_LEN] = sig.as_slice().try_into().unwrap();
             write_response(&mut client, &sig).await.unwrap();
         });
 
         let (mut sock, _) = listener.accept().await.unwrap();
         let nonces = NonceRegistry::new();
-        let err = authenticate_box_connection(&mut sock, &nonces).await.unwrap_err();
+        let err = authenticate_box_connection(&mut sock, &nonces)
+            .await
+            .unwrap_err();
         assert!(matches!(err, AuthError::BadSignature));
         box_task.await.unwrap();
     }
@@ -397,7 +415,10 @@ mod tests {
         let nonces = NonceRegistry::new();
         let nonce = nonces.issue().await;
 
-        assert!(nonces.consume(&nonce).await, "first consume of a live nonce must succeed");
+        assert!(
+            nonces.consume(&nonce).await,
+            "first consume of a live nonce must succeed"
+        );
         assert!(
             !nonces.consume(&nonce).await,
             "a second consume of the SAME nonce bytes must be rejected — replay-inert"
@@ -427,7 +448,8 @@ mod tests {
 
         // First (legitimate) handshake — capture the nonce actually issued and its valid sig.
         let first_nonce = [0x11u8; NONCE_LEN];
-        let captured_sig = ik.sign_domain(TUNNEL_AUTH_DS, &signing_preimage(&first_nonce, &reg.name));
+        let captured_sig =
+            ik.sign_domain(TUNNEL_AUTH_DS, &signing_preimage(&first_nonce, &reg.name));
         let captured_sig: [u8; SIG_LEN] = captured_sig.as_slice().try_into().unwrap();
 
         // Second connection: adapter issues a genuinely fresh nonce (guaranteed different here
@@ -451,7 +473,9 @@ mod tests {
 
         let (mut sock, _) = listener.accept().await.unwrap();
         let nonces = NonceRegistry::new();
-        let err = authenticate_box_connection(&mut sock, &nonces).await.unwrap_err();
+        let err = authenticate_box_connection(&mut sock, &nonces)
+            .await
+            .unwrap_err();
         assert!(matches!(err, AuthError::BadSignature));
         box_task.await.unwrap();
     }

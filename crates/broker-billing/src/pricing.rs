@@ -202,7 +202,10 @@ pub enum CoordinatorPricingKind {
 /// costs. See the module doc for the formula, the batching convention, and the loud disclaimer
 /// that this is a starting point, never a mandate — CONTRACT §6 keeps the actual numbers
 /// operator policy; the caller still calls [`TariffSchedule::sign`] themselves.
-pub fn recommended_tariff(kind: CoordinatorPricingKind, profile: &HostingProfile) -> TariffSchedule {
+pub fn recommended_tariff(
+    kind: CoordinatorPricingKind,
+    profile: &HostingProfile,
+) -> TariffSchedule {
     match kind {
         CoordinatorPricingKind::Relay | CoordinatorPricingKind::MediaRelay => {
             bandwidth_schedule(profile, false)
@@ -215,14 +218,22 @@ pub fn recommended_tariff(kind: CoordinatorPricingKind, profile: &HostingProfile
 
 const NOMINAL_PERIOD_SECONDS: u64 = 30 * 24 * 3600;
 
-fn bandwidth_schedule(profile: &HostingProfile, include_reachability_premium: bool) -> TariffSchedule {
-    let fixed = profile.base_vps_usd_cents_per_month.saturating_add(if include_reachability_premium {
-        profile.reachability_premium_usd_cents_per_month
-    } else {
-        0
-    });
+fn bandwidth_schedule(
+    profile: &HostingProfile,
+    include_reachability_premium: bool,
+) -> TariffSchedule {
+    let fixed =
+        profile
+            .base_vps_usd_cents_per_month
+            .saturating_add(if include_reachability_premium {
+                profile.reachability_premium_usd_cents_per_month
+            } else {
+                0
+            });
     let amortized_per_gib = ceil_div(fixed, ASSUMED_MONTHLY_GIB);
-    let cost_per_gib = profile.bandwidth_usd_cents_per_gib.saturating_add(amortized_per_gib);
+    let cost_per_gib = profile
+        .bandwidth_usd_cents_per_gib
+        .saturating_add(amortized_per_gib);
     let recommended_per_gib = markup(cost_per_gib);
 
     let mut prices = BTreeMap::new();
@@ -256,7 +267,10 @@ fn gateway_schedule(profile: &HostingProfile) -> TariffSchedule {
 
 fn compute_schedule(profile: &HostingProfile) -> TariffSchedule {
     let fixed = profile.base_vps_usd_cents_per_month;
-    let amortized_per_1k_seconds = ceil_div(fixed, ASSUMED_MONTHLY_COMPUTE_SECONDS / COMPUTE_SECONDS_BATCH);
+    let amortized_per_1k_seconds = ceil_div(
+        fixed,
+        ASSUMED_MONTHLY_COMPUTE_SECONDS / COMPUTE_SECONDS_BATCH,
+    );
     let recommended_per_1k = markup(amortized_per_1k_seconds);
 
     let mut prices = BTreeMap::new();
@@ -306,7 +320,11 @@ mod tests {
             for profile in profiles {
                 let schedule = recommended_tariff(kind, &profile);
                 assert_eq!(schedule.currency, "USD");
-                assert_eq!(schedule.prices.len(), 1, "one priced resource kind per profile");
+                assert_eq!(
+                    schedule.prices.len(),
+                    1,
+                    "one priced resource kind per profile"
+                );
                 let (_, &price) = schedule.prices.iter().next().unwrap();
                 assert!(price > 0, "{:?}/{} priced at zero", kind, profile.name);
             }
@@ -317,7 +335,11 @@ mod tests {
     fn reachability_adapter_costs_more_than_relay_for_the_same_profile() {
         // Same bandwidth-priced shape, but the reachability-adapter carries the scarce-class
         // premium the plain relay does not (CONTRACT §2.3).
-        for profile in [HostingProfile::HETZNER_CX, HostingProfile::VULTR_GENERIC, HostingProfile::GENERIC_VPS] {
+        for profile in [
+            HostingProfile::HETZNER_CX,
+            HostingProfile::VULTR_GENERIC,
+            HostingProfile::GENERIC_VPS,
+        ] {
             let relay = recommended_tariff(CoordinatorPricingKind::Relay, &profile);
             let reach = recommended_tariff(CoordinatorPricingKind::ReachabilityAdapter, &profile);
             let relay_price = relay.prices[&ResourceKind::BytesForwarded];
@@ -336,19 +358,27 @@ mod tests {
         // downstream: it signs (real IdentityKey) and evaluates real metered usage exactly like
         // a hand-authored schedule (tariff.rs tests).
         let key = broker_economics::IdentityKey::from_seed(&[0x33; 32]);
-        let schedule = recommended_tariff(CoordinatorPricingKind::Relay, &HostingProfile::HETZNER_CX);
+        let schedule =
+            recommended_tariff(CoordinatorPricingKind::Relay, &HostingProfile::HETZNER_CX);
         let tariff = schedule.sign(&key);
         assert!(tariff.verify().is_ok());
 
         let mut usage = BTreeMap::new();
-        usage.insert(ResourceKind::BytesForwarded, gib_billing_units(3 * BYTES_FORWARDED_BATCH_BYTES));
+        usage.insert(
+            ResourceKind::BytesForwarded,
+            gib_billing_units(3 * BYTES_FORWARDED_BATCH_BYTES),
+        );
         let bill = schedule.evaluate(&usage).unwrap();
-        assert_eq!(bill.amount, 3 * schedule.prices[&ResourceKind::BytesForwarded]);
+        assert_eq!(
+            bill.amount,
+            3 * schedule.prices[&ResourceKind::BytesForwarded]
+        );
     }
 
     #[test]
     fn gateway_schedule_prices_messages_not_bytes() {
-        let schedule = recommended_tariff(CoordinatorPricingKind::Gateway, &HostingProfile::HETZNER_CX);
+        let schedule =
+            recommended_tariff(CoordinatorPricingKind::Gateway, &HostingProfile::HETZNER_CX);
         assert!(schedule.prices.contains_key(&ResourceKind::Messages));
         assert!(!schedule.prices.contains_key(&ResourceKind::BytesForwarded));
     }

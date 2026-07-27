@@ -143,7 +143,10 @@ pub enum DescriptorError {
     /// §18.8a.1 `Tariff.valid_until` / §26.10 / §21: a tariff presented past its own signed
     /// expiry is treated as expired and fails closed, not silently accepted as still-priced.
     #[error("tariff expired: valid_until={valid_until}ms has passed (now={now}ms), §18.8a.1")]
-    Expired { valid_until: TimestampMs, now: TimestampMs },
+    Expired {
+        valid_until: TimestampMs,
+        now: TimestampMs,
+    },
 }
 
 /// Decode + validate a `suite` field (key 1 on every §18.8a object), failing closed on anything
@@ -624,9 +627,13 @@ mod tests {
         // user as verified.
         let key = ik(9);
         let mut d = descriptor(key.public());
-        d.visibility = ContentVisibility::new(VisibilityClass::BlindRouting, AssuranceLevel::Declared);
+        d.visibility =
+            ContentVisibility::new(VisibilityClass::BlindRouting, AssuranceLevel::Declared);
         let signed = d.sign(&key);
-        assert!(signed.verify().is_ok(), "the signature itself is genuinely valid");
+        assert!(
+            signed.verify().is_ok(),
+            "the signature itself is genuinely valid"
+        );
         assert!(
             signed.descriptor.visibility.must_not_present_as_verified(),
             "a declared-level blind claim must still not be shown as verified, even though the \
@@ -805,7 +812,10 @@ mod tests {
         m.push((7, Cv::Bytes(sig)));
         let bytes = cbor::encode(&Cv::Map(m));
         let err = SignedDescriptor::from_det_cbor(&bytes).expect_err("unknown key must reject");
-        assert!(matches!(err, DescriptorError::BadEncoding(CborError::UnknownKey(99))));
+        assert!(matches!(
+            err,
+            DescriptorError::BadEncoding(CborError::UnknownKey(99))
+        ));
     }
 
     #[test]
@@ -870,8 +880,16 @@ mod tests {
             Some(long_ago),
             &key,
         );
-        let err = t.verify().expect_err("a tariff past its valid_until must fail closed");
-        assert!(matches!(err, DescriptorError::Expired { valid_until: 1_000, .. }));
+        let err = t
+            .verify()
+            .expect_err("a tariff past its valid_until must fail closed");
+        assert!(matches!(
+            err,
+            DescriptorError::Expired {
+                valid_until: 1_000,
+                ..
+            }
+        ));
     }
 
     #[test]

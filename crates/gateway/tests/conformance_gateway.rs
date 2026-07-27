@@ -42,9 +42,9 @@ use kotva_core::id::ContentId;
 use kotva_core::identity::IdentityKey;
 use kotva_core::mote::{Headers, Payload};
 
+use gateway::alias_map::{AliasTarget, GatewayAliasError, GatewayAliasMap};
 use gateway::attestation::{AttestationError, AttestationKey};
 use gateway::authz::{AliasAllocator, AliasError};
-use gateway::alias_map::{AliasTarget, GatewayAliasError, GatewayAliasMap};
 use gateway::forwarded_addr::{decode as fwd_decode, encode as fwd_encode, ForwardedAddrError};
 use gateway::outbound::{
     AlwaysRequireTls, GovernedSend, OutboundError, OutboundGateway, OutboundTransport,
@@ -188,14 +188,17 @@ fn dmtap_gwname_02_vanity_dotfree_and_fully_qualified_only() {
 /// silently accepted as if it were recipient-anchored too.
 #[test]
 fn dmtap_gwatt_05_chain_per_entry_domain_verified() {
-    const RFC: &[u8] = b"From: a@gmail.com\r\nTo: alice@recipient.example\r\nSubject: hi\r\n\r\nbody\r\n";
+    const RFC: &[u8] =
+        b"From: a@gmail.com\r\nTo: alice@recipient.example\r\nSubject: hi\r\n\r\nbody\r\n";
     let recipient_key = AttestationKey::generate("recipient.example", "gw1");
     let other_key = AttestationKey::generate("relay-gateway.example", "gw1");
 
     // Entry 0: the hop that bridged mail for the recipient — anchored to the recipient's own domain.
-    let entry0 = GatewayAttestation::sign(&recipient_key, RFC, Some("a@gmail.com"), 1_700_000_000_000, 0);
+    let entry0 =
+        GatewayAttestation::sign(&recipient_key, RFC, Some("a@gmail.com"), 1_700_000_000_000, 0);
     // Entry 1: an earlier relay hop, anchored to a DIFFERENT domain the recipient has no key for.
-    let entry1 = GatewayAttestation::sign(&other_key, RFC, Some("a@gmail.com"), 1_700_000_000_050, 1);
+    let entry1 =
+        GatewayAttestation::sign(&other_key, RFC, Some("a@gmail.com"), 1_700_000_000_050, 1);
     let chain = chain_append(std::slice::from_ref(&entry0), entry1.clone());
     assert_eq!(chain.len(), 2);
     assert_eq!(chain[0], entry0);
@@ -231,12 +234,15 @@ fn dmtap_gwatt_05_chain_per_entry_domain_verified() {
 fn dmtap_leg_01_gateway_attestation_invalid_rejected() {
     let key = AttestationKey::generate("recipient.example", "sel1");
     let mote_id = ContentId::of(b"conformance-leg-01 wrapped mote");
-    let mut att = key.attest(&mote_id, "sender@legacy.example", "alice@recipient.example", 1_700_000_000_000);
+    let mut att =
+        key.attest(&mote_id, "sender@legacy.example", "alice@recipient.example", 1_700_000_000_000);
     att.sig[0] ^= 0xff; // tamper after signing
 
     match att.verify("recipient.example", Some(&key.public()), &mote_id) {
         Err(AttestationError::BadSignature(_)) => {}
-        other => panic!("expected Err(BadSignature) (attestation invalid, rejected), got {other:?}"),
+        other => {
+            panic!("expected Err(BadSignature) (attestation invalid, rejected), got {other:?}")
+        }
     }
 }
 
@@ -275,12 +281,14 @@ fn dmtap_leg_02_dkim_undelegated_domain_rejected() {
         Box::new(UnusedTransport),
     );
     let payload = leg_payload(b"conformance-runner leg-02 outbound body");
-    match gateway.translate_and_sign(&payload, "alice@undelegated.example", "bob@dest.example", 1_700_000_000_000) {
+    match gateway.translate_and_sign(
+        &payload,
+        "alice@undelegated.example",
+        "bob@dest.example",
+        1_700_000_000_000,
+    ) {
         Err(OutboundError::NotDelegated(domain)) => {
-            assert_eq!(
-                domain, "undelegated.example",
-                "NotDelegated named the wrong domain"
-            );
+            assert_eq!(domain, "undelegated.example", "NotDelegated named the wrong domain");
         }
         other => panic!(
             "expected Err(NotDelegated) (the gateway MUST refuse to sign for an undelegated \

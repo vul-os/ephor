@@ -59,7 +59,11 @@ impl AttestationKey {
     /// ownership of a fresh one — the constructor [`crate::inbound::InboundGateway`] uses so its
     /// `attest_keys` carry the SAME key material as its own `Payload.from` (§7.2a normative note
     /// above), never an independently generated one.
-    pub fn sharing(domain: impl Into<String>, selector: impl Into<String>, key: Arc<IdentityKey>) -> Self {
+    pub fn sharing(
+        domain: impl Into<String>,
+        selector: impl Into<String>,
+        key: Arc<IdentityKey>,
+    ) -> Self {
         AttestationKey { domain: domain.into(), selector: selector.into(), key }
     }
 

@@ -1177,7 +1177,8 @@ Subject: hi\r\n\r\nbody\r\n";
         // Results:") or even a CRLFCRLF-shaped run — none of that may be touched: only the FIRST
         // CRLFCRLF (the real header/body separator) is ever consulted, and everything from there
         // onward is copied verbatim.
-        let msg = b"From: a@b.example\r\n\r\nAuthentication-Results: not-a-real-header\r\n\r\nmore\r\n";
+        let msg =
+            b"From: a@b.example\r\n\r\nAuthentication-Results: not-a-real-header\r\n\r\nmore\r\n";
         let out = strip_trust_boundary_headers(msg);
         assert_eq!(out, msg, "body content is never reinterpreted as headers");
     }
@@ -1190,7 +1191,8 @@ Subject: hi\r\n\r\nbody\r\n";
 
     #[test]
     fn stripping_is_idempotent() {
-        let msg = b"Authentication-Results: dmtap.gw; dkim=pass\r\nFrom: a@b.example\r\n\r\nbody\r\n";
+        let msg =
+            b"Authentication-Results: dmtap.gw; dkim=pass\r\nFrom: a@b.example\r\n\r\nbody\r\n";
         let once = strip_trust_boundary_headers(msg);
         let twice = strip_trust_boundary_headers(&once);
         assert_eq!(once, twice);

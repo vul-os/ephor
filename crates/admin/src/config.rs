@@ -34,28 +34,28 @@ impl AdminBinConfig {
         let admin_token = std::env::var("EPHOR_ADMIN_TOKEN").ok();
 
         let kind = match std::env::var("EPHOR_ADMIN_KIND") {
-            Ok(v) => CoordinatorKind::from_wire_str(&v).ok_or_else(|| {
-                format!("EPHOR_ADMIN_KIND {v:?} is not a known coordinator kind")
-            })?,
+            Ok(v) => CoordinatorKind::from_wire_str(&v)
+                .ok_or_else(|| format!("EPHOR_ADMIN_KIND {v:?} is not a known coordinator kind"))?,
             Err(_) => CoordinatorKind::Relay,
         };
 
-        let visibility =
-            match (
-                std::env::var("EPHOR_ADMIN_VISIBILITY_CLASS").ok(),
-                std::env::var("EPHOR_ADMIN_VISIBILITY_LEVEL").ok(),
-            ) {
-                (Some(c), Some(l)) => parse_visibility(&c, &l)?,
-                (None, None) => kind.typical_visibility().unwrap_or(ContentVisibility::new(
-                    VisibilityClass::Terminating,
-                    AssuranceLevel::Declared,
-                )),
-                _ => return Err(
+        let visibility = match (
+            std::env::var("EPHOR_ADMIN_VISIBILITY_CLASS").ok(),
+            std::env::var("EPHOR_ADMIN_VISIBILITY_LEVEL").ok(),
+        ) {
+            (Some(c), Some(l)) => parse_visibility(&c, &l)?,
+            (None, None) => kind.typical_visibility().unwrap_or(ContentVisibility::new(
+                VisibilityClass::Terminating,
+                AssuranceLevel::Declared,
+            )),
+            _ => {
+                return Err(
                     "EPHOR_ADMIN_VISIBILITY_CLASS and EPHOR_ADMIN_VISIBILITY_LEVEL must both \
                      be set together, or both omitted"
                         .into(),
-                ),
-            };
+                )
+            }
+        };
 
         let key_seed = match std::env::var("EPHOR_ADMIN_KEY_SEED_HEX") {
             Ok(v) => Some(parse_seed_hex(&v)?),

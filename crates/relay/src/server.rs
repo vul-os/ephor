@@ -183,7 +183,11 @@ impl RelayServer {
 fn build_swarm() -> Result<Swarm<RelayBehaviour>, BuildError> {
     let swarm = libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()
-        .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)?
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )?
         .with_behaviour(|key| {
             let peer_id = key.public().to_peer_id();
             let relay = relay::Behaviour::new(peer_id, relay::Config::default());
@@ -244,7 +248,9 @@ mod tests {
         let addrs = relay.wait_for_listener(SPIN);
         assert!(!addrs.is_empty(), "relay should bind a listen addr");
         assert!(
-            addrs[0].iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::Tcp(_))),
+            addrs[0]
+                .iter()
+                .any(|p| matches!(p, libp2p::multiaddr::Protocol::Tcp(_))),
             "bound addr should carry a tcp component: {:?}",
             addrs[0]
         );

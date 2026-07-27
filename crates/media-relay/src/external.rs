@@ -300,7 +300,10 @@ impl MediaSfu for ExternalSfu {
     fn start(&mut self, config: &SessionConfig) -> Result<SfuHandle, SfuError> {
         {
             let sessions = self.sessions.borrow();
-            if matches!(sessions.get(&config.session_id), Some(SessionState::Running { .. })) {
+            if matches!(
+                sessions.get(&config.session_id),
+                Some(SessionState::Running { .. })
+            ) {
                 return Err(SfuError::AlreadyRunning(config.session_id.clone()));
             }
         }
@@ -314,7 +317,10 @@ impl MediaSfu for ExternalSfu {
                 let endpoint = format!("{}://{}", self.kind.label(), config.session_id);
                 self.sessions.borrow_mut().insert(
                     config.session_id.clone(),
-                    SessionState::Running { child, endpoint: endpoint.clone() },
+                    SessionState::Running {
+                        child,
+                        endpoint: endpoint.clone(),
+                    },
                 );
                 Ok(SfuHandle {
                     session_id: config.session_id.clone(),
@@ -327,16 +333,18 @@ impl MediaSfu for ExternalSfu {
                     self.kind.label(),
                     self.binary
                 );
-                self.sessions
-                    .borrow_mut()
-                    .insert(config.session_id.clone(), SessionState::Unavailable(reason.clone()));
+                self.sessions.borrow_mut().insert(
+                    config.session_id.clone(),
+                    SessionState::Unavailable(reason.clone()),
+                );
                 Err(SfuError::Unavailable(reason))
             }
             Err(e) => {
                 let reason = format!("failed to spawn {}: {e}", self.kind.label());
-                self.sessions
-                    .borrow_mut()
-                    .insert(config.session_id.clone(), SessionState::Unavailable(reason.clone()));
+                self.sessions.borrow_mut().insert(
+                    config.session_id.clone(),
+                    SessionState::Unavailable(reason.clone()),
+                );
                 Err(SfuError::Unavailable(reason))
             }
         }
@@ -349,7 +357,9 @@ impl MediaSfu for ExternalSfu {
                 let _ = child.wait();
                 Ok(())
             }
-            Some(SessionState::Unavailable(_)) | None => Err(SfuError::NotFound(handle.session_id.clone())),
+            Some(SessionState::Unavailable(_)) | None => {
+                Err(SfuError::NotFound(handle.session_id.clone()))
+            }
         }
     }
 
@@ -358,7 +368,9 @@ impl MediaSfu for ExternalSfu {
         match sessions.get_mut(&handle.session_id) {
             Some(SessionState::Running { child, endpoint }) => match child.try_wait() {
                 // Still alive as far as we can tell — honestly Running.
-                Ok(None) => SfuStatus::Running { endpoint: endpoint.clone() },
+                Ok(None) => SfuStatus::Running {
+                    endpoint: endpoint.clone(),
+                },
                 // Exited (or wait failed) since start — honestly Stopped, never stale-Running.
                 Ok(Some(_)) | Err(_) => SfuStatus::Stopped,
             },
@@ -381,7 +393,9 @@ mod tests {
     fn absent_binary_degrades_to_unavailable_never_fake_running() {
         let mut sfu = ExternalSfu::coturn().with_binary(DEFINITELY_ABSENT_BINARY);
         let cfg = SessionConfig::new("call-1", 4, 2000);
-        let err = sfu.start(&cfg).expect_err("an absent binary must not report success");
+        let err = sfu
+            .start(&cfg)
+            .expect_err("an absent binary must not report success");
         assert!(matches!(err, SfuError::Unavailable(_)));
 
         let handle = SfuHandle {
@@ -433,7 +447,10 @@ mod tests {
             }
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        assert!(saw_stopped, "status must observe the exited child, never stay stale-Running");
+        assert!(
+            saw_stopped,
+            "status must observe the exited child, never stay stale-Running"
+        );
     }
 
     #[test]
@@ -482,7 +499,9 @@ mod tests {
     #[test]
     fn livekit_config_generates_valid_json_yaml_compatible_text() {
         let cfg = LiveKitConfig::reference("api-key", "api-secret", "turn.ephor.example");
-        let text = cfg.to_config_text().expect("reference config must serialize");
+        let text = cfg
+            .to_config_text()
+            .expect("reference config must serialize");
         // Round-trips through a JSON parser (and therefore any YAML 1.2 parser, since valid
         // JSON is valid YAML).
         let parsed: serde_json::Value = serde_json::from_str(&text).expect("must be valid JSON");

@@ -90,8 +90,7 @@ fn self_signed() -> (CertificateDer<'static>, Arc<rustls::ServerConfig>) {
         rcgen::generate_simple_self_signed(vec![DOMAIN.to_string()]).expect("self-signed cert");
     let cert_der: CertificateDer<'static> = cert.der().clone();
     let key = PrivatePkcs8KeyDer::from(key_pair.serialize_der());
-    let cfg =
-        gateway::server_config(vec![cert_der.clone()], key.into()).expect("server config");
+    let cfg = gateway::server_config(vec![cert_der.clone()], key.into()).expect("server config");
     (cert_der, cfg)
 }
 
@@ -377,7 +376,10 @@ fn idle_connection_is_cut_off_by_the_read_timeout() {
     let result = listener.serve_once(&gw, NOW);
     let elapsed = started.elapsed();
 
-    assert!(result.is_err(), "an idle peer that never sends a line must not hang serve_once forever");
+    assert!(
+        result.is_err(),
+        "an idle peer that never sends a line must not hang serve_once forever"
+    );
     let kind = result.unwrap_err().kind();
     assert!(
         kind == std::io::ErrorKind::WouldBlock || kind == std::io::ErrorKind::TimedOut,

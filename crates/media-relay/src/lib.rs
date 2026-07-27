@@ -101,7 +101,10 @@ impl MediaRelayCoordinator {
     /// Prefer [`MediaRelayCoordinator::signed`] for the common case of minting a fresh,
     /// correctly-shaped descriptor.
     pub fn new(descriptor: Descriptor, metered: bool) -> Self {
-        Self { descriptor, metered }
+        Self {
+            descriptor,
+            metered,
+        }
     }
 
     /// Build **and sign** a fresh, correctly-shaped `media-relay` descriptor from a real
@@ -186,7 +189,7 @@ impl Coordinator for MediaRelayCoordinator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use broker_conformance::check;
+    use broker_conformance::{check, ScarceResource};
 
     fn ik(seed: u8) -> IdentityKey {
         IdentityKey::from_seed(&[seed; 32])
@@ -195,14 +198,23 @@ mod tests {
     #[test]
     fn signed_media_relay_descriptor_verifies_and_declares_blind_routing_structural() {
         let (_coord, signed) = MediaRelayCoordinator::signed(&ik(1), Cbor::empty(), None, false);
-        assert!(signed.verify().is_ok(), "a real kotva-core signature must verify");
+        assert!(
+            signed.verify().is_ok(),
+            "a real kotva-core signature must verify"
+        );
         assert_eq!(signed.descriptor.kind.as_str(), "media-relay");
         assert!(
             signed.descriptor.visibility.is_verifiably_blind(),
             "media-relay MUST declare a verifiably-blind claim — blind-routing/structural"
         );
-        assert_eq!(signed.descriptor.visibility.class, VisibilityClass::BlindRouting);
-        assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Structural);
+        assert_eq!(
+            signed.descriptor.visibility.class,
+            VisibilityClass::BlindRouting
+        );
+        assert_eq!(
+            signed.descriptor.visibility.level,
+            AssuranceLevel::Structural
+        );
     }
 
     #[test]
@@ -263,7 +275,7 @@ mod tests {
                 LockIn::None
             }
             fn self_host(&self) -> SelfHost {
-                SelfHost::ScarceReachabilityException
+                SelfHost::ScarceReachabilityException(ScarceResource::PublicIngress)
             }
             fn delivery_path_gate(&self) -> Gate {
                 Gate::NoDeliveryPath

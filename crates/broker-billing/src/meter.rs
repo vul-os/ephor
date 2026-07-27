@@ -99,7 +99,8 @@ impl Meter for InMemoryMeter {
     fn record(&self, payer: &[u8], kind: ResourceKind, units: u64) {
         let mut table = self.usage.lock().expect("meter mutex poisoned");
         let entry = table.entry(payer.to_vec()).or_default();
-        *entry.entry(kind).or_insert(0) = entry.get(&kind).copied().unwrap_or(0).saturating_add(units);
+        *entry.entry(kind).or_insert(0) =
+            entry.get(&kind).copied().unwrap_or(0).saturating_add(units);
     }
 
     fn usage(&self, payer: &[u8]) -> BTreeMap<ResourceKind, u64> {

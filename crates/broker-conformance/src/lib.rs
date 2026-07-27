@@ -54,10 +54,49 @@ pub enum SelfHost {
     /// Anyone meeting the kind's requirement can run it for themselves.
     Backstop,
     /// The one disclosed exception: a scarce network-reachability resource an
-    /// ISP/host allocates (gateway port-25, reachability-adapter public ingress).
-    ScarceReachabilityException,
+    /// ISP/host allocates. The claimant MUST name which resource, because the
+    /// kind alone stopped being sufficient evidence.
+    ///
+    /// KOTVA §26 states that a legacy-rail adapter "is a `gateway`-kind
+    /// coordinator". A WhatsApp or Telegram adapter therefore reports
+    /// `kind = gateway` on the wire while needing no reputable IP, no unblocked
+    /// port 25, and in the outbound-persistent cases no inbound reachability at
+    /// all. Keying this exception off the kind alone would hand every such
+    /// adapter a self-host exemption it has no claim to — the check would
+    /// return Pass for a coordinator that is trivially self-hostable, which is
+    /// the opposite of what §2.3 is for.
+    ///
+    /// So the resource is named and COORD-3 checks the pairing.
+    ScarceReachabilityException(ScarceResource),
     /// No backstop and not the disclosed exception — a violation.
     None(String),
+}
+
+/// The scarce network-reachability resources §2.3 recognises. A closed set:
+/// anything not here is not scarce, and a claimant naming none of them is
+/// claiming an exemption that does not exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScarceResource {
+    /// An IP with sending reputation and unblocked port 25 — the mail gateway's
+    /// one irreducible cost (§7.1a).
+    SmtpEgress,
+    /// Publicly reachable ingress, for a party that cannot otherwise be dialled.
+    PublicIngress,
+}
+
+impl ScarceResource {
+    /// Whether a coordinator of this kind can plausibly need this resource.
+    ///
+    /// A gateway-kind coordinator may need SMTP egress — that is the mail
+    /// gateway. It may NOT claim public ingress on that basis alone, because
+    /// §26 puts chat adapters in the same kind and an outbound-persistent rail
+    /// needs no ingress whatsoever.
+    pub fn plausible_for(self, kind: CoordinatorKind) -> bool {
+        match self {
+            ScarceResource::SmtpEgress => kind == CoordinatorKind::Gateway,
+            ScarceResource::PublicIngress => kind == CoordinatorKind::ReachabilityAdapter,
+        }
+    }
 }
 
 /// COORD-6 delivery-path behavior.
@@ -175,13 +214,17 @@ pub fn check(c: &dyn Coordinator) -> Report {
         clause: "§2.3",
         outcome: match c.self_host() {
             SelfHost::Backstop => Outcome::Pass,
-            SelfHost::ScarceReachabilityException => {
-                if c.kind().is_scarce_reachability() {
+            SelfHost::ScarceReachabilityException(resource) => {
+                if resource.plausible_for(c.kind()) {
                     Outcome::Pass
                 } else {
                     Outcome::Violation(format!(
-                        "{} claims the scarce-reachability exception but is not a member of that class",
-                        c.kind().as_str()
+                        "{} claims the scarce-reachability exception for {:?}, which that \
+                         kind cannot need. Note that §26 legacy-rail adapters report \
+                         kind=gateway while needing no scarce resource at all — the kind \
+                         alone is not evidence.",
+                        c.kind().as_str(),
+                        resource
                     ))
                 }
             }
@@ -382,5 +425,59 @@ mod tests {
         }
         let r = check(&TokenRelay(GoodRelay::new().d));
         assert!(!r.is_conformant());
+    }
+}
+
+#[cfg(test)]
+mod scarce_resource_tests {
+    use super::*;
+
+    // The hole this change closes. KOTVA §26 says a legacy-rail adapter "is a
+    // `gateway`-kind coordinator", so a WhatsApp or Telegram adapter reports
+    // kind=gateway on the wire. Before, COORD-3 asked only whether the KIND was
+    // in the scarce-reachability class — which it is — and returned Pass.
+    //
+    // A chat adapter needs no reputable IP, no unblocked port 25, and for an
+    // outbound-persistent rail no inbound reachability at all. It is trivially
+    // self-hostable. Granting it the self-host exemption is the precise
+    // opposite of what §2.3 exists to police.
+    #[test]
+    fn a_gateway_kind_cannot_claim_ingress_it_does_not_need() {
+        assert!(
+            !ScarceResource::PublicIngress.plausible_for(CoordinatorKind::Gateway),
+            "a gateway-kind coordinator claiming public ingress is the §26 chat-adapter \
+             loophole: it reports kind=gateway and needs nothing scarce"
+        );
+        assert!(
+            ScarceResource::SmtpEgress.plausible_for(CoordinatorKind::Gateway),
+            "the mail gateway's port-25 claim is the one this exception exists for"
+        );
+    }
+
+    #[test]
+    fn only_the_reachability_adapter_may_claim_ingress() {
+        assert!(ScarceResource::PublicIngress.plausible_for(CoordinatorKind::ReachabilityAdapter));
+        assert!(!ScarceResource::SmtpEgress.plausible_for(CoordinatorKind::ReachabilityAdapter));
+    }
+
+    // Every other kind is self-hostable and may claim neither.
+    #[test]
+    fn no_other_kind_may_claim_a_scarce_resource() {
+        for kind in [
+            CoordinatorKind::Relay,
+            CoordinatorKind::MediaRelay,
+            CoordinatorKind::Indexer,
+            CoordinatorKind::Labeler,
+            CoordinatorKind::Matcher,
+            CoordinatorKind::Compute,
+            CoordinatorKind::Arbiter,
+            CoordinatorKind::Oracle,
+        ] {
+            assert!(!ScarceResource::SmtpEgress.plausible_for(kind), "{kind:?}");
+            assert!(
+                !ScarceResource::PublicIngress.plausible_for(kind),
+                "{kind:?}"
+            );
+        }
     }
 }

@@ -71,7 +71,10 @@ impl LabelerCoordinator {
     /// `broker_conformance::check` finding. Prefer [`LabelerCoordinator::signed`] for the common
     /// case of minting a fresh, correctly-shaped descriptor.
     pub fn new(descriptor: Descriptor, metered: bool) -> Self {
-        Self { descriptor, metered }
+        Self {
+            descriptor,
+            metered,
+        }
     }
 
     /// Build **and sign** a fresh, correctly-shaped `labeler` descriptor from a real `kotva-core`
@@ -149,9 +152,15 @@ mod tests {
     #[test]
     fn signed_labeler_descriptor_verifies_and_declares_terminating() {
         let (_coord, signed) = LabelerCoordinator::signed(&ik(1), Cbor::empty(), None, false);
-        assert!(signed.verify().is_ok(), "a real kotva-core signature must verify");
+        assert!(
+            signed.verify().is_ok(),
+            "a real kotva-core signature must verify"
+        );
         assert_eq!(signed.descriptor.kind.as_str(), "labeler");
-        assert_eq!(signed.descriptor.visibility.class, VisibilityClass::Terminating);
+        assert_eq!(
+            signed.descriptor.visibility.class,
+            VisibilityClass::Terminating
+        );
         assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Declared);
     }
 

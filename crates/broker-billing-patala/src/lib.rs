@@ -66,7 +66,7 @@ use std::sync::Mutex;
 
 use patala_core::{PayRequest, PaymentRail, Receipt};
 
-use broker_billing::settlement::{SettlementReceipt, SettlementRail};
+use broker_billing::settlement::{SettlementRail, SettlementReceipt};
 
 /// Everything that can go wrong against a [`PatalaSettlement`]. Every variant is a refusal: none
 /// of them ever result in a balance changing.
@@ -75,11 +75,18 @@ pub enum PatalaSettlementError {
     /// The requested currency does not match this adapter's configured currency — refused rather
     /// than silently cross-charged.
     #[error("currency {requested} does not match this settlement rail's currency {configured}")]
-    CurrencyMismatch { requested: String, configured: String },
+    CurrencyMismatch {
+        requested: String,
+        configured: String,
+    },
     /// The payer's local prepaid balance is insufficient to cover the charge — fail-closed, the
     /// same shape as [`broker_billing::prepaid::PrepaidError::Exhausted`].
     #[error("insufficient prepaid credit on the patala rail: payer has {balance} {currency}, charge was {amount}")]
-    InsufficientCredit { balance: u64, amount: u64, currency: String },
+    InsufficientCredit {
+        balance: u64,
+        amount: u64,
+        currency: String,
+    },
     /// [`PaymentRail::verify`] itself failed (an operational failure to even check — RPC down,
     /// etc. — never implies the receipt is valid; see that method's own fail-closed contract).
     #[error("payment rail verification failed: {0}")]
@@ -89,7 +96,9 @@ pub enum PatalaSettlementError {
     NotVerified,
     /// A [`patala_core::Receipt`] presented to [`PatalaSettlement::credit_from_receipt`] named a
     /// currency other than this adapter's configured one.
-    #[error("receipt currency {receipt} does not match this settlement rail's currency {expected}")]
+    #[error(
+        "receipt currency {receipt} does not match this settlement rail's currency {expected}"
+    )]
     ReceiptCurrencyMismatch { receipt: String, expected: String },
 }
 
@@ -145,11 +154,19 @@ impl<R: PaymentRail> PatalaSettlement<R> {
     /// [`SettlementRail::balance`] reports, exposed without the `Result`/currency-check wrapper
     /// for callers that already know they are asking about this adapter's own currency.
     pub fn local_balance(&self, payer: &[u8]) -> u64 {
-        self.ledger.lock().expect("patala settlement ledger mutex poisoned").get(payer).copied().unwrap_or(0)
+        self.ledger
+            .lock()
+            .expect("patala settlement ledger mutex poisoned")
+            .get(payer)
+            .copied()
+            .unwrap_or(0)
     }
 
     fn next_seq(&self) -> u64 {
-        let mut seq = self.next_tx_seq.lock().expect("patala settlement ledger mutex poisoned");
+        let mut seq = self
+            .next_tx_seq
+            .lock()
+            .expect("patala settlement ledger mutex poisoned");
         let v = *seq;
         *seq += 1;
         v
@@ -158,7 +175,11 @@ impl<R: PaymentRail> PatalaSettlement<R> {
     /// Build the [`patala_core::PayRequest`] a payer's own wallet would submit to top up
     /// `amount_minor` — a convenience for constructing the intent a caller surfaces to a payer;
     /// never submitted or signed by this crate itself (non-custodial, see module docs).
-    pub fn top_up_pay_request(&self, amount_minor: u64, reference: impl Into<String>) -> PayRequest {
+    pub fn top_up_pay_request(
+        &self,
+        amount_minor: u64,
+        reference: impl Into<String>,
+    ) -> PayRequest {
         PayRequest {
             amount_minor,
             currency: self.currency.clone(),
@@ -172,7 +193,11 @@ impl<R: PaymentRail> PatalaSettlement<R> {
     /// by `receipt.amount_minor`. Idempotent on `receipt.reference`: a receipt whose reference has
     /// already been credited is accepted (returns the current balance) without crediting again —
     /// so a caller may safely retry this call.
-    pub async fn credit_from_receipt(&self, payer: &[u8], receipt: Receipt) -> Result<u64, PatalaSettlementError> {
+    pub async fn credit_from_receipt(
+        &self,
+        payer: &[u8],
+        receipt: Receipt,
+    ) -> Result<u64, PatalaSettlementError> {
         if receipt.currency != self.currency {
             return Err(PatalaSettlementError::ReceiptCurrencyMismatch {
                 receipt: receipt.currency.clone(),
@@ -182,7 +207,12 @@ impl<R: PaymentRail> PatalaSettlement<R> {
 
         // Idempotency check BEFORE re-verifying: a repeated call with an already-credited
         // reference just reports the current balance, never re-credits.
-        if self.credited_references.lock().expect("mutex poisoned").contains(&receipt.reference) {
+        if self
+            .credited_references
+            .lock()
+            .expect("mutex poisoned")
+            .contains(&receipt.reference)
+        {
             return Ok(self.local_balance(payer));
         }
 
@@ -204,7 +234,10 @@ impl<R: PaymentRail> PatalaSettlement<R> {
             *entry = entry.saturating_add(receipt.amount_minor);
             *entry
         };
-        self.credited_references.lock().expect("mutex poisoned").insert(receipt.reference.clone());
+        self.credited_references
+            .lock()
+            .expect("mutex poisoned")
+            .insert(receipt.reference.clone());
 
         Ok(new_balance)
     }
@@ -250,7 +283,12 @@ impl<R: PaymentRail> SettlementRail for PatalaSettlement<R> {
     /// (see the module doc's three-step split) — never a live network/rail call on this path.
     /// Fails closed on a currency mismatch or insufficient local balance, leaving the balance
     /// unchanged.
-    fn charge(&self, payer: &[u8], amount: u64, currency: &str) -> Result<SettlementReceipt, Self::Error> {
+    fn charge(
+        &self,
+        payer: &[u8],
+        amount: u64,
+        currency: &str,
+    ) -> Result<SettlementReceipt, Self::Error> {
         if currency != self.currency {
             return Err(PatalaSettlementError::CurrencyMismatch {
                 requested: currency.to_string(),
@@ -341,7 +379,8 @@ mod tests {
             })
         }
         async fn charge(&self, req: &PayRequest) -> patala_core::Result<Receipt> {
-            req.validate().map_err(|e| PatalaError::InvalidRequest(e.to_string()))?;
+            req.validate()
+                .map_err(|e| PatalaError::InvalidRequest(e.to_string()))?;
             Ok(Receipt {
                 rail_id: self.id.clone(),
                 amount_minor: req.amount_minor,
@@ -355,7 +394,8 @@ mod tests {
             // A tampered receipt (proof no longer matching `reference`) fails to verify — enough
             // to exercise this crate's fail-closed handling without depending on
             // `patala_core::MockRail`'s internal digest scheme.
-            Ok(receipt.rail_id == self.id && receipt.proof == receipt.reference.clone().into_bytes())
+            Ok(receipt.rail_id == self.id
+                && receipt.proof == receipt.reference.clone().into_bytes())
         }
     }
 
@@ -388,7 +428,11 @@ mod tests {
         let intent = adapter.top_up_pay_request(500, "ref-1");
         assert_eq!(intent.amount_minor, 500);
         assert_eq!(intent.destination, "operator-address");
-        assert_eq!(adapter.local_balance(b"payer"), 0, "building the intent credits nothing");
+        assert_eq!(
+            adapter.local_balance(b"payer"),
+            0,
+            "building the intent credits nothing"
+        );
     }
 
     #[tokio::test]
@@ -403,7 +447,10 @@ mod tests {
         let receipt = rail.charge(&req).await.unwrap();
 
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        let new_balance = adapter.credit_from_receipt(b"payer", receipt).await.unwrap();
+        let new_balance = adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap();
         assert_eq!(new_balance, 1_000);
         assert_eq!(adapter.local_balance(b"payer"), 1_000);
     }
@@ -422,9 +469,16 @@ mod tests {
         receipt.proof = b"not-the-real-proof".to_vec();
 
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        let err = adapter.credit_from_receipt(b"payer", receipt).await.unwrap_err();
+        let err = adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap_err();
         assert!(matches!(err, PatalaSettlementError::NotVerified));
-        assert_eq!(adapter.local_balance(b"payer"), 0, "a rejected receipt credits nothing");
+        assert_eq!(
+            adapter.local_balance(b"payer"),
+            0,
+            "a rejected receipt credits nothing"
+        );
     }
 
     #[tokio::test]
@@ -439,8 +493,14 @@ mod tests {
             proof: b"ref-1".to_vec(),
             settled_at_unix: 0,
         };
-        let err = adapter.credit_from_receipt(b"payer", receipt).await.unwrap_err();
-        assert!(matches!(err, PatalaSettlementError::ReceiptCurrencyMismatch { .. }));
+        let err = adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap_err();
+        assert!(matches!(
+            err,
+            PatalaSettlementError::ReceiptCurrencyMismatch { .. }
+        ));
     }
 
     #[tokio::test]
@@ -455,9 +515,15 @@ mod tests {
         let receipt = rail.charge(&req).await.unwrap();
 
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        adapter.credit_from_receipt(b"payer", receipt.clone()).await.unwrap();
+        adapter
+            .credit_from_receipt(b"payer", receipt.clone())
+            .await
+            .unwrap();
         // Presenting the exact same receipt again must not double-credit.
-        adapter.credit_from_receipt(b"payer", receipt).await.unwrap();
+        adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap();
         assert_eq!(adapter.local_balance(b"payer"), 1_000);
     }
 
@@ -473,7 +539,10 @@ mod tests {
         let receipt = inner.charge(&req).await.unwrap();
         let rail = AlwaysErrorsOnVerify(FakeRail::new("fake"));
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        let err = adapter.credit_from_receipt(b"payer", receipt).await.unwrap_err();
+        let err = adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap_err();
         assert!(matches!(err, PatalaSettlementError::Rail(_)));
     }
 
@@ -488,11 +557,17 @@ mod tests {
         };
         let receipt = rail.charge(&req).await.unwrap();
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        adapter.credit_from_receipt(b"payer", receipt).await.unwrap();
+        adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap();
 
         let settlement_receipt = adapter.charge(b"payer", 300, "USDC").unwrap();
         assert_eq!(settlement_receipt.amount, 300);
-        assert_eq!(SettlementRail::balance(&adapter, b"payer", "USDC").unwrap(), 700);
+        assert_eq!(
+            SettlementRail::balance(&adapter, b"payer", "USDC").unwrap(),
+            700
+        );
     }
 
     #[tokio::test]
@@ -500,7 +575,10 @@ mod tests {
         let rail = FakeRail::new("fake");
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
         let err = adapter.charge(b"payer", 100, "USDC").unwrap_err();
-        assert!(matches!(err, PatalaSettlementError::InsufficientCredit { .. }));
+        assert!(matches!(
+            err,
+            PatalaSettlementError::InsufficientCredit { .. }
+        ));
     }
 
     #[tokio::test]
@@ -508,14 +586,20 @@ mod tests {
         let rail = FakeRail::new("fake");
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
         let err = adapter.charge(b"payer", 100, "EUR").unwrap_err();
-        assert!(matches!(err, PatalaSettlementError::CurrencyMismatch { .. }));
+        assert!(matches!(
+            err,
+            PatalaSettlementError::CurrencyMismatch { .. }
+        ));
     }
 
     #[tokio::test]
     async fn balance_for_an_untracked_currency_is_zero_not_an_error() {
         let rail = FakeRail::new("fake");
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        assert_eq!(SettlementRail::balance(&adapter, b"payer", "EUR").unwrap(), 0);
+        assert_eq!(
+            SettlementRail::balance(&adapter, b"payer", "EUR").unwrap(),
+            0
+        );
     }
 
     #[tokio::test]
@@ -531,7 +615,10 @@ mod tests {
         };
         let receipt = rail.charge(&req).await.unwrap();
         let adapter = PatalaSettlement::new(rail, "operator-address", "USDC");
-        adapter.credit_from_receipt(b"payer", receipt).await.unwrap();
+        adapter
+            .credit_from_receipt(b"payer", receipt)
+            .await
+            .unwrap();
 
         let subscription = broker_billing::Subscription::new(b"payer".to_vec(), 999, "USDC");
         let receipt = subscription.charge(&adapter).unwrap();

@@ -418,7 +418,8 @@ mod tests {
     #[test]
     fn round_trips_aaaa_record() {
         let addr = Ipv6Addr::new(0x2001, 0x0db8, 0, 0, 0, 0, 0, 1);
-        let packet = build_response("mail.example.org", TYPE_AAAA, &[(TYPE_AAAA, addr.octets().to_vec())]);
+        let packet =
+            build_response("mail.example.org", TYPE_AAAA, &[(TYPE_AAAA, addr.octets().to_vec())]);
         let msg = parse_response(&packet).unwrap();
         assert_eq!(parse_aaaa_rdata(&msg.answers[0]), Some(addr));
     }

@@ -276,11 +276,25 @@ enum Mechanism {
     Include(String),
     /// `cidr4`/`cidr6` are the independent dual-cidr halves (RFC 7208 §5.3): `cidr4` gates an A
     /// match against an IPv4 sender, `cidr6` gates an AAAA match against an IPv6 sender.
-    A { domain: Option<String>, cidr4: u8, cidr6: u8 },
+    A {
+        domain: Option<String>,
+        cidr4: u8,
+        cidr6: u8,
+    },
     /// As [`Mechanism::A`] but resolving the domain's MX hosts first (RFC 7208 §5.4).
-    Mx { domain: Option<String>, cidr4: u8, cidr6: u8 },
-    Ip4 { net: Ipv4Addr, cidr: u8 },
-    Ip6 { net: Ipv6Addr, cidr: u8 },
+    Mx {
+        domain: Option<String>,
+        cidr4: u8,
+        cidr6: u8,
+    },
+    Ip4 {
+        net: Ipv4Addr,
+        cidr: u8,
+    },
+    Ip6 {
+        net: Ipv6Addr,
+        cidr: u8,
+    },
     Ptr,
     Exists(String),
 }

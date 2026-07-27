@@ -419,7 +419,11 @@ fn mx_session_rejects_a_data_body_over_the_configured_size_cap() {
     assert_eq!(s.feed_line("From: sender@gmail.com").code, 0);
     assert_eq!(s.feed_line("").code, 0);
     assert_eq!(s.feed_line("small body").code, 0);
-    assert_eq!(s.feed_line(".").code, 250, "a subsequent under-cap message still delivers normally");
+    assert_eq!(
+        s.feed_line(".").code,
+        250,
+        "a subsequent under-cap message still delivers normally"
+    );
 }
 
 #[test]
@@ -1090,10 +1094,7 @@ fn inbound_dkim_annotate_delivers_regardless_of_verdict() {
     tampered[pos] ^= 0x20;
     let reply = gw.accept_message("alice@sender.example", &recip.email, &tampered, NOW);
     assert_eq!(reply.code, 250, "annotate mode delivers regardless of the DKIM verdict");
-    assert!(matches!(
-        gw.verify_inbound_dkim(&tampered),
-        gateway::dkim::DkimVerdict::Fail(_)
-    ));
+    assert!(matches!(gw.verify_inbound_dkim(&tampered), gateway::dkim::DkimVerdict::Fail(_)));
 }
 
 #[test]
@@ -1183,9 +1184,11 @@ fn inbound_strips_forged_authentication_results_before_attesting_spec_7_2c() {
     // It DOES verify against the same bytes with the trust-boundary headers removed — proving the
     // gateway actually stripped them (not merely that verification is broken generally). This is
     // exactly `forged` with its first two (forged) lines removed.
-    let hygienic =
-        format!("From: attacker@evil.example\r\nTo: {}\r\nSubject: hi\r\n\r\nbody\r\n", recip.email)
-            .into_bytes();
+    let hygienic = format!(
+        "From: attacker@evil.example\r\nTo: {}\r\nSubject: hi\r\n\r\nbody\r\n",
+        recip.email
+    )
+    .into_bytes();
     bridged
         .gateway_attestation
         .verify(DOMAIN, key.as_deref(), &hygienic)
@@ -1825,8 +1828,10 @@ fn address_claim_authz_refuses_a_sender_claiming_someone_elses_address_on_the_sa
             "ceo@alice-domain.com",
             RecipientKey { ik: ceo_ik.public(), seal_pub: vec![0u8; 32] },
         );
-    let transport =
-        std::sync::Arc::new(RecordingTransport::new(true, TransportResult::Delivered { code: 250 }));
+    let transport = std::sync::Arc::new(RecordingTransport::new(
+        true,
+        TransportResult::Delivered { code: 250 },
+    ));
     let gw = claim_test_gw(directory, transport.clone(), "acct-alice");
 
     // A payload genuinely from Alice's own key, submitted for authentication as "acct-alice" — but
@@ -1834,13 +1839,8 @@ fn address_claim_authz_refuses_a_sender_claiming_someone_elses_address_on_the_sa
     let mut payload = sample_payload();
     payload.from = alice_ik.public();
 
-    let out = gw.send_authenticated(
-        &payload,
-        "ceo@alice-domain.com",
-        "bob@gmail.com",
-        "acct-alice",
-        NOW,
-    );
+    let out =
+        gw.send_authenticated(&payload, "ceo@alice-domain.com", "bob@gmail.com", "acct-alice", NOW);
     assert!(
         matches!(out, GovernedSend::Blocked(SenderVerdict::Refuse { .. })),
         "an authenticated sender must not be able to claim a DIFFERENT registered address on the \
@@ -1858,8 +1858,10 @@ fn address_claim_authz_allows_a_sender_claiming_their_own_address() {
         "alice@alice-domain.com",
         RecipientKey { ik: alice_ik.public(), seal_pub: vec![0u8; 32] },
     );
-    let transport =
-        std::sync::Arc::new(RecordingTransport::new(true, TransportResult::Delivered { code: 250 }));
+    let transport = std::sync::Arc::new(RecordingTransport::new(
+        true,
+        TransportResult::Delivered { code: 250 },
+    ));
     let gw = claim_test_gw(directory, transport.clone(), "acct-alice");
 
     let mut payload = sample_payload();
@@ -1885,8 +1887,10 @@ fn address_claim_authz_refuses_an_address_absent_from_the_directory() {
         "alice@alice-domain.com",
         RecipientKey { ik: alice_ik.public(), seal_pub: vec![0u8; 32] },
     );
-    let transport =
-        std::sync::Arc::new(RecordingTransport::new(true, TransportResult::Delivered { code: 250 }));
+    let transport = std::sync::Arc::new(RecordingTransport::new(
+        true,
+        TransportResult::Delivered { code: 250 },
+    ));
     let gw = claim_test_gw(directory, transport.clone(), "acct-alice");
 
     let mut payload = sample_payload();
@@ -1914,8 +1918,10 @@ fn governed_send_fails_closed_with_no_address_claim_authz_configured() {
             self.0.deliver(dest, message, require_tls)
         }
     }
-    let transport =
-        std::sync::Arc::new(RecordingTransport::new(true, TransportResult::Delivered { code: 250 }));
+    let transport = std::sync::Arc::new(RecordingTransport::new(
+        true,
+        TransportResult::Delivered { code: 250 },
+    ));
     let guard = OutboundSenderGuard::new().require_registered(["acct-alice"]);
     let gw = OutboundGateway::new(
         vec![dkim_key("alice-domain.com", "dmtap1")],

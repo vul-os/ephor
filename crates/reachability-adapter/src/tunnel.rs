@@ -99,12 +99,12 @@ pub struct Registration {
     pub allowed_services: HashSet<String>,
 }
 
-async fn read_length_prefixed_string(
-    stream: &mut TcpStream,
-) -> Result<String, TunnelError> {
+async fn read_length_prefixed_string(stream: &mut TcpStream) -> Result<String, TunnelError> {
     let len = stream.read_u16().await? as usize;
     if len > MAX_REGISTRATION_FIELD_BYTES {
-        return Err(TunnelError::MalformedRegistration("field exceeds max length"));
+        return Err(TunnelError::MalformedRegistration(
+            "field exceeds max length",
+        ));
     }
     let mut buf = vec![0u8; len];
     stream.read_exact(&mut buf).await?;
@@ -122,7 +122,9 @@ pub async fn read_registration(stream: &mut TcpStream) -> Result<Registration, T
     }
     let service_count = stream.read_u16().await? as usize;
     if service_count > MAX_REGISTRATION_SERVICES {
-        return Err(TunnelError::MalformedRegistration("too many declared services"));
+        return Err(TunnelError::MalformedRegistration(
+            "too many declared services",
+        ));
     }
     let mut allowed_services = HashSet::with_capacity(service_count);
     for _ in 0..service_count {
@@ -190,9 +192,7 @@ impl TunnelHandle {
     /// [`TunnelStream`]'s `Compat` wrapper.
     pub async fn open_stream(&self) -> Result<TunnelStream, TunnelError> {
         let (tx, rx) = oneshot::channel();
-        self.open_tx
-            .send(tx)
-            .map_err(|_| TunnelError::Closed)?;
+        self.open_tx.send(tx).map_err(|_| TunnelError::Closed)?;
         let stream = rx.await.map_err(|_| TunnelError::Closed)??;
         Ok(stream.compat())
     }
@@ -360,7 +360,9 @@ impl TunnelRegistry {
         let mut state = self.inner.lock().await;
         if let Some(existing) = state.tunnels.get(&registration.name) {
             if existing.owner_ik != owner_ik {
-                return Err(RegistryError::OwnedByDifferentIdentity(registration.name.clone()));
+                return Err(RegistryError::OwnedByDifferentIdentity(
+                    registration.name.clone(),
+                ));
             }
         }
         let generation = state.next_generation;
@@ -423,7 +425,9 @@ pub struct RegistrationGuard {
 
 impl std::fmt::Debug for RegistrationGuard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RegistrationGuard").field("name", &self.name).finish()
+        f.debug_struct("RegistrationGuard")
+            .field("name", &self.name)
+            .finish()
     }
 }
 
@@ -511,7 +515,9 @@ mod tests {
             .register(&reg, &owner_b, dummy_handle().await)
             .await
             .unwrap_err();
-        assert!(matches!(err, RegistryError::OwnedByDifferentIdentity(name) if name == "dup.example"));
+        assert!(
+            matches!(err, RegistryError::OwnedByDifferentIdentity(name) if name == "dup.example")
+        );
     }
 
     #[tokio::test]

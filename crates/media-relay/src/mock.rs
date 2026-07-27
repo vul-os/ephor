@@ -32,7 +32,8 @@ impl MediaSfu for MockSfu {
         if self.sessions.get(&config.session_id) == Some(&State::Running) {
             return Err(SfuError::AlreadyRunning(config.session_id.clone()));
         }
-        self.sessions.insert(config.session_id.clone(), State::Running);
+        self.sessions
+            .insert(config.session_id.clone(), State::Running);
         Ok(SfuHandle {
             session_id: config.session_id.clone(),
         })
@@ -41,7 +42,8 @@ impl MediaSfu for MockSfu {
     fn stop(&mut self, handle: &SfuHandle) -> Result<(), SfuError> {
         match self.sessions.get(&handle.session_id) {
             Some(State::Running) => {
-                self.sessions.insert(handle.session_id.clone(), State::Stopped);
+                self.sessions
+                    .insert(handle.session_id.clone(), State::Stopped);
                 Ok(())
             }
             Some(State::Stopped) | None => Err(SfuError::NotFound(handle.session_id.clone())),
@@ -66,7 +68,9 @@ mod tests {
     fn start_then_status_reports_running() {
         let mut sfu = MockSfu::new();
         let cfg = SessionConfig::new("call-1", 4, 2000);
-        let handle = sfu.start(&cfg).expect("mock start never fails for a fresh session");
+        let handle = sfu
+            .start(&cfg)
+            .expect("mock start never fails for a fresh session");
         assert_eq!(
             sfu.status(&handle),
             SfuStatus::Running {

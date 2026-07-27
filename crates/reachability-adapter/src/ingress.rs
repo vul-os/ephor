@@ -106,7 +106,10 @@ impl AdapterServer {
     /// Registration is single-writer per `(name, owning IK)` (REACH-7 discipline applied to the
     /// in-memory session table) — a name already held by a *different* IK's live tunnel is
     /// refused, never hijacked; the same IK re-registering (a refresh) is honored.
-    pub async fn accept_box_connection(&self, mut socket: TcpStream) -> Result<(), TunnelAcceptError> {
+    pub async fn accept_box_connection(
+        &self,
+        mut socket: TcpStream,
+    ) -> Result<(), TunnelAcceptError> {
         let authed = authenticate_box_connection(&mut socket, &self.nonces).await?;
         let (handle, driver_join) = TunnelHandle::spawn(socket);
         let guard: RegistrationGuard = self
@@ -273,7 +276,9 @@ mod tests {
                 name,
                 allowed_services: services,
             };
-            authenticate_as_box(&mut ctrl, &ik, &registration).await.unwrap();
+            authenticate_as_box(&mut ctrl, &ik, &registration)
+                .await
+                .unwrap();
 
             // From here the control socket carries the yamux session; the box
             // is the yamux **server** side (accepts streams the adapter
@@ -281,7 +286,8 @@ mod tests {
             // fake box exercises the real wire framing end to end.
             use tokio_util::compat::TokioAsyncReadCompatExt;
             let io = ctrl.compat();
-            let mut conn = yamux::Connection::new(io, yamux::Config::default(), yamux::Mode::Server);
+            let mut conn =
+                yamux::Connection::new(io, yamux::Config::default(), yamux::Mode::Server);
             loop {
                 let stream = match std::future::poll_fn(|cx| conn.poll_next_inbound(cx)).await {
                     Some(Ok(s)) => s,
@@ -342,7 +348,10 @@ mod tests {
         // ClientHello bytes we just sent, byte-for-byte.
         let mut echoed = vec![0u8; client_hello.len()];
         client.read_exact(&mut echoed).await.unwrap();
-        assert_eq!(echoed, client_hello, "spliced bytes must be byte-identical passthrough");
+        assert_eq!(
+            echoed, client_hello,
+            "spliced bytes must be byte-identical passthrough"
+        );
 
         // And an application-shaped chunk sent after the handshake bytes
         // round-trips too, proving the splice continues past the ClientHello.
@@ -363,7 +372,9 @@ mod tests {
         let ingress_server = server.clone();
         let handled = tokio::spawn(async move {
             let (socket, _) = ingress_listener.accept().await.unwrap();
-            ingress_server.handle_ingress_connection(socket, "https").await
+            ingress_server
+                .handle_ingress_connection(socket, "https")
+                .await
         });
 
         let mut client = TcpStream::connect(ingress_addr).await.unwrap();
@@ -411,7 +422,10 @@ mod tests {
         client.write_all(&client_hello).await.unwrap();
 
         let result = handled.await.unwrap();
-        assert!(matches!(result, Err(IngressError::ServiceNotAllowed { .. })));
+        assert!(matches!(
+            result,
+            Err(IngressError::ServiceNotAllowed { .. })
+        ));
 
         assert_forwarded_nothing(&mut client).await;
     }
@@ -437,7 +451,10 @@ mod tests {
         let control_addr2 = control_listener2.local_addr().unwrap();
         let _box2 = spawn_fake_box(control_listener2, name, "https").await;
         let control_client2 = TcpStream::connect(control_addr2).await.unwrap();
-        let err = server.accept_box_connection(control_client2).await.unwrap_err();
+        let err = server
+            .accept_box_connection(control_client2)
+            .await
+            .unwrap_err();
         let matches_expected = matches!(
             &err,
             TunnelAcceptError::Registry(RegistryError::OwnedByDifferentIdentity(n)) if n == name
@@ -449,7 +466,10 @@ mod tests {
 
         // The original registration must be completely unaffected by the failed hijack attempt.
         let lookup = server.registry().lookup(name).await;
-        assert!(lookup.is_some(), "the incumbent registration must survive an attempted hijack");
+        assert!(
+            lookup.is_some(),
+            "the incumbent registration must survive an attempted hijack"
+        );
     }
 
     /// Assert a fail-closed connection forwarded zero application bytes. A
@@ -460,7 +480,10 @@ mod tests {
         let mut buf = [0u8; 16];
         match client.read(&mut buf).await {
             Ok(0) => {}
-            Ok(n) => panic!("expected zero forwarded bytes, got {n} bytes: {:?}", &buf[..n]),
+            Ok(n) => panic!(
+                "expected zero forwarded bytes, got {n} bytes: {:?}",
+                &buf[..n]
+            ),
             Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => {}
             Err(e) => panic!("unexpected error reading fail-closed connection: {e}"),
         }

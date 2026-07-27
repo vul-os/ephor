@@ -231,10 +231,17 @@ impl AntiAbuse for AllowAllAuthz {
 fn recipient() -> (String, RecipientKey) {
     let ik = IdentityKey::generate();
     let seal = kotva_core::mote::SealKeypair::generate();
-    ("alice@example.org".to_string(), RecipientKey { ik: ik.public(), seal_pub: seal.public().to_vec() })
+    (
+        "alice@example.org".to_string(),
+        RecipientKey { ik: ik.public(), seal_pub: seal.public().to_vec() },
+    )
 }
 
-fn build_gw(recip_email: &str, recip_key: RecipientKey, spf_authorized_cidr: &str) -> InboundGateway {
+fn build_gw(
+    recip_email: &str,
+    recip_key: RecipientKey,
+    spf_authorized_cidr: &str,
+) -> InboundGateway {
     let gw = InboundGateway::new(
         IdentityKey::generate(),
         vec![AttestationKey::generate(DOMAIN, GW_SELECTOR)],
@@ -249,7 +256,13 @@ fn build_gw(recip_email: &str, recip_key: RecipientKey, spf_authorized_cidr: &st
         .with_dmarc(Box::new(gateway::dmarc::InMemoryDmarcResolver::new()), DmarcHandling::Annotate)
 }
 
-fn run_transaction(gw: &InboundGateway, peer_ip: &str, mail_from: &str, to: &str, body: &str) -> u16 {
+fn run_transaction(
+    gw: &InboundGateway,
+    peer_ip: &str,
+    mail_from: &str,
+    to: &str,
+    body: &str,
+) -> u16 {
     let mut s = MxSession::new(gw, peer_ip, NOW);
     assert_eq!(s.feed_line("EHLO gmail.com").code, 250);
     let mail_reply = s.feed_line(&format!("MAIL FROM:<{mail_from}>"));
@@ -288,8 +301,10 @@ fn coord6_same_authorization_different_content_same_outcome() {
         "From: legit@legit-sender.example\r\nTo: alice@example.org\r\nSubject: hi\r\n\r\nlet's meet for coffee\r\n";
     let spammy = "From: legit@legit-sender.example\r\nTo: alice@example.org\r\nSubject: FREE MONEY\r\n\r\nCLICK NOW!!! FREE VIAGRA CASINO WINNER CLAIM YOUR PRIZE!!!\r\n";
 
-    let benign_code = run_transaction(&gw, "203.0.113.9", "legit@legit-sender.example", &recip_email, benign);
-    let spammy_code = run_transaction(&gw, "203.0.113.9", "legit@legit-sender.example", &recip_email, spammy);
+    let benign_code =
+        run_transaction(&gw, "203.0.113.9", "legit@legit-sender.example", &recip_email, benign);
+    let spammy_code =
+        run_transaction(&gw, "203.0.113.9", "legit@legit-sender.example", &recip_email, spammy);
 
     assert_eq!(benign_code, 250, "the benign message from an authorized sender is delivered");
     assert_eq!(

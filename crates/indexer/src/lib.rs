@@ -97,7 +97,10 @@ impl IndexerCoordinator {
     /// `broker_conformance::check` finding, not a silent acceptance. Prefer
     /// [`IndexerCoordinator::signed`] to mint a fresh, correctly-shaped descriptor.
     pub fn new(descriptor: Descriptor, metered: bool) -> Self {
-        Self { descriptor, metered }
+        Self {
+            descriptor,
+            metered,
+        }
     }
 
     /// Build **and sign** a fresh, correctly-shaped `indexer` descriptor from a real `kotva-core`
@@ -182,11 +185,22 @@ mod tests {
 
     #[test]
     fn signed_indexer_descriptor_verifies_and_declares_terminating_by_default() {
-        let (_coord, signed) =
-            IndexerCoordinator::signed(&ik(1), QueryChannel::Terminating, Cbor::empty(), None, false);
-        assert!(signed.verify().is_ok(), "a real kotva-core signature must verify");
+        let (_coord, signed) = IndexerCoordinator::signed(
+            &ik(1),
+            QueryChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
+        assert!(
+            signed.verify().is_ok(),
+            "a real kotva-core signature must verify"
+        );
         assert_eq!(signed.descriptor.kind.as_str(), "indexer");
-        assert_eq!(signed.descriptor.visibility.class, VisibilityClass::Terminating);
+        assert_eq!(
+            signed.descriptor.visibility.class,
+            VisibilityClass::Terminating
+        );
         assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Declared);
     }
 
@@ -201,16 +215,26 @@ mod tests {
 
     #[test]
     fn a_free_indexer_is_fully_conformant() {
-        let (coord, _signed) =
-            IndexerCoordinator::signed(&ik(3), QueryChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = IndexerCoordinator::signed(
+            &ik(3),
+            QueryChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         let report = check(&coord);
         assert!(report.is_conformant(), "{:?}", report.findings);
     }
 
     #[test]
     fn a_metered_indexer_is_also_conformant() {
-        let (coord, _signed) =
-            IndexerCoordinator::signed(&ik(4), QueryChannel::Terminating, Cbor::empty(), None, true);
+        let (coord, _signed) = IndexerCoordinator::signed(
+            &ik(4),
+            QueryChannel::Terminating,
+            Cbor::empty(),
+            None,
+            true,
+        );
         let report = check(&coord);
         assert!(report.is_conformant(), "{:?}", report.findings);
         assert!(matches!(coord.metering(), Metering::SignedReceiptsToPayer));
@@ -225,23 +249,38 @@ mod tests {
     /// the honest answer.
     #[test]
     fn own_corpus_ranking_is_derived_view_not_classification() {
-        let (coord, _signed) =
-            IndexerCoordinator::signed(&ik(5), QueryChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = IndexerCoordinator::signed(
+            &ik(5),
+            QueryChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.delivery_path_gate(), Gate::DerivedViewOnly));
     }
 
     #[test]
     fn indexer_is_not_the_scarce_reachability_exception() {
         assert!(!CoordinatorKind::Indexer.is_scarce_reachability());
-        let (coord, _signed) =
-            IndexerCoordinator::signed(&ik(6), QueryChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = IndexerCoordinator::signed(
+            &ik(6),
+            QueryChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.self_host(), SelfHost::Backstop));
     }
 
     #[test]
     fn indexer_mints_no_token() {
-        let (coord, _signed) =
-            IndexerCoordinator::signed(&ik(7), QueryChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = IndexerCoordinator::signed(
+            &ik(7),
+            QueryChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.settlement(), Settlement::ExistingAssetsOnly));
     }
 

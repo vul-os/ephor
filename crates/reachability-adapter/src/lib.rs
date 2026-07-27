@@ -67,7 +67,9 @@
 //! non-allow-listed service is to **reset or close the TCP connection** — never a
 //! guess, never a fallback that could intercept another name (REACH-6, SEC-1).
 
-use broker_conformance::{Coordinator, Gate, LockIn, Metering, SelfHost, Settlement};
+use broker_conformance::{
+    Coordinator, Gate, LockIn, Metering, ScarceResource, SelfHost, Settlement,
+};
 use broker_economics::descriptor::Descriptor;
 use broker_economics::kinds::CoordinatorKind;
 use broker_economics::visibility::{AssuranceLevel, ContentVisibility, VisibilityClass};
@@ -146,7 +148,7 @@ impl Coordinator for ReachabilityAdapter {
         // REACH-9: anyone with a VPS may run an adapter; the one disclosed exception
         // is that a public IP + reachable ingress is a scarce resource a NAT'd box
         // cannot conjure (the port-25 analog).
-        SelfHost::ScarceReachabilityException
+        SelfHost::ScarceReachabilityException(ScarceResource::PublicIngress)
     }
 
     fn delivery_path_gate(&self) -> Gate {

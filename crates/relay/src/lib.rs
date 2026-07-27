@@ -88,7 +88,10 @@ impl RelayCoordinator {
     /// COORD-1/COORD-4 finding, not a silent acceptance. Prefer [`RelayCoordinator::signed`] for
     /// the common case of minting a fresh, correctly-shaped descriptor.
     pub fn new(descriptor: Descriptor, metered: bool) -> Self {
-        Self { descriptor, metered }
+        Self {
+            descriptor,
+            metered,
+        }
     }
 
     /// Build **and sign** a fresh, correctly-shaped `relay` descriptor from a real `kotva-core`
@@ -165,7 +168,7 @@ impl Coordinator for RelayCoordinator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use broker_conformance::check;
+    use broker_conformance::{check, ScarceResource};
 
     fn ik(seed: u8) -> IdentityKey {
         IdentityKey::from_seed(&[seed; 32])
@@ -174,14 +177,20 @@ mod tests {
     #[test]
     fn signed_relay_descriptor_verifies_and_declares_blind_structural() {
         let (_coord, signed) = RelayCoordinator::signed(&ik(1), Cbor::empty(), None, false);
-        assert!(signed.verify().is_ok(), "a real kotva-core signature must verify");
+        assert!(
+            signed.verify().is_ok(),
+            "a real kotva-core signature must verify"
+        );
         assert_eq!(signed.descriptor.kind.as_str(), "relay");
         assert!(
             signed.descriptor.visibility.is_verifiably_blind(),
             "relay MUST declare blind/structural — a verifiable, not merely declared, claim"
         );
         assert_eq!(signed.descriptor.visibility.class, VisibilityClass::Blind);
-        assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Structural);
+        assert_eq!(
+            signed.descriptor.visibility.level,
+            AssuranceLevel::Structural
+        );
     }
 
     #[test]
@@ -230,7 +239,7 @@ mod tests {
                 LockIn::None
             }
             fn self_host(&self) -> SelfHost {
-                SelfHost::ScarceReachabilityException
+                SelfHost::ScarceReachabilityException(ScarceResource::SmtpEgress)
             }
             fn delivery_path_gate(&self) -> Gate {
                 Gate::NoDeliveryPath

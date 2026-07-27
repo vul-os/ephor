@@ -19,7 +19,8 @@ use axum::Json;
 use serde::Serialize;
 
 use broker_conformance::{
-    check, Coordinator, Gate, LockIn, Metering, Outcome, Report, SelfHost, Settlement,
+    check, Coordinator, Gate, LockIn, Metering, Outcome, Report, ScarceResource, SelfHost,
+    Settlement,
 };
 use broker_economics::{CoordinatorKind, Descriptor};
 
@@ -47,10 +48,18 @@ impl Coordinator for Posture {
     }
 
     fn self_host(&self) -> SelfHost {
-        if self.descriptor.kind.is_scarce_reachability() {
-            SelfHost::ScarceReachabilityException
-        } else {
-            SelfHost::Backstop
+        // The resource is named per kind rather than inferred from membership
+        // of the class, so a §26 legacy-rail adapter — which reports
+        // kind=gateway while needing nothing scarce — cannot inherit an
+        // exemption by kind alone. See ScarceResource::plausible_for.
+        match self.descriptor.kind {
+            CoordinatorKind::Gateway => {
+                SelfHost::ScarceReachabilityException(ScarceResource::SmtpEgress)
+            }
+            CoordinatorKind::ReachabilityAdapter => {
+                SelfHost::ScarceReachabilityException(ScarceResource::PublicIngress)
+            }
+            _ => SelfHost::Backstop,
         }
     }
 

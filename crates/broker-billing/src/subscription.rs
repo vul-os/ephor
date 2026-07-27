@@ -15,7 +15,7 @@
 //! payers who prefer predictable monthly invoicing over topping up), which is exactly why the
 //! seam exists rather than being refused outright.
 
-use crate::settlement::{SettlementReceipt, SettlementRail};
+use crate::settlement::{SettlementRail, SettlementReceipt};
 
 /// A fixed monthly postpaid charge for one payer. Construct with [`Subscription::new`]; charge a
 /// period with [`Subscription::charge`].
@@ -32,8 +32,17 @@ pub struct Subscription {
 
 impl Subscription {
     /// A new, active subscription for `payer` at `monthly_amount`/`currency` per period.
-    pub fn new(payer: impl Into<Vec<u8>>, monthly_amount: u64, currency: impl Into<String>) -> Self {
-        Subscription { payer: payer.into(), monthly_amount, currency: currency.into(), active: true }
+    pub fn new(
+        payer: impl Into<Vec<u8>>,
+        monthly_amount: u64,
+        currency: impl Into<String>,
+    ) -> Self {
+        Subscription {
+            payer: payer.into(),
+            monthly_amount,
+            currency: currency.into(),
+            active: true,
+        }
     }
 
     /// Charge one period's `monthly_amount` through `rail` — thin sugar over

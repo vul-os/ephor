@@ -46,7 +46,11 @@ struct PeerBehaviour {
 fn build_peer_swarm() -> Swarm<PeerBehaviour> {
     libp2p::SwarmBuilder::with_new_identity()
         .with_tokio()
-        .with_tcp(tcp::Config::default(), noise::Config::new, yamux::Config::default)
+        .with_tcp(
+            tcp::Config::default(),
+            noise::Config::new,
+            yamux::Config::default,
+        )
         .expect("tcp transport")
         .with_relay_client(noise::Config::new, yamux::Config::default)
         .expect("relay client transport")
@@ -63,7 +67,11 @@ fn build_peer_swarm() -> Swarm<PeerBehaviour> {
                     .with_interval(Duration::from_millis(100))
                     .with_timeout(Duration::from_secs(5)),
             );
-            PeerBehaviour { relay_client, identify, ping }
+            PeerBehaviour {
+                relay_client,
+                identify,
+                ping,
+            }
         })
         .expect("peer behaviour")
         .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
@@ -131,15 +139,17 @@ impl TestPeer {
     fn wait_for_circuit_listener(&self, timeout: Duration) -> Multiaddr {
         let deadline = std::time::Instant::now() + timeout;
         loop {
-            if let Some(a) = self
-                .listeners()
-                .into_iter()
-                .find(|a| a.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit)))
-            {
+            if let Some(a) = self.listeners().into_iter().find(|a| {
+                a.iter()
+                    .any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit))
+            }) {
                 return a;
             }
             if std::time::Instant::now() >= deadline {
-                panic!("no circuit listen addr reported within {timeout:?}: {:?}", self.listeners());
+                panic!(
+                    "no circuit listen addr reported within {timeout:?}: {:?}",
+                    self.listeners()
+                );
             }
             std::thread::sleep(Duration::from_millis(20));
         }
@@ -207,7 +217,10 @@ fn ping_crosses_the_relay_circuit_between_two_peers_with_no_direct_route() {
     let relay_addr = relay_srv
         .wait_for_listener(SPIN)
         .into_iter()
-        .find(|a| a.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::Tcp(_))))
+        .find(|a| {
+            a.iter()
+                .any(|p| matches!(p, libp2p::multiaddr::Protocol::Tcp(_)))
+        })
         .expect("relay bound a tcp listener");
     // Opt the relay in to handing out a dialable address in reservation acks (see
     // `RelayServer::add_external_address`'s doc comment for why this is required, not optional).
@@ -215,11 +228,15 @@ fn ping_crosses_the_relay_circuit_between_two_peers_with_no_direct_route() {
 
     // `dst`'s ONLY listen address is a reservation request on the relay — it never binds a plain
     // TCP listener of its own, exactly like a node with no directly-reachable address.
-    let circuit_listen: Multiaddr = relay_addr.clone().with(libp2p::multiaddr::Protocol::P2pCircuit);
+    let circuit_listen: Multiaddr = relay_addr
+        .clone()
+        .with(libp2p::multiaddr::Protocol::P2pCircuit);
     let dst = TestPeer::start(&[circuit_listen]);
     let dst_circuit_addr = dst.wait_for_circuit_listener(SPIN);
     assert!(
-        dst_circuit_addr.iter().any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit)),
+        dst_circuit_addr
+            .iter()
+            .any(|p| matches!(p, libp2p::multiaddr::Protocol::P2pCircuit)),
         "the confirmed reservation address should still carry /p2p-circuit: {dst_circuit_addr}"
     );
     assert_ne!(dst.peer_id(), relay_srv.peer_id());

@@ -32,8 +32,7 @@ fn self_signed() -> (CertificateDer<'static>, Arc<rustls::ServerConfig>) {
         rcgen::generate_simple_self_signed(vec![HOST.to_string()]).expect("self-signed cert");
     let cert_der: CertificateDer<'static> = cert.der().clone();
     let key = PrivatePkcs8KeyDer::from(key_pair.serialize_der());
-    let cfg =
-        gateway::server_config(vec![cert_der.clone()], key.into()).expect("server config");
+    let cfg = gateway::server_config(vec![cert_der.clone()], key.into()).expect("server config");
     (cert_der, cfg)
 }
 

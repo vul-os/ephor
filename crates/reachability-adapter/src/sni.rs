@@ -156,7 +156,9 @@ fn try_parse(buf: &[u8]) -> Result<Parsed, SniError> {
     let mut c = Cursor::new(record);
     let hs_type = c.u8()?;
     if hs_type != HANDSHAKE_TYPE_CLIENT_HELLO {
-        return Err(SniError::Malformed("first handshake message is not ClientHello"));
+        return Err(SniError::Malformed(
+            "first handshake message is not ClientHello",
+        ));
     }
     let hs_len = c.u24()? as usize;
     let body = c.take(hs_len).map_err(|_| {
@@ -319,7 +321,10 @@ mod tests {
         let mut cursor = std::io::Cursor::new(record.clone());
         let peek = peek_client_hello(&mut cursor).await.expect("parse ok");
         assert_eq!(peek.server_name, "svc.alice.reach.example");
-        assert_eq!(peek.raw, record, "raw bytes must be preserved byte-for-byte for replay");
+        assert_eq!(
+            peek.raw, record,
+            "raw bytes must be preserved byte-for-byte for replay"
+        );
     }
 
     #[tokio::test]
@@ -370,7 +375,10 @@ mod tests {
         record[5] = 0x02; // ServerHello, not ClientHello
         let mut cursor = std::io::Cursor::new(record);
         let err = peek_client_hello(&mut cursor).await.unwrap_err();
-        assert_eq!(err, SniError::Malformed("first handshake message is not ClientHello"));
+        assert_eq!(
+            err,
+            SniError::Malformed("first handshake message is not ClientHello")
+        );
     }
 
     #[tokio::test]

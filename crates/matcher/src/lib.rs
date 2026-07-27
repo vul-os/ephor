@@ -82,7 +82,10 @@ impl MatcherCoordinator {
     /// `broker_conformance::check` finding. Prefer [`MatcherCoordinator::signed`] for the common
     /// case of minting a fresh, correctly-shaped descriptor.
     pub fn new(descriptor: Descriptor, metered: bool) -> Self {
-        Self { descriptor, metered }
+        Self {
+            descriptor,
+            metered,
+        }
     }
 
     /// Build **and sign** a fresh, correctly-shaped `matcher` descriptor from a real `kotva-core`
@@ -158,11 +161,22 @@ mod tests {
 
     #[test]
     fn signed_matcher_descriptor_verifies_and_declares_terminating_by_default() {
-        let (_coord, signed) =
-            MatcherCoordinator::signed(&ik(1), MatchChannel::Terminating, Cbor::empty(), None, false);
-        assert!(signed.verify().is_ok(), "a real kotva-core signature must verify");
+        let (_coord, signed) = MatcherCoordinator::signed(
+            &ik(1),
+            MatchChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
+        assert!(
+            signed.verify().is_ok(),
+            "a real kotva-core signature must verify"
+        );
         assert_eq!(signed.descriptor.kind.as_str(), "matcher");
-        assert_eq!(signed.descriptor.visibility.class, VisibilityClass::Terminating);
+        assert_eq!(
+            signed.descriptor.visibility.class,
+            VisibilityClass::Terminating
+        );
         assert_eq!(signed.descriptor.visibility.level, AssuranceLevel::Declared);
     }
 
@@ -177,16 +191,26 @@ mod tests {
 
     #[test]
     fn a_free_matcher_is_fully_conformant() {
-        let (coord, _signed) =
-            MatcherCoordinator::signed(&ik(3), MatchChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = MatcherCoordinator::signed(
+            &ik(3),
+            MatchChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         let report = check(&coord);
         assert!(report.is_conformant(), "{:?}", report.findings);
     }
 
     #[test]
     fn a_metered_matcher_is_also_conformant() {
-        let (coord, _signed) =
-            MatcherCoordinator::signed(&ik(4), MatchChannel::Terminating, Cbor::empty(), None, true);
+        let (coord, _signed) = MatcherCoordinator::signed(
+            &ik(4),
+            MatchChannel::Terminating,
+            Cbor::empty(),
+            None,
+            true,
+        );
         let report = check(&coord);
         assert!(report.is_conformant(), "{:?}", report.findings);
         assert!(matches!(coord.metering(), Metering::SignedReceiptsToPayer));
@@ -198,23 +222,38 @@ mod tests {
     /// would correctly fail COORD-6.
     #[test]
     fn own_pool_matching_is_derived_view_not_classification() {
-        let (coord, _signed) =
-            MatcherCoordinator::signed(&ik(5), MatchChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = MatcherCoordinator::signed(
+            &ik(5),
+            MatchChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.delivery_path_gate(), Gate::DerivedViewOnly));
     }
 
     #[test]
     fn matcher_is_not_the_scarce_reachability_exception() {
         assert!(!CoordinatorKind::Matcher.is_scarce_reachability());
-        let (coord, _signed) =
-            MatcherCoordinator::signed(&ik(6), MatchChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = MatcherCoordinator::signed(
+            &ik(6),
+            MatchChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.self_host(), SelfHost::Backstop));
     }
 
     #[test]
     fn matcher_mints_no_token() {
-        let (coord, _signed) =
-            MatcherCoordinator::signed(&ik(7), MatchChannel::Terminating, Cbor::empty(), None, false);
+        let (coord, _signed) = MatcherCoordinator::signed(
+            &ik(7),
+            MatchChannel::Terminating,
+            Cbor::empty(),
+            None,
+            false,
+        );
         assert!(matches!(coord.settlement(), Settlement::ExistingAssetsOnly));
     }
 

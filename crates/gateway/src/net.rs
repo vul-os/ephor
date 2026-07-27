@@ -123,7 +123,10 @@ impl ConnLimiter {
             if cur >= self.max {
                 return None;
             }
-            if self.active.compare_exchange(cur, cur + 1, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+            if self
+                .active
+                .compare_exchange(cur, cur + 1, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
             {
                 return Some(ConnGuard { active: self.active.clone() });
             }
