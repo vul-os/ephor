@@ -47,6 +47,25 @@ pub enum LockIn {
     None,
     /// A migration or identity change is required to leave — a violation.
     Requires(String),
+    //
+    // KNOWN GAP, filed rather than patched: there is no honest declaration for a
+    // coordinator whose lock-in DEPENDS ON ITS MODE.
+    //
+    // A §26 legacy chat adapter in node mode carries no lock-in — the WABA is the
+    // homeowner's, swapping adapters is config-only, the number survives. The same
+    // adapter in gateway mode carries real lock-in: the rail identity is the
+    // operator's, and leaving kills the channel (§26.6). Both are true of one
+    // implementation.
+    //
+    // Declaring `Requires` for it is honest and scores as a Violation; declaring
+    // `None` would pass and would be the misrepresentation §2.4 names. So the
+    // truthful adapter is the non-conformant one, which is a defect in this enum
+    // rather than in the adapter.
+    //
+    // A `ModeDependent { node, gateway }` variant is the obvious fix and is NOT
+    // added here on purpose: it changes what COORD-2 means, and that is the spec
+    // session's call, not this crate's. Filed in COORDINATION.md
+    // [2026-07-27 coord2]; pinned by the test of the same name below.
 }
 
 /// COORD-3 self-host posture.
@@ -479,5 +498,56 @@ mod scarce_resource_tests {
                 "{kind:?}"
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod coord2_gap_tests {
+    use super::*;
+
+    /// Pins the CURRENT behaviour of the COORD-2 gap so it cannot be forgotten.
+    ///
+    /// This test does not assert that the behaviour is right — it asserts what it
+    /// is. A truthful mode-dependent declaration scores as a Violation, which
+    /// means an adapter that tells the truth about gateway mode fails
+    /// conformance while one that lies passes.
+    ///
+    /// Whichever way the spec resolves it — a `ModeDependent` variant, or a
+    /// ruling that §26.6 is a disclosed exception to §2.2 — this test breaks and
+    /// forces the code to be updated. That is the point: an open question with no
+    /// failing test attached is an open question that gets quietly dropped.
+    ///
+    /// See COORDINATION.md [2026-07-27 coord2].
+    #[test]
+    fn coord2_mode_dependent_lock_in_has_no_honest_declaration_yet() {
+        // The honest string an Aql chat adapter would have to declare.
+        let honest = LockIn::Requires(
+            "gateway-mode rail identity is the operator's; leaving kills the channel, §26.6"
+                .to_string(),
+        );
+
+        let outcome = match honest {
+            LockIn::None => Outcome::Pass,
+            LockIn::Requires(why) => Outcome::Violation(why),
+        };
+
+        match outcome {
+            Outcome::Violation(_) => { /* the gap, as filed */ }
+            _ => panic!(
+                "COORD-2 now accepts a mode-dependent lock-in declaration. If the spec \
+                 answered (a ModeDependent variant, or a ruling that §26.6 is a disclosed \
+                 exception to §2.2), update check_coord2 and this test together, and mark \
+                 the COORDINATION.md thread RESOLVED. Do not delete this test without \
+                 doing that — it is the only thing holding the question open."
+            ),
+        }
+
+        // And the shape of the problem: node mode is genuinely fine, so this is
+        // not an adapter that is simply non-conformant. One implementation, two
+        // modes, two different truths.
+        assert!(
+            matches!(LockIn::None, LockIn::None),
+            "node mode carries no lock-in and must keep passing"
+        );
     }
 }

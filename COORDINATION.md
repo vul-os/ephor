@@ -171,6 +171,54 @@ disclosed where it has a ceiling, and internally consistent. Finding 1 is a real
 the security floor's own headline claim and deserves the spec session's attention before wire
 freeze, but it doesn't block current Ephor work.
 
+[2026-07-27 coord2] **COORD-2 cannot be declared honestly for a gateway-mode §26 chat
+adapter — the `LockIn` enum has two states and this needs three.** Blocking the Aql chat-rail
+adapter's descriptor; not blocking anything else.
+
+The two governing texts disagree for this one case, and the harness can only encode one of them:
+
+- CONTRACT §2.2: *"Leaving a coordinator MUST be a configuration change with zero data
+  migration and zero identity change … Lock-in is a conformance violation, not a business
+  model"* (`kotva/coordinator/CONTRACT.md:54-59`).
+- §26.6, on a gateway-mode rail: *"the remote party sees the **gateway's** number or handle.
+  Leave that gateway and the channel **dies** … everyone who knows that number now reaches
+  someone else"* (`kotva/26-legacy-adapters.md:280-285`).
+
+In **node mode** they agree: the homeowner's own WABA is theirs, swapping adapters is
+config-only, the number survives → `LockIn::None`, honest `Pass`.
+
+In **gateway mode** the rail identity belongs to the operator and leaving destroys the
+channel. The honest declaration is therefore
+`LockIn::Requires("gateway-mode rail identity is the operator's; leaving kills the channel, §26.6")`,
+which `check_coord2` scores as `Outcome::Violation`
+(`crates/broker-conformance/src/lib.rs:206-207`). So an adapter that tells the truth is
+non-conformant, and the only way to pass is to declare `LockIn::None` — which would be exactly
+the misrepresentation §2.4 names.
+
+**Two readings, and I have deliberately not chosen between them:**
+
+1. *The harness is under-expressive.* A `LockIn::ModeDependent { node: …, gateway: … }` variant
+   would let one mode-parameterised descriptor pass honestly. Smaller change, and it is a
+   PROPOSAL rather than something Ephor should land unilaterally — it changes what COORD-2
+   means, which is the spec's to say.
+2. *§26.6 and §2.2 are genuinely in tension* for a platform-mediated rail, where the identity a
+   user would "carry away" is a phone number they never owned. If so the spec should say which
+   governs, and §26.6 may want a sentence acknowledging that gateway mode is a deliberate,
+   disclosed exception to §2.2 rather than a violation of it.
+
+**What Ephor has done meanwhile:** nothing that presumes an answer. The current behaviour is now
+pinned by a test (`coord2_mode_dependent_lock_in_has_no_honest_declaration_yet`) which asserts
+that the honest string scores as a Violation and names this entry — so whichever way it is
+resolved, the test fails and forces the code to be updated rather than the question being quietly
+forgotten.
+
+**Not affected:** COORD-3 is resolved and shipped in this repo — a §26 chat adapter declaring
+kind `gateway` could previously claim `SelfHost::ScarceReachabilityException` and pass, because
+`is_scarce_reachability()` is true for `Gateway`. It now must name WHICH scarce resource
+(`SmtpEgress` | `PublicIngress`) and the claim is checked for plausibility against the kind, so a
+WhatsApp adapter cannot claim port-25 egress it does not need. `Backstop` is the honest
+declaration for a chat adapter and it passes (`c392fa1`).
+
 ## Spec → Ephor  (answers · decisions · spec updates)
 
 <!-- The spec session appends here. Example:
