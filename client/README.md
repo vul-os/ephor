@@ -12,9 +12,9 @@ It does not bundle a server.
 ## Part of VulOS
 
 **Ephor** is the connectivity fabric of the [VulOS](https://vulos.org)
-suite — open, self-hostable products (OS, Ofisi, Board, Files, Ephor, llmux),
+suite — open, self-hostable products (OS, Diwan, Board, Files, Ephor, llmux),
 each usable alone and hosted as apps by the **Vulos OS** (the shell). This SDK is
-consumed directly by the suite's web surfaces (the Vulos OS shell, Ofisi);
+consumed directly by the suite's web surfaces (the Vulos OS shell, Diwan);
 the OS surfaces Ephor-powered features but never imports product code. The package
 has no Vulos-specific runtime dependency — it **runs standalone** against any
 backend that implements the peering contract, **and** slots into the OS-hosted suite.
@@ -100,7 +100,7 @@ import { configure } from '@vulos/relay-client/endpoints'
 // vulos OS:
 configure({ lsKeyPrefix: 'vulos.os.endpoints.v1' })
 
-// vulos-office:
+// diwan:
 configure({ lsKeyPrefix: 'vulos.office.endpoints.v1' })
 ```
 

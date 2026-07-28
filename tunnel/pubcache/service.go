@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/internal/keyauth"
+	"github.com/vul-os/ephor/tunnel/internal/keyauth"
 )
 
 // service.go — the § 22.5.1 read surface, served as a read-through cache in

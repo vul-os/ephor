@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/yamux"
-	"github.com/vul-os/vulos-relay/tunnel/internal/wire"
+	"github.com/vul-os/ephor/tunnel/internal/wire"
 )
 
 // fakeRelayPeer plays the server half of ONE control connection over serverConn:

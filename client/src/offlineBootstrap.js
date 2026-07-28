@@ -4,7 +4,7 @@
  * Merged from the pre-existing copies:
  *   • vulos/src/lib/offlineBootstrap.js        (127 LOC — most complete:
  *     also handles SW update detection, plus startOfflineQueueFlushLoop()).
- *   • vulos-office/src/lib/offlineBootstrap.js (40 LOC).
+ *   • diwan/src/lib/offlineBootstrap.js (40 LOC).
  *
  * Three responsibilities, run once at app entry:
  *   1. Register the service worker (default '/sw.js') that caches the app

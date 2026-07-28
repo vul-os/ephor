@@ -41,10 +41,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/autoscale"
-	"github.com/vul-os/vulos-relay/tunnel/pubcache"
-	"github.com/vul-os/vulos-relay/tunnel/rendezvous"
-	"github.com/vul-os/vulos-relay/tunnel/server"
+	"github.com/vul-os/ephor/tunnel/autoscale"
+	"github.com/vul-os/ephor/tunnel/pubcache"
+	"github.com/vul-os/ephor/tunnel/rendezvous"
+	"github.com/vul-os/ephor/tunnel/server"
 )
 
 func main() {

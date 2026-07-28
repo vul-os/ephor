@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/vul-os/vulos-relay/tunnel/server"
+	"github.com/vul-os/ephor/tunnel/server"
 )
 
 // roleonly_test.go — a node serving ONLY the rendezvous (and/or pubcache) role

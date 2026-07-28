@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/internal/keyauth"
+	"github.com/vul-os/ephor/tunnel/internal/keyauth"
 )
 
 // pinapi.go — the pin MANAGEMENT surface.

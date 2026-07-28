@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/autoscale"
+	"github.com/vul-os/ephor/tunnel/autoscale"
 )
 
 // TestLoad_ReflectsLiveState verifies Load() surfaces the registry agent count,

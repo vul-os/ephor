@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/agent"
-	"github.com/vul-os/vulos-relay/tunnel/cost"
-	"github.com/vul-os/vulos-relay/tunnel/server"
+	"github.com/vul-os/ephor/tunnel/agent"
+	"github.com/vul-os/ephor/tunnel/cost"
+	"github.com/vul-os/ephor/tunnel/server"
 )
 
 // concurrency_cost_test.go — TASK-45 (relay half): prove the relay scales under REAL

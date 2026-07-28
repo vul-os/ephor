@@ -104,6 +104,29 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed — Go module path is now `github.com/vul-os/ephor` (BREAKING for importers)
+
+`go.mod` declared `module github.com/vul-os/vulos-relay`, a path that has never
+existed on GitHub — the repo is `vul-os/ephor`. No outside Go product could
+`go get` the tunnel agent, and a dependent carrying
+`replace … => ../vulos-relay` pointed at a directory that is not there.
+
+- **Module path → `github.com/vul-os/ephor`**, and every internal import rewritten
+  with it. `tunnel/agent` and `tunnel/server` are now resolvable by an outside
+  module; nothing in their exported API reaches into `tunnel/internal/…`, so an
+  embedder needs only the public packages.
+- **The published tags still carry the old path.** v0.1.0–v0.3.0 were cut before
+  this change, so `go get github.com/vul-os/ephor@v0.3.0` will not resolve — only a
+  commit or a tag cut after the rename will. A dependent pinning a released
+  version must wait for the next tag or pin a commit.
+- **Nothing else was renamed.** The binaries (`vulos-relayd`, `vulos-relay-agent`),
+  the GHCR image `ghcr.io/vul-os/vulos-relayd`, the `VULOS_RELAY_*` env vars, the
+  `vulos_relay_*` metric names, the systemd unit names and their `/etc` paths are
+  all deployed contract — a rename there breaks running installs, not just builds.
+- Repository URLs that 404'd against the old name (clone commands, changelog
+  compare links, systemd `Documentation=`, the demo footer link) now point at
+  `vul-os/ephor`.
+
 ### Fixed — the rendezvous P2P path, as exercised by a real browser
 
 A genuine end-to-end test (a real `relayd`, two standalone servers, two browser
@@ -732,7 +755,7 @@ brings it to internet-facing production quality.
 ### Added
 
 - **`@vulos/relay-client` JS SDK** — the repo's sole deliverable. Shared by
-  every Vulos web surface (the Vulos OS shell, `vulos-office`, `vulos-talk`).
+  every Vulos web surface (the Vulos OS shell, `diwan`, `vulos-talk`).
 - **Endpoint failover** (`/endpoints`) — cloud ↔ LAN backend selection with
   health probing, configurable localStorage key prefix, and configurable health
   path per consumer (`configure()`).
@@ -766,7 +789,7 @@ brings it to internet-facing production quality.
 
 - Deduplicated `src/lib/{endpoints,offlineBootstrap,signaling,fabric,presence,
   call,useLiveCursors,roundTripCheck}.js` that had been copy-pasted across
-  `vulos` and `vulos-office` into this single package (`RELAY-CLIENT-01`).
+  `vulos` and `diwan` into this single package (`RELAY-CLIENT-01`).
 - `vulos-relay` repo is a pure JS SDK; no server-side code is included.
 
 ### Security
@@ -778,7 +801,7 @@ brings it to internet-facing production quality.
 
 ---
 
-[Unreleased]: https://github.com/vul-os/vulos-relay/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/vul-os/vulos-relay/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/vul-os/vulos-relay/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/vul-os/vulos-relay/releases/tag/v0.1.0
+[Unreleased]: https://github.com/vul-os/ephor/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/vul-os/ephor/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/vul-os/ephor/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/vul-os/ephor/releases/tag/v0.1.0

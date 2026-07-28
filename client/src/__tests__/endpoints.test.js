@@ -2,7 +2,7 @@
  * endpoints.test.js — cloud↔LAN failover (frozen contract).
  *
  * Union of the pre-existing test suites:
- *   • vulos-office/src/__tests__/endpoints.test.js (6 cases)
+ *   • diwan/src/__tests__/endpoints.test.js (6 cases)
  *   • vulos/src/__tests__/endpoints.test.js        (13 cases)
  *
  * Deduped — every distinct behaviour from both is covered exactly once.

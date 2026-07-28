@@ -235,10 +235,10 @@ Without `-cp-token-store` you can also mix modes: keep a static grants file and 
 
 ## Embedding the agent in your own Go program
 
-The CLI is a thin wrapper over the `tunnel/agent` library, which mirrors wede's `internal/tunnel.Manager` surface:
+The CLI is a thin wrapper over the `tunnel/agent` library, which mirrors wede's `internal/tunnel.Manager` surface. The Go module is `github.com/vul-os/ephor` — but it was `github.com/vul-os/vulos-relay` through v0.3.0, so `go get` resolves only against a commit or tag cut after the rename, not against the published v0.1.0–v0.3.0 tags.
 
 ```go
-import "github.com/vul-os/vulos-relay/tunnel/agent"
+import "github.com/vul-os/ephor/tunnel/agent"
 
 a := agent.New(agent.Options{
     ServerURL: "wss://relay.example.com", // http/https are normalized to ws/wss

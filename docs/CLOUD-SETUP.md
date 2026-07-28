@@ -85,8 +85,8 @@ curl -fsSL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz | sudo tar -C /usr/loca
 export PATH=$PATH:/usr/local/go/bin
 
 # fetch and build both binaries
-git clone https://github.com/vul-os/vulos-relay.git
-cd vulos-relay
+git clone https://github.com/vul-os/ephor.git
+cd ephor
 go build -o /tmp/vulos-relayd ./cmd/vulos-relayd
 sudo install -m755 /tmp/vulos-relayd /usr/local/bin/vulos-relayd
 vulos-relayd -h    # sanity-check the flags
@@ -205,7 +205,7 @@ Now on **the box you want to expose** (your laptop, a NAT'd home server, anythin
 
 ```bash
 # build the agent (or use the Docker image's --entrypoint /usr/local/bin/vulos-relay-agent)
-git clone https://github.com/vul-os/vulos-relay.git && cd vulos-relay
+git clone https://github.com/vul-os/ephor.git && cd ephor
 go build -o /tmp/vulos-relay-agent ./cmd/vulos-relay-agent
 sudo install -m755 /tmp/vulos-relay-agent /usr/local/bin/vulos-relay-agent
 
@@ -315,7 +315,7 @@ If the box *also* has its own public HTTPS endpoint, tell the relay with `-direc
 If you'd rather not build from source, the repo ships a one-command self-host path. On the VPS with Docker + the Compose plugin installed:
 
 ```bash
-git clone https://github.com/vul-os/vulos-relay.git && cd vulos-relay
+git clone https://github.com/vul-os/ephor.git && cd ephor
 ./scripts/install.sh --domain relay.example.com --path-mode
 ```
 

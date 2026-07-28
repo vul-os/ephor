@@ -30,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/autoscale"
-	"github.com/vul-os/vulos-relay/tunnel/pubcache"
-	"github.com/vul-os/vulos-relay/tunnel/rendezvous"
+	"github.com/vul-os/ephor/tunnel/autoscale"
+	"github.com/vul-os/ephor/tunnel/pubcache"
+	"github.com/vul-os/ephor/tunnel/rendezvous"
 )
 
 // Config configures a relay Server.

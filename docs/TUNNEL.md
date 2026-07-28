@@ -568,8 +568,15 @@ The `agent` package mirrors wede's `internal/tunnel.Manager` so wede can swap it
 frp subprocess for this in-process client. Status vocabulary is identical:
 `stopped` / `starting` / `connected` / `error`.
 
+The Go module is `github.com/vul-os/ephor`; `tunnel/agent` and `tunnel/server` are
+ordinary importable packages (nothing in their exported API reaches into
+`tunnel/internal/…`, so an outside module can use both). Note that the module path
+was `github.com/vul-os/vulos-relay` through **v0.3.0** — the published tags still
+carry the old path, so `go get github.com/vul-os/ephor` resolves only against a
+commit or tag cut after the rename, not against v0.1.0–v0.3.0.
+
 ```go
-import "github.com/vul-os/vulos-relay/tunnel/agent"
+import "github.com/vul-os/ephor/tunnel/agent"
 
 a := agent.New(agent.Options{
     ServerURL: "wss://relay.example.com", // http/https normalized to ws/wss

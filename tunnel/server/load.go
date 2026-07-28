@@ -3,7 +3,7 @@ package server
 import (
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/autoscale"
+	"github.com/vul-os/ephor/tunnel/autoscale"
 )
 
 // load.go — AUTOSCALE-ON-SATURATION: this node's live load surface.

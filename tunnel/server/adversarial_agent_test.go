@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/agent"
+	"github.com/vul-os/ephor/tunnel/agent"
 )
 
 // startLoopbackTarget starts a loopback HTTP server with handler h and returns its

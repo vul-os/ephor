@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/vul-os/vulos-relay/tunnel/agent"
+	"github.com/vul-os/ephor/tunnel/agent"
 )
 
 // TestDirectProbe_BudgetDefaults asserts the probe-reflection budget defaults: an

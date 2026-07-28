@@ -22,7 +22,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/agent"
+	"github.com/vul-os/ephor/tunnel/agent"
 )
 
 func main() {

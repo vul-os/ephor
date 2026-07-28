@@ -34,7 +34,7 @@ The SDK targets browser environments (WebSocket, BroadcastChannel, WebRTC).
 Unit tests run under Vitest with jsdom. There's also a real-browser boot-guard
 suite (`npm run test:e2e`, Playwright/Chromium) that builds the library and
 imports it through its actual `exports` map, catching build-output breakage
-the jsdom unit tests can't see (Ofisi imports the built `dist-lib/`, not the
+the jsdom unit tests can't see (Diwan imports the built `dist-lib/`, not the
 source).
 
 ### Relay service (Go: `cmd/`, `tunnel/`)
@@ -47,7 +47,7 @@ go vet ./...
 go test ./... -race
 ```
 
-Run from the repo root — the Go module (`github.com/vul-os/vulos-relay`) covers
+Run from the repo root — the Go module (`github.com/vul-os/ephor`) covers
 `cmd/vulos-relayd`, `cmd/vulos-relay-agent`, and everything under `tunnel/`
 (server, agent, rendezvous, pubcache, autoscale, cost/billing, direct). Several
 packages have `_e2e_test.go` suites (drain, shutdown, revocation, demand-signal,

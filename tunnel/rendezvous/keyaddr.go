@@ -31,7 +31,7 @@ import (
 	"crypto/ed25519"
 	"time"
 
-	"github.com/vul-os/vulos-relay/tunnel/internal/keyauth"
+	"github.com/vul-os/ephor/tunnel/internal/keyauth"
 )
 
 // keyaddr.go — key addressing and signed-request verification.

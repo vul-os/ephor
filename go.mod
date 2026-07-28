@@ -1,4 +1,4 @@
-module github.com/vul-os/vulos-relay
+module github.com/vul-os/ephor
 
 go 1.23
 

@@ -33,7 +33,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/vul-os/vulos-relay/tunnel/internal/wire"
+	"github.com/vul-os/ephor/tunnel/internal/wire"
 )
 
 // --- helpers ----------------------------------------------------------------

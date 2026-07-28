@@ -2,7 +2,7 @@
 # Ephor relay server (vulos-relayd) — the PUBLIC half of the reverse tunnel.
 # Runs on a host with a static IP / public interface. See docs/CLOUD-SETUP.md.
 Description=Ephor relay server (vulos-relayd)
-Documentation=https://github.com/vul-os/vulos-relay/blob/main/docs/CLOUD-SETUP.md
+Documentation=https://github.com/vul-os/ephor/blob/main/docs/CLOUD-SETUP.md
 After=network-online.target
 Wants=network-online.target
 

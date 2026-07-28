@@ -241,7 +241,7 @@ const pm = new PresenceManager({
 // Vulos OS shell
 configure({ lsKeyPrefix: 'vulos.os.endpoints.v1' })
 
-// Ofisi
+// Diwan
 configure({ lsKeyPrefix: 'vulos.office.endpoints.v1' })
 
 // custom surface with a different health path
