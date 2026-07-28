@@ -44,7 +44,7 @@ COORDINATION.md).
 
 ## Phase 4 — conformance + CI
 - [ ] C4.1 broker-conformance — assert each kind meets COORD-1..8 and its visibility declaration matches reality.
-- [ ] C4.2 CI (GitHub Actions) — fmt + clippy + test + conformance.
+- [x] C4.2 CI (GitHub Actions) — `rust` job in `.github/workflows/ci.yml`: `cargo build`/`test`/`clippy -D warnings`/`fmt --all --check`, all `--locked`, over the 14 workspace crates (the `broker-conformance` COORD-1..8 harness runs inside that `cargo test`). Guarded by a crate-count assertion (must resolve exactly 14) and a test-count floor (≥556 passed), both proven to fail on planted breakage. **Not covered:** `crates/broker-billing-patala` (excluded from the workspace — needs the sibling `patala` repo); the job prints that exclusion on every run.
 
 ## Phase 5 — envoir node-only
 - [ ] N5.1 Remove the gateway crate from envoir (it now lives in ephor).

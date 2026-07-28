@@ -77,10 +77,80 @@ jobs:
       - name: Test (race)
         run: go test ./... -race
 
+  rust:
+    name: Rust Workspace — Build, Test, Clippy & Fmt
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      # rust-version in [workspace.package] is 1.85; build on stable and let the
+      # rust-version floor be what it is — a MSRV job is a separate concern.
+      - name: Set up Rust
+        run: |
+          set -euo pipefail
+          rustup toolchain install stable --profile minimal --component clippy,rustfmt
+          rustup default stable
+          rustc --version
+          cargo --version
+          cargo clippy --version
+          cargo fmt --version
+
+      # THE COVERAGE ASSERTION. This job would otherwise be trivially satisfiable
+      # by a workspace that resolved to zero crates: `cargo build` over an empty
+      # member list exits 0 and reports nothing. Pin the crate count, print the
+      # names, and name out loud the one crate this job does NOT cover.
+      #
+      # Bump EXPECTED_CRATES deliberately when a coordinator kind is added.
+      - name: Coverage guard (crate count)
+        run: |
+          set -euo pipefail
+          EXPECTED_CRATES=14
+          cargo metadata --no-deps --format-version 1 --locked > /tmp/meta.json
+          ACTUAL=$(jq '.packages | length' /tmp/meta.json)
+          echo "Workspace crates this job builds/tests/lints (${ACTUAL}):"
+          jq -r '.packages[] | "  - \(.name) \(.version)"' /tmp/meta.json | sort
+          if [ "$ACTUAL" -ne "$EXPECTED_CRATES" ]; then
+            echo "::error::Rust CI resolved ${ACTUAL} workspace crates, expected ${EXPECTED_CRATES}."
+            echo "::error::Either a crate was added (bump EXPECTED_CRATES here, deliberately) or the"
+            echo "::error::workspace member list silently shrank and this job stopped covering it."
+            exit 1
+          fi
+          echo "NOT VERIFIED BY THIS JOB: crates/broker-billing-patala (the optional patala-backed"
+          echo "SettlementRail adapter, 11 tests). It is 'exclude'd from this workspace because it"
+          echo "path-depends on the sibling ../../../patala repo, which is NOT checked out here."
+          echo "Its build, tests, clippy and fmt are UNVERIFIED in CI. See crates/broker-billing-patala/Cargo.toml."
+
+      # --locked everywhere: a CI run that silently rewrites Cargo.lock is not
+      # testing what the repo pins.
+      - name: Build
+        run: cargo build --locked --all-targets
+
+      - name: Test
+        run: |
+          set -euo pipefail
+          # Floor, not an exact match — this fails when tests DISAPPEAR, which is the
+          # failure mode a green-by-doing-nothing gate hides. Raise it when the suite grows.
+          MIN_TESTS=556
+          cargo test --locked --no-fail-fast 2>&1 | tee /tmp/cargo-test.log
+          PASSED=$(grep -E '^test result: ok\.' /tmp/cargo-test.log | awk '{ n += $4 } END { print n+0 }')
+          echo "Rust tests passed: ${PASSED} (floor ${MIN_TESTS})"
+          if [ "$PASSED" -lt "$MIN_TESTS" ]; then
+            echo "::error::Only ${PASSED} Rust tests ran; expected at least ${MIN_TESTS}."
+            echo "::error::Tests were deleted, or a crate's suite stopped being discovered."
+            exit 1
+          fi
+
+      - name: Clippy
+        run: cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Rustfmt
+        run: cargo fmt --all --check
+
   security:
     name: Security Scan
     runs-on: ubuntu-24.04
-    needs: [client, go]
+    needs: [client, go, rust]
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2

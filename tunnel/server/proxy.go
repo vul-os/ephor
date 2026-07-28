@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/vul-os/ephor/tunnel/internal/iopool"
 )
 
 // hopByHopHeaders are stripped in both directions (RFC 7230 §6.1). Connection's
@@ -268,9 +270,9 @@ func (s *Server) handlePublic(w http.ResponseWriter, r *http.Request) {
 	if s.meter.enabled() {
 		outAcct = sess.accountID
 	}
-	// pooledCopy (not io.Copy) so the per-response scratch buffer is reused from a
+	// iopool.Copy (not io.Copy) so the per-response scratch buffer is reused from a
 	// pool instead of allocated per request — the relay's egress path is hot.
-	_, _ = pooledCopy(w, &meterReader{r: resp.Body, meter: s.meter, account: outAcct, metrics: s.metrics, dir: dirOutbound})
+	_, _ = iopool.Copy(w, &meterReader{r: resp.Body, meter: s.meter, account: outAcct, metrics: s.metrics, dir: dirOutbound})
 }
 
 // underPrefix reports whether path is exactly prefix or a child of it (prefix +

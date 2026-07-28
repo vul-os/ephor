@@ -9,9 +9,18 @@ This repo ships **two deliverables in two languages**:
   replacement: relay server, agent, rendezvous, autoscale, billing/cost
   metering).
 
-Both are built, tested, and CI-gated independently — see `.github/workflows/ci.yml`
-(`client` job and `go` job). A PR that only touches one side only needs that
-side's checks to pass, but keep both green on `main`/`dev`.
+Alongside them, the in-progress **Rust workspace** (`crates/`, 14 crates) is the
+broker/coordinator reference implementation.
+
+All three are built, tested, and CI-gated independently — see `.github/workflows/ci.yml`
+(`client`, `go` and `rust` jobs). A PR that only touches one side only needs that
+side's checks to pass, but keep all three green on `main`/`dev`.
+
+One crate is deliberately outside that net and says so on every CI run:
+`crates/broker-billing-patala`, the optional patala-backed settlement adapter, is
+`exclude`d from the Rust workspace because it path-depends on the sibling `patala`
+repo, which CI does not check out. If you touch it, run it yourself:
+`cargo test --manifest-path crates/broker-billing-patala/Cargo.toml`.
 
 ## Code of Conduct
 

@@ -60,9 +60,16 @@ seams; both default fail-closed with a single mock reference adapter each.
 ## Build
 
 ```sh
-cargo build --workspace
-cargo test  --workspace
-cargo clippy --workspace --all-targets
+cargo build
+cargo test                    # 556 tests
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all --check
 ```
+
+These are what the `Rust Workspace` CI job runs. `broker-billing-patala` is **`exclude`d** from
+this workspace (it path-depends on the sibling `patala` repo, absent from a fresh checkout), so
+none of the above — `--workspace` included — reaches it; build it with
+`cargo test --manifest-path crates/broker-billing-patala/Cargo.toml` when `patala` is checked out
+next to `ephor`. It is the one crate CI does not verify.
 
 The Go tree (`go build ./...`) is unaffected — `Cargo.toml` and `go.mod` coexist at the root.

@@ -1,14 +1,23 @@
 [package]
 name = "broker-billing-patala"
 description = "OPTIONAL patala-backed reference implementation of broker-billing's SettlementRail (CONTRACT §6, DIRECTION §5): prepaid credit top-ups verified against a patala PaymentRail (patala-stellar shipped as the one reference crypto rail; patala-hyperswitch noted for an optional card/monthly path), settlement charged synchronously from the resulting local credit balance. Never a hard dependency of broker-billing or any ephor coordinator kind. Ephor takes no cut. UNVERIFIED AGAINST LIVE STELLAR — see README.md."
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
-rust-version.workspace = true
+# These five are spelled out rather than inherited with `.workspace = true` because this crate is
+# `exclude`d from the ephor workspace (see below) and so has no workspace to inherit FROM. Keep
+# them in step with `[workspace.package]` in ../../Cargo.toml by hand.
+version = "0.0.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/vul-os/ephor"
+rust-version = "1.85"
 
-[lints]
-workspace = true
+# Own single-crate workspace root. Required, not cosmetic: this directory sits under the ephor
+# workspace's tree, so without this table cargo would try to fold it back into that workspace and
+# refuse ("current package believes it's in a workspace when it's not"). The lints below mirror
+# ../../Cargo.toml's `[workspace.lints.rust]`, which no longer reaches here.
+[workspace]
+
+[lints.rust]
+unsafe_code = "forbid"
 
 # ── Why this crate exists, and why it is deliberately isolated ──────────────────────────────
 #
@@ -21,12 +30,22 @@ workspace = true
 # receiving wallet — PATALA.md §6). An operator who wants Stripe, a bank rail, or their own
 # ledger instead writes their own SettlementRail impl and never touches this crate.
 #
-# This crate lives under `crates/*` (matched by the ephor workspace's member glob) but is
-# deliberately left OUT of that workspace's `default-members` (see the root Cargo.toml) — exactly
-# the trick envoir's `dmtap-postage-patala` and patala's own workspace use for their
-# network/crypto-dependent optional adapters. Plain `cargo build`/`cargo test` at the ephor
-# workspace root therefore never pulls in patala or any of its crypto/network dependencies; only
-# `cargo build -p broker-billing-patala` / `cargo test -p broker-billing-patala` does.
+# This crate lives under `crates/*` but is `exclude`d from the ephor workspace (see the root
+# Cargo.toml for the full reasoning). It was previously a member kept out of `default-members` —
+# envoir's `dmtap-postage-patala` trick — but that only keeps patala out of what is COMPILED, not
+# out of what is RESOLVED: cargo loads every member manifest eagerly, so on any machine without
+# the sibling patala repo on disk, `cargo build` at the ephor root failed to load THIS manifest
+# and took the whole 14-crate workspace down with it. Excluding it is what makes a standalone
+# ephor Rust CI job possible at all.
+#
+# So: plain `cargo build`/`cargo test`/`cargo clippy`/`cargo fmt --all` at the ephor root never
+# resolve, let alone compile, patala or any of its crypto/network dependencies. Neither
+# `-p broker-billing-patala` nor `--workspace` reaches this crate from there any more. Build it
+# explicitly instead, with the sibling repo checked out next to ephor:
+#
+#     cargo test --manifest-path crates/broker-billing-patala/Cargo.toml    # from the ephor root
+#     cargo test                                                            # from this directory
+#
 # `broker-billing` alone stays the offline, patala-free default.
 
 [dependencies]

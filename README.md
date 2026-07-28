@@ -188,9 +188,11 @@ adapter (`InMemoryLedger`, an explicit double-entry mock, no external custody). 
 [`patala`](https://github.com/vul-os/patala) rails — `patala-stellar` shipped as the one
 reference crypto top-up rail (Ed25519-native, so a coordinator's own substrate identity key can
 double as the receiving wallet), `patala-hyperswitch` noted (not depended on) for the optional
-card/monthly path. It is a real workspace member but kept **out of `default-members`** — a plain
-`cargo build`/`cargo test` at the repo root never compiles a patala crate; only
-`cargo build -p broker-billing-patala` (or an explicit `--workspace`) pulls it in. There is **no
+card/monthly path. It is **`exclude`d from the workspace** (it is its own single-crate workspace)
+because it path-depends on the sibling `patala` repo, which a fresh checkout of ephor does not
+have — nothing at the repo root, `--workspace` included, resolves or compiles a patala crate.
+Build it explicitly, with `patala` checked out next to `ephor`:
+`cargo test --manifest-path crates/broker-billing-patala/Cargo.toml`. There is **no
 protocol token anywhere** (DIRECTION §5) — `Descriptor` structurally cannot carry a stake field
 or a price rank (CONTRACT §2.1); stake, where a kind requires it, is verified on the settlement
 rail itself.
@@ -208,7 +210,7 @@ extracting this same gateway from envoir failed twice before against a moving co
 | [`broker-economics`](crates/broker-economics) | Content-visibility model, coordinator-kinds table, signed descriptor/tariff/usage-receipt shapes | built |
 | [`broker-conformance`](crates/broker-conformance) | The `Coordinator` trait + COORD-1..8 checklist harness | built |
 | [`broker-billing`](crates/broker-billing) | Metering, `TariffSchedule`, prepaid ledger, signed receipts, `SettlementRail`/`StakeVerifier` seams, USD recommended pricing | built |
-| [`broker-billing-patala`](crates/broker-billing-patala) | **Optional**, non-default: `SettlementRail` over real `patala` rails | built, isolated |
+| [`broker-billing-patala`](crates/broker-billing-patala) | **Optional**, excluded from the workspace: `SettlementRail` over real `patala` rails | built, isolated, not in CI |
 | [`admin`](crates/admin) | Kind-agnostic operator HTTP API (`ephor-admin` binary) | built |
 | [`gateway`](crates/gateway), [`relay`](crates/relay), [`reachability-adapter`](crates/reachability-adapter), [`media-relay`](crates/media-relay) | The four built coordinator kinds | built |
 | [`indexer`](crates/indexer), [`labeler`](crates/labeler), [`matcher`](crates/matcher), [`arbiter`](crates/arbiter), [`oracle`](crates/oracle), [`compute`](crates/compute) | The six scaffolded kinds | scaffold |
@@ -217,10 +219,16 @@ Full crate map, per-crate detail, and the `kotva-core` pin mechanics:
 [crates/README.md](crates/README.md).
 
 ```sh
-cargo build --workspace
-cargo test  --workspace     # 548 tests, clippy clean
-cargo clippy --workspace --all-targets
+cargo build
+cargo test                    # 556 tests, clippy clean
+cargo clippy --all-targets -- -D warnings
+cargo fmt --all --check
 ```
+
+These four are exactly what the `Rust Workspace` CI job runs (`.github/workflows/ci.yml`), plus a
+crate-count guard so the job cannot go green by resolving an empty workspace. `--workspace` is
+equivalent here: the 14 members are the only members. The one crate NOT covered by that job is the
+optional `broker-billing-patala` adapter — see [Settlement rails](#settlement-rails--no-token).
 
 The Go tree (`go build ./...`) and the Rust workspace coexist at the repo root (`Cargo.toml` +
 `go.mod`) — building one does not affect the other; see
@@ -417,8 +425,9 @@ that project, not duplicated here.
 ## Development
 
 ```sh
-# Rust workspace
-cargo build --workspace && cargo test --workspace
+# Rust workspace (the optional broker-billing-patala adapter is excluded — see
+# "Settlement rails" above for how to build that one)
+cargo build && cargo test
 
 # Go relay (server + agent)
 go build ./... && go test -race ./...
@@ -431,7 +440,11 @@ cd console && pnpm install && pnpm build && pnpm check
 ```
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and tests the JS
-client on Node 20 and runs a Trivy filesystem scan (HIGH/CRITICAL gating). The
+client on Node 20 (including a real-chromium boot guard on the BUILT library), the Go
+relay (`build`/`vet`/`test -race`) and the Rust workspace
+(`build`/`test`/`clippy -D warnings`/`fmt --check`, all `--locked`, with a 14-crate
+count guard and a ≥556-test floor), then runs a Trivy filesystem scan
+(HIGH/CRITICAL gating). The
 publishable JS package lives in `client/`; the repository root holds dev tooling
 (screenshot capture, etc.) under `scripts/`.
 

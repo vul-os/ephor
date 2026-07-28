@@ -5,6 +5,8 @@ import (
 	"io"
 	"net"
 	"time"
+
+	"github.com/vul-os/ephor/tunnel/internal/iopool"
 )
 
 // bufferedConn pairs a net.Conn with a reader that may hold bytes already buffered
@@ -40,7 +42,7 @@ func duplexCopyObserved(a, b net.Conn, m *meter, account string, mx *metrics) {
 	cp := func(dst, src net.Conn) {
 		// Pooled scratch buffer per direction (no per-splice 32 KiB allocation); a
 		// long-lived WS still meters per chunk via meterReader.
-		_, _ = pooledCopy(dst, &meterReader{r: src, meter: m, account: account, metrics: mx, dir: dirDuplex})
+		_, _ = iopool.Copy(dst, &meterReader{r: src, meter: m, account: account, metrics: mx, dir: dirDuplex})
 		if cw, ok := dst.(interface{ CloseWrite() error }); ok {
 			_ = cw.CloseWrite()
 		} else {

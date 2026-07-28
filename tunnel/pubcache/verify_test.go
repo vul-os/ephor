@@ -426,7 +426,7 @@ func TestVerifyManifestAcceptsBoundaryWidths(t *testing.T) {
 	idb := id
 	body := cborMap(
 		cborUint(1), cborBytes(idb[:]),
-		cborUint(2), cborUint(^uint64(0)),        // size at the u64 boundary
+		cborUint(2), cborUint(^uint64(0)), // size at the u64 boundary
 		cborUint(3), cborUint((uint64(1)<<32)-1), // chunk_sz at the u32 boundary
 		cborUint(4), cborArray(cborBytes(hc[:])),
 		cborUint(6), cborUint(0),
