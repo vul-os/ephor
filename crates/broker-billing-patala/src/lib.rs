@@ -354,6 +354,10 @@ mod tests {
                     holds_funds: false,
                     currencies: vec!["USDC".to_string()],
                     settlement: Settlement::Instant,
+                    // No atomic multi-party settlement here either — this fake mirrors
+                    // patala_core's own documented default (false for every fiat processor,
+                    // structurally, and for every crypto rail until one is wired up).
+                    atomic_multi_party: false,
                 },
             }
         }
