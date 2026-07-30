@@ -9,7 +9,7 @@
 <meta property="og:title" content="Ephor — docs">
 <meta property="og:description" content="Technical docs for the open, self-hostable Ephor broker — content-blind, swappable, no token.">
 <meta property="og:url" content="https://vulos.org/products/ephor">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' rx='28' fill='%230c0d10'/%3E%3Cpath d='M64 30c14 0 24 10 24 24 0 18-14 32-28 39-4 2-7-4-3-7 9-6 13-12 15-19-4 4-9 5-14 4-10-2-16-9-16-18 0-13 9-23 22-23z' fill='%23c89a56'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg">
 <style>
 *,*::before,*::after{box-sizing:border-box}
 :root{
@@ -35,7 +35,7 @@ img{max-width:100%;display:block}
 .vulos-back{display:flex;align-items:center;gap:6px;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--bone-faint);transition:color .15s;flex:none}
 .vulos-back:hover{color:var(--signal)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:.14em;padding-left:16px;border-left:1px solid var(--line)}
-.brand svg{width:26px;height:26px;flex:none}
+.brand svg{color:var(--signal);height:22px;width:auto;flex:none}
 .brand b{font-family:var(--disp);letter-spacing:.16em}
 .nav-spacer{flex:1}
 .nav-links{display:flex;align-items:center;gap:20px;font-size:13px;color:var(--bone-dim)}
@@ -94,7 +94,24 @@ img{max-width:100%;display:block}
 <header class="site-header"><div class="wrap nav">
   <a class="vulos-back" href="https://vulos.org" target="_top">&larr; Vulos</a>
   <a class="brand" href="#getting-started">
-    <svg viewBox="0 0 128 128" aria-label="Ephor"><rect width="128" height="128" rx="28" fill="#0c0d10"/><path d="M64 30c14 0 24 10 24 24 0 18-14 32-28 39-4 2-7-4-3-7 9-6 13-12 15-19-4 4-9 5-14 4-10-2-16-9-16-18 0-13 9-23 22-23z" fill="#c89a56"/></svg>
+    <!-- The Ephor mark (brand/ephor.svg): a comma whose notch opens it into
+         a lowercase "e" — currentColor so the header sets the bronze accent. -->
+    <svg viewBox="14 5 72 92" role="img" aria-label="Ephor">
+      <defs>
+        <mask id="ephor-cut-nav">
+          <rect x="-40" y="-40" width="200" height="200" fill="#fff"/>
+          <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000"
+                transform="translate(16 5) rotate(200 47.5 36)"/>
+        </mask>
+      </defs>
+      <g mask="url(#ephor-cut-nav)" fill="currentColor">
+        <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
+          <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
+                   C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
+                   C 20,23 32,10 50,10 Z"/>
+        </g>
+      </g>
+    </svg>
     <b>EPHOR</b>
   </a>
   <div class="nav-spacer"></div>
