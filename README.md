@@ -14,7 +14,7 @@
   <a href="Cargo.toml"><img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-C2410C?logo=rust&logoColor=white"></a>
   <img alt="Status" src="https://img.shields.io/badge/status-pre--alpha%20reference-FFC24B">
   <a href="https://github.com/vul-os/kotva"><img alt="Spec: KOTVA" src="https://img.shields.io/badge/spec-KOTVA-FF8A3D"></a>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-548%20green-14B8A6">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-556%20green-14B8A6">
 </p>
 
 <p align="center">
