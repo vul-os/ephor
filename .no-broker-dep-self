@@ -1,0 +1,29 @@
+# Scope declaration for tools/gates/no-broker-dep.sh (the R-SOV-1 gate, lifted from kotva).
+#
+# no-broker-dep:self-broker: this repo IS the Ephor broker/coordinator reference implementation that BROKER_RE names, not a product depending on it.
+#
+# Why a repo-level declaration instead of individual :allow-file markers, and why that is
+# an honest use of the escape hatch rather than a way to dodge it:
+#
+# BROKER_RE defaults to `ephor|vulos-relayd`. Both terms are THIS repo's own names —
+# Cargo.toml's header calls it "Ephor — the broker (coordinator) reference implementation
+# of the KOTVA standard", and cmd/vulos-relayd/main.go is ephor's own Go reverse-tunnel
+# relay binary (a legacy binary name for the same product, not a second broker). R-SOV-1
+# asks "does this PRODUCT depend on the broker?" — applied to the broker's own source tree
+# the question is malformed, not merely satisfied: every crate path under this checkout
+# (.../ephor/crates/admin, .../ephor/crates/gateway, ...) matches BROKER_RE purely because
+# the checkout directory is named "ephor", and essentially every source file, README and
+# comment legitimately says "Ephor" in the sense of naming itself. Running the gate here
+# produced ~300 structural false positives, none of them a dependency edge.
+#
+# Marking every one of those files individually with :allow-file would either bury that
+# marker's accountability under bulk, mechanical use, or train reviewers to rubber-stamp a
+# wall of exemptions — which is the exact failure the marker mechanism exists to prevent.
+# A single, committed, greppable, reasoned repo-level file is the narrower instrument here.
+#
+# This declaration is honoured ONLY because it states a reason on the marker line itself —
+# see tools/gates/no-broker-dep.sh's CONFIGURATION section and selftest controls
+# ('self_broker_reasoned' / 'self_broker_unreasoned') in kotva, which prove a reason-free
+# version of this file is deliberately NOT honoured and the gate runs its normal scan
+# instead. Ephor is not thereby exempt from anything else: a genuine dependency by THIS
+# repo on some OTHER broker would still need its own honest accounting; there is none.
