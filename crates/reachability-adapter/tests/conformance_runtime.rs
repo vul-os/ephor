@@ -183,15 +183,27 @@ fn reach1a_bare_vanity_is_declared_not_verified_even_though_genuinely_signed() {
 /// same function a real box binary calls) under a freshly-generated real `IdentityKey`, registers
 /// for `name`/`service`, then serves the post-auth yamux session **as if it were the TLS
 /// terminator for that name** — but it plainly is not: it never parses anything as TLS, it simply
-/// echoes back application bytes verbatim, standing in for "some server on the other end that
-/// actually holds the certificate and completes the handshake". This is the point: the adapter's
-/// ingress code path (`AdapterServer::handle_ingress_connection`, exercised for real below) never
-/// itself attempts anything TLS-shaped — it forwards bytes to whatever this box does with them,
-/// sight unseen.
+/// echoes back application bytes verbatim (XORed with `tag`; pass `0` for a true byte-identical
+/// echo — XOR-with-zero is the identity, so every caller that needs a plain echo is unaffected),
+/// standing in for "some server on the other end that actually holds the certificate and
+/// completes the handshake". This is the point: the adapter's ingress code path
+/// (`AdapterServer::handle_ingress_connection`, exercised for real below) never itself attempts
+/// anything TLS-shaped — it forwards bytes to whatever this box does with them, sight unseen.
+///
+/// `tag` exists so a test can tell WHICH box actually served a connection: two boxes both
+/// running a byte-identical echo, fed byte-identical payload, produce byte-identical output no
+/// matter which one the adapter (mis)routes to — a routing test built that way cannot fail even
+/// if routing is completely broken (see `coord5_routing_depends_on_sni_alone_not_on_payload_content`,
+/// which uses two distinct nonzero tags precisely to close that hole).
+fn xor_tag(tag: u8, data: &[u8]) -> Vec<u8> {
+    data.iter().map(|b| b ^ tag).collect()
+}
+
 async fn spawn_fake_box(
     control_listener: TcpListener,
     name: &str,
     service: &str,
+    tag: u8,
 ) -> tokio::task::JoinHandle<()> {
     let name = name.to_string();
     let service = service.to_string();
@@ -225,7 +237,8 @@ async fn spawn_fake_box(
                         Ok(0) | Err(_) => break,
                         Ok(n) => n,
                     };
-                    if s.write_all(&buf[..n]).await.is_err() {
+                    let out = xor_tag(tag, &buf[..n]);
+                    if s.write_all(&out).await.is_err() {
                         break;
                     }
                 }
@@ -321,7 +334,7 @@ async fn coord5_adapter_holds_no_decrypting_key_and_splices_ciphertext_like_byte
     let control_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let control_addr = control_listener.local_addr().unwrap();
     let name = "svc.alice.reach.example";
-    let _box_task = spawn_fake_box(control_listener, name, "https").await;
+    let _box_task = spawn_fake_box(control_listener, name, "https", 0).await;
 
     let server = AdapterServer::new();
     let control_client = TcpStream::connect(control_addr).await.unwrap();
@@ -378,16 +391,29 @@ async fn coord5_adapter_holds_no_decrypting_key_and_splices_ciphertext_like_byte
 /// possible if the routing lookup keys on the name, not on anything it read from the payload (it
 /// structurally could not read the payload's plaintext meaning at all — see the previous test).
 /// This is the routing-side complement to "holds no decrypting key": content-blind routing means
-/// routing BY name, not just "does not decrypt". **Does not prove:** DNS-level assurance that
-/// these two names are actually served by different physical operators — that is a deployment
-/// fact, not something this crate's routing logic could observe either way.
+/// routing BY name, not just "does not decrypt".
+///
+/// Box A and box B are given DISTINCT nonzero echo tags (`0xA5`/`0x5A`, XORed over everything
+/// they echo — see `spawn_fake_box`'s doc comment). This is what makes the test able to fail at
+/// all: two byte-identical echo servers fed byte-identical payload produce byte-identical output
+/// no matter which one actually served a given connection, so a version of this test built with
+/// two plain identical echoers cannot detect misrouting even if the adapter always dialed box A
+/// regardless of SNI (confirmed empirically: with the tag removed, this test still passed against
+/// an adapter deliberately mutated to ignore the parsed SNI and route every connection to the
+/// first-registered name). Tagging makes "which box answered" externally observable, so the
+/// per-name assertions below are a real routing check, not a tautology. **Does not prove:**
+/// DNS-level assurance that these two names are actually served by different physical operators —
+/// that is a deployment fact, not something this crate's routing logic could observe either way.
 #[tokio::test]
 async fn coord5_routing_depends_on_sni_alone_not_on_payload_content() {
+    const TAG_A: u8 = 0xA5;
+    const TAG_B: u8 = 0x5A;
+
     let server = AdapterServer::new();
 
     let control_listener_a = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let control_addr_a = control_listener_a.local_addr().unwrap();
-    let _box_a = spawn_fake_box(control_listener_a, "a.reach.example", "https").await;
+    let _box_a = spawn_fake_box(control_listener_a, "a.reach.example", "https", TAG_A).await;
     let control_client_a = TcpStream::connect(control_addr_a).await.unwrap();
     server
         .accept_box_connection(control_client_a)
@@ -397,7 +423,7 @@ async fn coord5_routing_depends_on_sni_alone_not_on_payload_content() {
 
     let control_listener_b = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let control_addr_b = control_listener_b.local_addr().unwrap();
-    let _box_b = spawn_fake_box(control_listener_b, "b.reach.example", "https").await;
+    let _box_b = spawn_fake_box(control_listener_b, "b.reach.example", "https", TAG_B).await;
     let control_client_b = TcpStream::connect(control_addr_b).await.unwrap();
     server
         .accept_box_connection(control_client_b)
@@ -408,7 +434,7 @@ async fn coord5_routing_depends_on_sni_alone_not_on_payload_content() {
     // Byte-identical application payload for BOTH connections — only the SNI differs.
     let shared_payload = b"identical-bytes-on-both-connections-0123456789";
 
-    for name in ["a.reach.example", "b.reach.example"] {
+    for (name, expected_tag) in [("a.reach.example", TAG_A), ("b.reach.example", TAG_B)] {
         let ingress_listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let ingress_addr = ingress_listener.local_addr().unwrap();
         let ingress_server = server.clone();
@@ -425,15 +451,23 @@ async fn coord5_routing_depends_on_sni_alone_not_on_payload_content() {
         client.write_all(&client_hello).await.unwrap();
         let mut echoed_hello = vec![0u8; client_hello.len()];
         client.read_exact(&mut echoed_hello).await.unwrap();
-        assert_eq!(echoed_hello, client_hello);
+        assert_eq!(
+            echoed_hello,
+            xor_tag(expected_tag, &client_hello),
+            "the ClientHello for {name:?} must come back tagged by THAT name's own box, not \
+             some other registered box"
+        );
 
         client.write_all(shared_payload).await.unwrap();
         let mut echoed = vec![0u8; shared_payload.len()];
         client.read_exact(&mut echoed).await.unwrap();
         assert_eq!(
-            &echoed, shared_payload,
-            "each connection's own box echoed the SAME payload bytes back — routed correctly by \
-             its own SNI, not by any property of the payload (which was identical across both)"
+            echoed,
+            xor_tag(expected_tag, shared_payload),
+            "connecting with SNI {name:?} must be routed to THAT name's own registered box \
+             (identified by its distinct echo tag), never cross-delivered to the other one — \
+             routed correctly by its own SNI, not by any property of the payload (which was \
+             identical across both connections)"
         );
     }
 }
