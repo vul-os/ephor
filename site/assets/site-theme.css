@@ -185,6 +185,10 @@ p, .prose { font-family: var(--font-sans); }
 }
 
 @media (max-width: 640px) { .brand b { display: none; } .nav-links a.hidem { display: none; } }
+/* Below 400px the header CTA button plus back-link/brand/toggle no longer fit
+   one unwrapped row; the CTA is never the only way to reach it (the hero and
+   footer both repeat it), so it is the one thing that yields. */
+@media (max-width: 400px) { .site-header .nav > a.btn { display: none; } }
 
 /* ── site footer (shared shell, both pages) ─────────────────────────── */
 .site-footer { border-top: 1px solid var(--border-default); margin-top: 20px; padding: 32px 0; color: var(--text-faint); font-size: 12px; }
