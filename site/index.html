@@ -762,6 +762,23 @@ go test -race ./...</pre>
     syncThemeUI();
   });
 
+  /* The head script resolves the OS preference once, at load. Until the visitor makes an
+     explicit choice we keep following it, so flipping the system theme with this page open
+     is reflected instead of being stuck at whatever it was when the tab opened. */
+  try {
+    var mq = matchMedia('(prefers-color-scheme: light)');
+    var follow = function () {
+      var chosen = null;
+      try { chosen = localStorage.getItem('ephor-site-theme'); } catch (e) {}
+      if (chosen === 'light' || chosen === 'dark') return;
+      root.setAttribute('data-theme', mq.matches ? 'light' : 'dark');
+      applyShots();
+      syncThemeUI();
+    };
+    if (mq.addEventListener) mq.addEventListener('change', follow);
+    else if (mq.addListener) mq.addListener(follow);
+  } catch (e) {}
+
   /* ── mobile drawer ─────────────────────────────────────────────────── */
   function openDrawer() {
     shell.classList.add('drawer-open');

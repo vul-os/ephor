@@ -305,6 +305,24 @@ load(current());
       try { mermaid.initialize(mermaidTheme()); await load(current()); } catch(e){}
     }
   });
+
+  /* Follow the OS while the visitor has made no explicit choice, so flipping the system
+     theme with this page open is reflected. Mermaid diagrams are re-rendered because their
+     colours are baked in at render time, not driven by CSS custom properties. */
+  try {
+    const mq = matchMedia('(prefers-color-scheme: light)');
+    const follow = async () => {
+      let chosen = null;
+      try { chosen = localStorage.getItem('ephor-site-theme'); } catch(e){}
+      if (chosen === 'light' || chosen === 'dark') return;
+      root.setAttribute('data-theme', mq.matches ? 'light' : 'dark');
+      if (mermaidReady && content.querySelector('.mermaid')) {
+        try { mermaid.initialize(mermaidTheme()); await load(current()); } catch(e){}
+      }
+    };
+    if (mq.addEventListener) mq.addEventListener('change', follow);
+    else if (mq.addListener) mq.addListener(follow);
+  } catch(e){}
 })();
 </script>
 </body>
