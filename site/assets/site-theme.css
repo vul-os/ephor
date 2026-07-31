@@ -140,14 +140,7 @@ p, .prose { font-family: var(--font-sans); }
   position: sticky; top: 0; z-index: 50; backdrop-filter: blur(10px);
   background: var(--nav-scrim); border-bottom: 1px solid var(--border-default);
 }
-.nav { display: flex; align-items: center; gap: 18px; height: 58px; }
-.vulos-back {
-  display: flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: .06em;
-  text-transform: uppercase; color: var(--text-faint); transition: color var(--dur-fast) var(--ease);
-  flex: none; min-height: 44px; align-items: center;
-}
-.vulos-back:hover { color: var(--accent); }
-.brand {
+.nav { display: flex; align-items: center; gap: 18px; height: 58px; }.brand {
   display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; letter-spacing: .14em;
   padding-left: 16px; border-left: 1px solid var(--border-default); min-height: 44px;
 }

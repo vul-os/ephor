@@ -230,6 +230,17 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
 .final-cta{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;margin-top:32px;padding-top:28px;border-top:1px solid var(--border-subtle)}
 .trust-note{font-family:var(--font-mono);font-size:13px;color:var(--text-muted);margin-top:18px}
 .trust-note a{color:var(--accent)}
+
+  /* ── Vulos suite chrome — identical on every product landing ───────────────
+     Two elements, and only two: a logo-only home button in the top bar, and
+     one line in the footer. Deliberately free of repo variables so the block
+     is byte-identical across the suite and can be diffed as one thing. */
+  .vulos-home { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto; opacity: .72; transition: opacity .15s ease, transform .15s ease; }
+  .vulos-home:hover, .vulos-home:focus-visible { opacity: 1; transform: translateY(-1px); }
+  .vulos-home img { display: block; width: 22px; height: 22px; border-radius: 6px; }
+  .vulos-foot { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; line-height: 1.45; text-decoration: none; color: inherit; opacity: .85; transition: opacity .15s ease; }
+  .vulos-foot:hover { opacity: 1; text-decoration: none; }
+  .vulos-foot img { display: block; width: 18px; height: 18px; border-radius: 5px; flex: 0 0 auto; }
 </style>
 </head>
 <body>
@@ -298,7 +309,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
         <button class="hamburger" id="hamburger" type="button" aria-label="Open menu" aria-expanded="false">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
-        <a class="back-link" href="https://vulos.org" target="_top">&larr; <span class="bl-txt">Vulos</span></a>
+        <a class="vulos-home" href="https://vulos.org" target="_blank" rel="noopener" title="Vulos — open, self-hostable software" aria-label="Vulos — open, self-hostable software"><img src="./assets/vulos-logo.png" alt="" width="22" height="22"></a>
         <svg class="tb-mark" viewBox="14 5 130 92" role="presentation" aria-hidden="true">
           <defs>
             <mask id="tbmark-a"><rect x="-40" y="-40" width="240" height="240" fill="#fff"/><rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000" transform="translate(16 5) rotate(200 47.5 36)"/></mask>
@@ -676,6 +687,7 @@ visibility = <span class="c">"blind"</span></pre>
         <header class="page-head">
           <span class="panel-kicker">Start</span>
           <h2>Run the console, or build the workspace.</h2>
+          <p>Ephor is <strong>MIT OR Apache-2.0</strong> licensed, with no token, ever — the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</p>
         </header>
         <div class="code-grid">
           <div class="code-card">
@@ -721,7 +733,7 @@ go test -race ./...</pre>
     </main>
 
     <footer class="site-footer"><div class="wrap foot">
-      <div>Ephor is MIT OR Apache-2.0 licensed &middot; no token, ever &middot; the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</div>
+      <a class="vulos-foot" href="https://vulos.org" target="_blank" rel="noopener"><img src="./assets/vulos-logo.png" alt="" width="18" height="18"><span>Part of <strong>Vulos</strong> — open, self-hostable software</span></a>
       <div><a href="https://github.com/vul-os/ephor" target="_blank" rel="noopener">github.com/vul-os/ephor</a></div>
     </div></footer>
   </div>
