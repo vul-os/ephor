@@ -87,13 +87,24 @@
 .markdown .mermaid{background:var(--bg-surface);border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:1.2em 0;text-align:center;overflow:auto}
 .markdown .mermaid svg{max-width:none}
 .docs-error{color:#f3b3a6;background:rgba(220,80,38,.08);border:1px solid rgba(220,80,38,.25);padding:14px 16px;border-radius:10px}
+
+  /* ── Vulos suite chrome — identical on every product landing ───────────────
+     Two elements, and only two: a logo-only home button in the top bar, and
+     one line in the footer. Deliberately free of repo variables so the block
+     is byte-identical across the suite and can be diffed as one thing. */
+  .vulos-home { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto; opacity: .72; transition: opacity .15s ease, transform .15s ease; }
+  .vulos-home:hover, .vulos-home:focus-visible { opacity: 1; transform: translateY(-1px); }
+  .vulos-home img { display: block; width: 22px; height: 22px; border-radius: 6px; }
+  .vulos-foot { display: inline-flex; align-items: center; gap: 9px; font-size: 13.5px; line-height: 1.45; text-decoration: none; color: inherit; opacity: .85; transition: opacity .15s ease; }
+  .vulos-foot:hover { opacity: 1; text-decoration: none; }
+  .vulos-foot img { display: block; width: 18px; height: 18px; border-radius: 5px; flex: 0 0 auto; }
 </style>
 <script src="./assets/vendor/marked.umd.js"></script>
 <script src="./assets/vendor/mermaid.min.js"></script>
 </head>
 <body>
 <header class="site-header"><div class="wrap nav">
-  <a class="vulos-back" href="https://vulos.org" target="_top">&larr; Vulos</a>
+  <a class="vulos-home" href="https://vulos.org" target="_blank" rel="noopener" title="Vulos — open, self-hostable software" aria-label="Vulos — open, self-hostable software"><img src="./assets/vulos-logo.png" alt="" width="22" height="22"></a>
   <a class="brand" href="./index.html">
     <!-- The Ephor mark (brand/ephor.svg): a comma whose notch opens it into
          a lowercase "e" — currentColor so the header sets the bronze accent. -->
@@ -157,8 +168,9 @@
 </div>
 
 <footer class="site-footer"><div class="wrap foot">
-  <div>Ephor is MIT OR Apache-2.0 licensed &middot; no token, ever &middot; the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</div>
+  <div>Ephor — no token, ever &middot; the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</div>
   <div><a href="https://github.com/vul-os/ephor" target="_blank" rel="noopener">github.com/vul-os/ephor</a></div>
+  <a class="vulos-foot" href="https://vulos.org" target="_blank" rel="noopener"><img src="./assets/vulos-logo.png" alt="" width="18" height="18"><span>Part of <strong>Vulos</strong> — open, self-hostable software</span></a>
 </div></footer>
 
 <script>
