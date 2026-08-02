@@ -1,0 +1,19 @@
+[package]
+name = "pier-economics"
+description = "KOTVA coordinator content-visibility model, authz, tariff, and usage-receipt types (CONTRACT §2–§6)."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# Tag-pinned substrate (the isango guardrail: never HEAD, never a moving path dep).
+# Identity + Ed25519 signing/verification, DS-tag domain separation, canonical §18
+# deterministic CBOR — the descriptor/tariff/usage-receipt signing in `descriptor.rs`.
+kotva-core = { git = "https://github.com/vul-os/kotva", tag = "core-v0.2.0" }
+thiserror = "1"

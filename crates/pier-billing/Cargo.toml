@@ -1,0 +1,22 @@
+[package]
+name = "pier-billing"
+description = "KOTVA CONTRACT §6 economics, made concrete: metering, tariff evaluation, signed usage receipts, and a pluggable no-token settlement seam."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+# The real signed Tariff / UsageReceipt types (W3) — this crate reuses them, never reinvents
+# signing (pier-economics/src/descriptor.rs).
+pier-economics = { path = "../pier-economics" }
+# Tag-pinned substrate (the isango guardrail: never HEAD, never a moving path dep). Needed
+# directly (not just via pier-economics) to build/parse the tariff-schedule and
+# usage-receipt-operation CBOR bodies via `Cv`/`Fields` — see `tariff.rs`/`receipt.rs`.
+kotva-core = { git = "https://github.com/vul-os/kotva", tag = "core-v0.2.0" }
+thiserror = "1"

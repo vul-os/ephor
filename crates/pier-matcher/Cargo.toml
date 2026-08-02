@@ -1,0 +1,16 @@
+[package]
+name = "pier-matcher"
+description = "The KOTVA `matcher` coordinator kind: real-time supply<->demand matching (rides, delivery) over its own opt-in derived match set (CONTRACT §4 derived-view carve-out, §5)."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pier-economics = { path = "../pier-economics" }
+pier-conformance = { path = "../pier-conformance" }

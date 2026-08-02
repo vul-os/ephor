@@ -1,0 +1,44 @@
+[package]
+name = "pier-reachability-adapter"
+description = "The REACH reachability-adapter: content-blind (SNI-passthrough) public reach for arbitrary box services (profiles/reachability.md)."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pier-economics = { path = "../pier-economics" }
+pier-conformance = { path = "../pier-conformance" }
+# --- REACH-2 (src/auth.rs): mutual key-authentication of the box<->adapter control
+# connection to the box's real Ed25519 IK. Tag-pinned (the isango guardrail: never
+# HEAD, never a moving path dep) — same tag pier-economics/pier-gateway already pin.
+kotva-core = { git = "https://github.com/vul-os/kotva", tag = "core-v0.2.0" }
+# --- CSPRNG for the REACH-2 challenge nonce (src/auth.rs) — OS RNG, not a PRNG seeded
+# from anything predictable. Same crate/version pier-gateway already uses for this role. ---
+getrandom = "0.2"
+# --- REACH-1 transport (src/sni.rs, src/tunnel.rs, src/ingress.rs): pure plumbing,
+# no substrate types needed, so this leg is unblocked ahead of kotva-core. ---
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync", "time"] }
+# The box<->adapter reverse-tunnel stream-mux (REACH profile §2). The spec's
+# long-term bindings target libp2p Noise + yamux; this crate uses the same yamux
+# wire framing library the mesh's own libp2p-yamux binding is built on, so the
+# in-process mux behavior matches even before the Noise transport-security layer
+# is wired. src/auth.rs now closes the *key-authentication* half of REACH-2 (the
+# box proves possession of its claimed IK); the Noise transport-security layer
+# for this leg is still not wired — see src/auth.rs module docs for the residual.
+yamux = "0.13"
+# Bridges tokio's AsyncRead/AsyncWrite (TcpStream) and futures-io's
+# AsyncRead/AsyncWrite (what the `yamux` crate's Connection/Stream use) so a
+# TcpStream can host a yamux::Connection and a yamux::Stream can be spliced
+# with tokio::io::copy_bidirectional, without pulling in the rest of libp2p.
+tokio-util = { version = "0.7", features = ["compat"] }
+tracing = "0.1"
+thiserror = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "net", "io-util", "macros", "sync", "time", "test-util"] }

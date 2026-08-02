@@ -27,6 +27,6 @@ scripts/package-lock.json
 
 # Rust build output
 /target
-# `crates/broker-billing-patala` is EXCLUDED from the root workspace (it path-depends on the
+# `crates/pier-billing-patala` is EXCLUDED from the root workspace (it path-depends on the
 # sibling patala repo), so it is its own workspace root and builds into its own target/.
-/crates/broker-billing-patala/target
+/crates/pier-billing-patala/target

@@ -1,8 +1,8 @@
-# Ephor — the broker (coordinator) reference implementation of the KOTVA standard.
+# Pier — the broker (coordinator) reference implementation of the KOTVA standard.
 #
 # This is a virtual workspace: one crate per coordinator *kind* plus the shared
-# `broker-economics` crate (the content-visibility model, authz, tariff, usage
-# receipts) and the `broker-conformance` harness (the CONTRACT COORD-1..8 checks).
+# `pier-economics` crate (the content-visibility model, authz, tariff, usage
+# receipts) and the `pier-conformance` harness (the CONTRACT COORD-1..8 checks).
 #
 # The Go reverse-tunnel relay + JS client SDK are preserved untouched alongside
 # this (HANDOVER §Guardrails-3) until the Rust port is proven.
@@ -11,33 +11,33 @@
 # MLS glue, CBOR, crypto) come from `kotva-core`, a crate carved from envoir and
 # pinned by tag — NEVER tracked at HEAD (the isango guardrail, HANDOVER §Guardrails-1).
 # `kotva-core` is tag-pinned at `core-v0.2.0`; every crate that needs it (currently
-# `broker-economics`, `gateway`) depends on that exact tag directly (see each crate's
+# `pier-economics`, `pier-gateway`) depends on that exact tag directly (see each crate's
 # own Cargo.toml — not unified here via `[workspace.dependencies]`, so a future retag
 # is a per-crate, reviewable bump rather than one silent workspace-wide jump).
 
 [workspace]
 resolver = "2"
 members = [
-    "crates/broker-economics",
-    "crates/broker-billing",
-    "crates/broker-conformance",
-    "crates/reachability-adapter",
-    "crates/gateway",
-    "crates/admin",
-    "crates/relay",
-    "crates/media-relay",
-    "crates/indexer",
-    "crates/labeler",
-    "crates/matcher",
-    "crates/arbiter",
-    "crates/oracle",
-    "crates/compute",
+    "crates/pier-economics",
+    "crates/pier-billing",
+    "crates/pier-conformance",
+    "crates/pier-reachability-adapter",
+    "crates/pier-gateway",
+    "crates/pier-admin",
+    "crates/pier-relay",
+    "crates/pier-media-relay",
+    "crates/pier-indexer",
+    "crates/pier-labeler",
+    "crates/pier-matcher",
+    "crates/pier-arbiter",
+    "crates/pier-oracle",
+    "crates/pier-compute",
 ]
 
-# `crates/broker-billing-patala` is EXCLUDED from this workspace (it is its own single-crate
+# `crates/pier-billing-patala` is EXCLUDED from this workspace (it is its own single-crate
 # workspace — see its Cargo.toml). It is an OPTIONAL reference `SettlementRail` adapter for
-# `broker-billing`'s provider-agnostic settlement seam — never a hard dependency of
-# `broker-billing` or any coordinator kind — and it path-depends on the SIBLING `patala` repo
+# `pier-billing`'s provider-agnostic settlement seam — never a hard dependency of
+# `pier-billing` or any coordinator kind — and it path-depends on the SIBLING `patala` repo
 # (`../../../patala/{patala-core,patala-stellar}`), which is not part of this repo and is not
 # present in a fresh checkout.
 #
@@ -46,22 +46,22 @@ members = [
 # what gets COMPILED, but NOT out of what gets RESOLVED: cargo loads every member manifest
 # eagerly, so with the adapter listed as a member, `cargo build` at this root fails outright with
 # "failed to load manifest for workspace member ... failed to read ../../../patala/patala-core/
-# Cargo.toml" on any machine without the sibling repo checked out next to ephor. That made a
+# Cargo.toml" on any machine without the sibling repo checked out next to pier. That made a
 # standalone Rust CI job impossible; hence `exclude`. Verified by building this repo in a
 # worktree with no patala sibling on disk.
 #
-# Consequence, and the reason the docs changed with it: `-p broker-billing-patala` and
+# Consequence, and the reason the docs changed with it: `-p pier-billing-patala` and
 # `--workspace` no longer reach the adapter from this root. Build/test it explicitly, with the
 # sibling repo present:
 #
-#     cargo test --manifest-path crates/broker-billing-patala/Cargo.toml
+#     cargo test --manifest-path crates/pier-billing-patala/Cargo.toml
 #
-# `broker-billing` alone stays the default, patala-free settlement seam (see
-# `crates/broker-billing/src/settlement.rs`).
+# `pier-billing` alone stays the default, patala-free settlement seam (see
+# `crates/pier-billing/src/settlement.rs`).
 #
 # `default-members` is deliberately absent now: members == default-members, so `--workspace` and a
 # bare `cargo build` cover exactly the same 14 crates and cannot drift apart.
-exclude = ["crates/broker-billing-patala"]
+exclude = ["crates/pier-billing-patala"]
 
 [workspace.package]
 # PUBLISH RULE (enforced, not advisory — see scripts/check-no-publish.sh):
@@ -78,7 +78,7 @@ publish = false
 version = "0.0.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/vul-os/ephor"
+repository = "https://github.com/vul-os/pier"
 rust-version = "1.85"
 
 [workspace.lints.rust]

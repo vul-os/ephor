@@ -1,0 +1,16 @@
+[package]
+name = "pier-arbiter"
+description = "The KOTVA `arbiter` coordinator kind: staked dispute resolution over disclosed evidence (CONTRACT §5/§6)."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pier-economics = { path = "../pier-economics" }
+pier-conformance = { path = "../pier-conformance" }

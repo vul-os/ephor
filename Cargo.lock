@@ -3,27 +3,6 @@
 version = 4
 
 [[package]]
-name = "admin"
-version = "0.0.0"
-dependencies = [
- "axum",
- "broker-billing",
- "broker-conformance",
- "broker-economics",
- "hex",
- "http-body-util",
- "kotva-core",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tokio",
- "tower",
- "tower-http",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -72,14 +51,6 @@ name = "anyhow"
 version = "1.0.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
-
-[[package]]
-name = "arbiter"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
-]
 
 [[package]]
 name = "arrayref"
@@ -338,30 +309,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "broker-billing"
-version = "0.0.0"
-dependencies = [
- "broker-economics",
- "kotva-core",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "broker-conformance"
-version = "0.0.0"
-dependencies = [
- "broker-economics",
-]
-
-[[package]]
-name = "broker-economics"
-version = "0.0.0"
-dependencies = [
- "kotva-core",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "bs58"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -488,14 +435,6 @@ name = "cmov"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c9ea0ac24bc397ab3c98583a3c9ba74fa56b09a4449bbe172b9b1ddb016027a"
-
-[[package]]
-name = "compute"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
-]
 
 [[package]]
 name = "concurrent-queue"
@@ -1068,27 +1007,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gateway"
-version = "0.1.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
- "ed25519-dalek",
- "getrandom 0.2.17",
- "idna",
- "kotva-core",
- "kotva-mail",
- "libc",
- "psl",
- "rcgen",
- "rustls",
- "rustls-pemfile",
- "sha2",
- "thiserror 1.0.69",
- "webpki-roots 0.26.11",
-]
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1572,14 +1490,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "indexer"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
-]
-
-[[package]]
 name = "indexmap"
 version = "2.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1692,14 +1602,6 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "labeler"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
 ]
 
 [[package]]
@@ -2121,14 +2023,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "matcher"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
-]
-
-[[package]]
 name = "matchers"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2142,17 +2036,6 @@ name = "matchit"
 version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
-
-[[package]]
-name = "media-relay"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
- "kotva-core",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "memchr"
@@ -2440,14 +2323,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
-name = "oracle"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
-]
-
-[[package]]
 name = "p256"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2507,6 +2382,157 @@ name = "percent-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
+
+[[package]]
+name = "pier-admin"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "hex",
+ "http-body-util",
+ "kotva-core",
+ "pier-billing",
+ "pier-conformance",
+ "pier-economics",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "tokio",
+ "tower",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "pier-arbiter"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-billing"
+version = "0.0.0"
+dependencies = [
+ "kotva-core",
+ "pier-economics",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pier-compute"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-conformance"
+version = "0.0.0"
+dependencies = [
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-economics"
+version = "0.0.0"
+dependencies = [
+ "kotva-core",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "pier-gateway"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "getrandom 0.2.17",
+ "idna",
+ "kotva-core",
+ "kotva-mail",
+ "libc",
+ "pier-conformance",
+ "pier-economics",
+ "psl",
+ "rcgen",
+ "rustls",
+ "rustls-pemfile",
+ "sha2",
+ "thiserror 1.0.69",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
+name = "pier-indexer"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-labeler"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-matcher"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-media-relay"
+version = "0.0.0"
+dependencies = [
+ "kotva-core",
+ "pier-conformance",
+ "pier-economics",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "pier-oracle"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-reachability-adapter"
+version = "0.0.0"
+dependencies = [
+ "getrandom 0.2.17",
+ "kotva-core",
+ "pier-conformance",
+ "pier-economics",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "yamux 0.13.10",
+]
+
+[[package]]
+name = "pier-relay"
+version = "0.0.0"
+dependencies = [
+ "kotva-core",
+ "libp2p",
+ "pier-conformance",
+ "pier-economics",
+ "tokio",
+]
 
 [[package]]
 name = "pin-project"
@@ -2900,21 +2926,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reachability-adapter"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
- "getrandom 0.2.17",
- "kotva-core",
- "thiserror 1.0.69",
- "tokio",
- "tokio-util",
- "tracing",
- "yamux 0.13.10",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2939,17 +2950,6 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
-
-[[package]]
-name = "relay"
-version = "0.0.0"
-dependencies = [
- "broker-conformance",
- "broker-economics",
- "kotva-core",
- "libp2p",
- "tokio",
-]
 
 [[package]]
 name = "resolv-conf"

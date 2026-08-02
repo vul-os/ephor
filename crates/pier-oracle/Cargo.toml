@@ -1,0 +1,16 @@
+[package]
+name = "pier-oracle"
+description = "The KOTVA `oracle` coordinator kind: physical-world / real-fact attestation (delivered? ride done?), disclosed (CONTRACT §5/§6)."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+pier-economics = { path = "../pier-economics" }
+pier-conformance = { path = "../pier-conformance" }
