@@ -1,0 +1,14 @@
+<svg viewBox="0 0 88 66" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pier">
+  <title>Pier (monochrome)</title>
+  <desc>The Pier deck-pilings-and-water mark in a single colour via currentColor, for use on light or dark surfaces.</desc>
+  <!-- Identical geometry to pier.svg. The mark is single-colour by design, so
+       there is no "mono reduction" to make — this file exists only to name the
+       one-ink use (print, watermarks, embroidery). Set `color` on the parent. -->
+  <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+    <path d="M4 4 H72"/>
+    <path d="M12 4 V40"/>
+    <path d="M38 4 V40"/>
+    <path d="M64 4 V40"/>
+    <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
+  </g>
+</svg>

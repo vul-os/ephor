@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="Pier">
+  <title>Pier</title>
+  <!-- Canonical square app tile, to the Vulos product-logo standard: 128 box,
+       rx 28, a near-black ground tinted toward the product's own hue. #14100A
+       is bronze-tinted at the same luminance as zana's #14110b and kotva's
+       #0f0d0b (it is the console's own accent-fill-contrast token); a ground at
+       twice that brightness vanishes against the dark product grid these tiles
+       are displayed on. -->
+  <rect width="128" height="128" rx="28" fill="#14100A"/>
+  <!-- The mark: a deck on three pilings over open water. Geometry is identical
+       to pier.svg, scaled to 84/128 (66%) of the tile so its optical weight
+       matches the rest of the fleet's tiles. One colour on the ground — the
+       bronze is the whole palette. -->
+  <svg x="22" y="32.5" width="84" height="63" viewBox="0 0 88 66">
+    <g stroke="#C89A56" stroke-width="8" stroke-linecap="round" fill="none">
+      <path d="M4 4 H72"/>
+      <path d="M12 4 V40"/>
+      <path d="M38 4 V40"/>
+      <path d="M64 4 V40"/>
+      <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
+    </g>
+  </svg>
+</svg>

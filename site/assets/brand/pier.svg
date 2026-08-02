@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 66" width="352" height="264" role="img" aria-label="Pier">
+  <title>Pier</title>
+  <!-- The Pier mark: a deck carried on three pilings, standing over open water.
+       Drawn as strokes with round caps — the same line-art construction as the
+       Kotva anchor, so anchor and pier read as one family.
+
+       Two things carry the meaning, and neither is decoration:
+
+       1. The water runs PAST the deck. The wave spans the full width; the deck
+          stops short of it. Beyond the last piling is open water and nothing
+          else — no vessel is drawn. That absence is the point: a pier serves
+          vessels it does not own, and the berth belongs to whoever ties up
+          there, never to the pier.
+       2. The wave is why this is a pier and not a building. A solid bar under
+          three legs reads as a plinth under columns; a wave cannot be a plinth.
+          Do not straighten it.
+
+       Filled with currentColor so ONE file serves every surface and both
+       themes — set `color` on the parent. A hardcoded fill cannot work here:
+       white vanishes on the warm-paper light canvas, near-black vanishes on
+       the #0c0c0c dark canvas. One colour throughout, so there is nothing to
+       recolour and nothing to fall out of step. -->
+  <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+    <!-- deck -->
+    <path d="M4 4 H72"/>
+    <!-- pilings -->
+    <path d="M12 4 V40"/>
+    <path d="M38 4 V40"/>
+    <path d="M64 4 V40"/>
+    <!-- water, continuing past the end of the deck -->
+    <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
+  </g>
+</svg>

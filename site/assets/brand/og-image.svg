@@ -1,0 +1,31 @@
+<svg viewBox="0 0 1200 630" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pier — the broker reference implementation of the KOTVA standard">
+  <title>Pier — the broker reference implementation of the KOTVA standard</title>
+  <desc>Social card: the bronze Pier mark, the "Pier" wordmark, and the line "The broker reference implementation of the KOTVA standard".</desc>
+  <!-- Flat ground, no gradient and no glow: the same tinted near-black the tile
+       uses, so the card and the app icon are recognisably one thing. The only
+       ornament is the waterline, which is the mark's own geometry run the width
+       of the card. -->
+  <rect width="1200" height="630" fill="#14100A"/>
+  <!-- mark tile -->
+  <svg x="110" y="120" width="190" height="190" viewBox="0 0 128 128">
+    <rect width="128" height="128" rx="28" fill="#1F1810"/>
+    <svg x="22" y="32.5" width="84" height="63" viewBox="0 0 88 66">
+      <g stroke="#C89A56" stroke-width="8" stroke-linecap="round" fill="none">
+        <path d="M4 4 H72"/>
+        <path d="M12 4 V40"/>
+        <path d="M38 4 V40"/>
+        <path d="M64 4 V40"/>
+        <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
+      </g>
+    </svg>
+  </svg>
+  <text x="112" y="450" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="118" font-weight="700" letter-spacing="-4">Pier</text>
+  <rect x="118" y="482" width="96" height="9" rx="4" fill="#C89A56"/>
+  <text x="112" y="546" fill="#EAD4A6" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="500">The broker reference implementation of the KOTVA standard</text>
+  <text x="112" y="590" fill="#B99A76" font-family="'Helvetica Neue', Arial, sans-serif" font-size="27">Content-blind · swappable · never sovereign</text>
+  <!-- the card's own waterline: the mark's wave, run edge to edge -->
+  <path d="M-20 618 Q40 600 100 618 Q160 636 220 618 Q280 600 340 618 Q400 636 460 618
+           Q520 600 580 618 Q640 636 700 618 Q760 600 820 618 Q880 636 940 618
+           Q1000 600 1060 618 Q1120 636 1180 618 Q1240 600 1300 618"
+        stroke="#846639" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.55"/>
+</svg>
