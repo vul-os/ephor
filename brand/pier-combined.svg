@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 184 66" width="736" height="264" role="img" aria-label="Pier">
+  <title>Pier</title>
+  <!-- The paired mark: two piers on one waterline, the far one recessive.
+       Where the single mark says what a pier is, the pair says the other half
+       of the idea — there is more than one, none of them is special, and the
+       water belongs to neither. A vessel uses whichever pier it reaches and
+       then leaves. Reserved for the console's topbar and footer, where the
+       landscape proportion fits.
+
+       Both piers are currentColor; the far one carries its distance as an
+       opacity rather than a second fixed hue, so the pairing survives on any
+       surface and in both themes. The wave is drawn once, at full strength,
+       across both: the water is the shared thing. -->
+  <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+    <!-- near pier -->
+    <path d="M4 4 H72"/>
+    <path d="M12 4 V40"/>
+    <path d="M38 4 V40"/>
+    <path d="M64 4 V40"/>
+    <!-- far pier -->
+    <g opacity="0.45">
+      <path d="M100 4 H168"/>
+      <path d="M108 4 V40"/>
+      <path d="M134 4 V40"/>
+      <path d="M160 4 V40"/>
+    </g>
+    <!-- one waterline under both -->
+    <path d="M4 58 Q15 52 26 58 Q37 64 48 58 Q59 52 70 58 Q81 64 92 58
+             Q103 52 114 58 Q125 64 136 58 Q147 52 158 58 Q169 64 180 58"/>
+  </g>
+</svg>

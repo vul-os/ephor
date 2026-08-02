@@ -1,18 +1,14 @@
-<svg viewBox="14 5 72 92" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Ephor">
-  <title>Ephor (monochrome)</title>
-  <desc>The comma-e glyph in a single colour via currentColor, for use on light or dark surfaces.</desc>
-  <defs>
-    <mask id="ephor-cut">
-      <rect x="-40" y="-40" width="200" height="200" fill="#fff"/>
-      <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000"
-            transform="translate(16 5) rotate(200 47.5 36)"/>
-    </mask>
-  </defs>
-  <g mask="url(#ephor-cut)" fill="currentColor">
-    <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
-      <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
-               C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
-               C 20,23 32,10 50,10 Z"/>
-    </g>
+<svg viewBox="0 0 88 66" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pier">
+  <title>Pier (monochrome)</title>
+  <desc>The Pier deck-pilings-and-water mark in a single colour via currentColor, for use on light or dark surfaces.</desc>
+  <!-- Identical geometry to pier.svg. The mark is single-colour by design, so
+       there is no "mono reduction" to make — this file exists only to name the
+       one-ink use (print, watermarks, embroidery). Set `color` on the parent. -->
+  <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+    <path d="M4 4 H72"/>
+    <path d="M12 4 V40"/>
+    <path d="M38 4 V40"/>
+    <path d="M64 4 V40"/>
+    <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
   </g>
 </svg>
