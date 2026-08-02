@@ -64,6 +64,17 @@ members = [
 exclude = ["crates/broker-billing-patala"]
 
 [workspace.package]
+# PUBLISH RULE (enforced, not advisory — see scripts/check-no-publish.sh):
+# This repo publishes NOTHING to crates.io. It is the reference *implementation*; the published,
+# semver-stable, tag-pinned artefacts are the `kotva-*` crates in the kotva repo, which this repo
+# CONSUMES. Two reasons this is a rule and not a preference:
+#   1. Spec-defined wire objects must have exactly ONE published home, or two implementations can
+#      encode the same object differently and both believe they are conformant.
+#   2. A published crate name can be yanked but never released, so publishing from here would
+#      permanently reserve names for an implementation that is meant to be replaceable.
+# A crate here that needs to be depended on from outside belongs in kotva instead. Adding
+# `publish = true` to any member is a design change, not a release step.
+publish = false
 version = "0.0.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"

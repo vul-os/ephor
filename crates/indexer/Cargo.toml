@@ -1,6 +1,7 @@
 [package]
 name = "indexer"
 description = "The KOTVA `indexer` coordinator kind: search/discovery/global product-and-price view over a public corpus, ranked only within its own opt-in derived view (CONTRACT §4 derived-view carve-out, §5)."
+publish.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true

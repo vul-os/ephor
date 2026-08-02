@@ -8,6 +8,7 @@
 [package]
 name = "admin"
 description = "Operator admin API for an Ephor coordinator: descriptor/tariff signing, quota policy, metering + receipts view, key management, and a COORD-1..8 conformance self-check."
+publish.workspace = true
 version.workspace = true
 edition.workspace = true
 license.workspace = true

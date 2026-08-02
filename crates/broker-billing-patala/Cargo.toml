@@ -4,6 +4,7 @@ description = "OPTIONAL patala-backed reference implementation of broker-billing
 # These five are spelled out rather than inherited with `.workspace = true` because this crate is
 # `exclude`d from the ephor workspace (see below) and so has no workspace to inherit FROM. Keep
 # them in step with `[workspace.package]` in ../../Cargo.toml by hand.
+publish = false  # see workspace Cargo.toml PUBLISH RULE
 version = "0.0.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"

@@ -8,6 +8,7 @@
 # it declares visibility `terminating` (CONTRACT §3.1/§5). It is optional and fades as adoption grows.
 [package]
 name = "gateway"
+publish = false  # see workspace Cargo.toml PUBLISH RULE
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.75"
