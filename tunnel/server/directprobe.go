@@ -42,7 +42,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/internal/wire"
+	"github.com/vul-os/pier/tunnel/internal/wire"
 )
 
 // directProbeTimeout bounds the whole reachability+ownership probe.

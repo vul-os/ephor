@@ -24,7 +24,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/vul-os/ephor/tunnel/internal/wire"
+	"github.com/vul-os/pier/tunnel/internal/wire"
 )
 
 func parseIPHelper(s string) net.IP { return net.ParseIP(s) }

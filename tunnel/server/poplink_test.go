@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/autoscale"
+	"github.com/vul-os/pier/tunnel/autoscale"
 )
 
 // poplink_test.go — SMART-AUTOSCALE (relay side): PoP registration + load

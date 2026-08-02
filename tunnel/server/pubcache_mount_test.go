@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/vul-os/ephor/tunnel/pubcache"
+	"github.com/vul-os/pier/tunnel/pubcache"
 )
 
 func newPubCacheTestServer(t *testing.T, enable bool) *Server {

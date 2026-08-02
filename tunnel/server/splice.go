@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/internal/iopool"
+	"github.com/vul-os/pier/tunnel/internal/iopool"
 )
 
 // bufferedConn pairs a net.Conn with a reader that may hold bytes already buffered

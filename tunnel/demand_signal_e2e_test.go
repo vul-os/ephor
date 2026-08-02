@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/agent"
 )
 
 // demand_signal_e2e_test.go — AUTOSCALE DEMAND SIGNAL end-to-end.

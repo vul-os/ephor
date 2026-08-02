@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/internal/wire"
+	"github.com/vul-os/pier/tunnel/internal/wire"
 )
 
 // drain.go — SMART-AUTOSCALE (relay side): GRACEFUL DRAIN + proactive RECONNECT.

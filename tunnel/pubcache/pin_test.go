@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/internal/keyauth"
+	"github.com/vul-os/pier/tunnel/internal/keyauth"
 )
 
 // pin_test.go — the durability contract.

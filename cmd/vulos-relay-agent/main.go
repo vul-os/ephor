@@ -1,4 +1,4 @@
-// Command vulos-relay-agent is a thin CLI around tunnel/agent. It dials an Ephor
+// Command vulos-relay-agent is a thin CLI around tunnel/agent. It dials an Pier
 // relay server over wss, registers a token-authorized name, and reverse-proxies a
 // single local port to the public internet — no inbound ports, no static IP.
 //
@@ -22,7 +22,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/agent"
 )
 
 func main() {

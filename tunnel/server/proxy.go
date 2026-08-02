@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/internal/iopool"
+	"github.com/vul-os/pier/tunnel/internal/iopool"
 )
 
 // hopByHopHeaders are stripped in both directions (RFC 7230 §6.1). Connection's

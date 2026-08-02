@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/vul-os/ephor/tunnel/autoscale"
+	"github.com/vul-os/pier/tunnel/autoscale"
 )
 
 // admission_test.go — CONNECTION-FLOOD ADMISSION CONTROL tests: per-IP + per-account

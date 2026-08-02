@@ -1,5 +1,5 @@
 // Package wire defines the small control-plane message set exchanged between a
-// Ephor relay agent and the sovereign relay server over the WebSocket control
+// Pier relay agent and the sovereign relay server over the WebSocket control
 // connection, BEFORE yamux takes over the same net.Conn for request multiplexing.
 //
 // The handshake is a single JSON request/response:

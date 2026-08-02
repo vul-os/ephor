@@ -1,4 +1,4 @@
-// Command vulos-relayd runs the sovereign Ephor relay server: the public half of
+// Command vulos-relayd runs the sovereign Pier relay server: the public half of
 // the reverse tunnel. It replaces a third-party frp server with a self-hosted one.
 //
 // Deployment shape:
@@ -41,10 +41,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/autoscale"
-	"github.com/vul-os/ephor/tunnel/pubcache"
-	"github.com/vul-os/ephor/tunnel/rendezvous"
-	"github.com/vul-os/ephor/tunnel/server"
+	"github.com/vul-os/pier/tunnel/autoscale"
+	"github.com/vul-os/pier/tunnel/pubcache"
+	"github.com/vul-os/pier/tunnel/rendezvous"
+	"github.com/vul-os/pier/tunnel/server"
 )
 
 func main() {

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/agent"
-	"github.com/vul-os/ephor/tunnel/server"
+	"github.com/vul-os/pier/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/server"
 )
 
 // drain_e2e_test.go — SMART-AUTOSCALE end-to-end: GRACEFUL DRAIN migrates every

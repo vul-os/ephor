@@ -1,4 +1,4 @@
-module github.com/vul-os/ephor
+module github.com/vul-os/pier
 
 go 1.23
 

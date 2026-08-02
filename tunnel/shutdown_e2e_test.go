@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/agent"
-	"github.com/vul-os/ephor/tunnel/server"
+	"github.com/vul-os/pier/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/server"
 )
 
 // shutdown_e2e_test.go — GRACEFUL SHUTDOWN (SIGTERM path) end-to-end.

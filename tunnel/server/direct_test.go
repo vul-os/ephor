@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/agent"
 )
 
 // stubVerifier is an in-memory directEndpointVerifier for tests (no real probe).

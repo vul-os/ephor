@@ -1,4 +1,4 @@
-// Package server is the sovereign Ephor relay: the public half of the reverse
+// Package server is the sovereign Pier relay: the public half of the reverse
 // tunnel. It replaces a third-party frp server with our own, self-hostable relay.
 //
 // It runs TWO logical surfaces on one HTTPS listener:
@@ -30,9 +30,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/autoscale"
-	"github.com/vul-os/ephor/tunnel/pubcache"
-	"github.com/vul-os/ephor/tunnel/rendezvous"
+	"github.com/vul-os/pier/tunnel/autoscale"
+	"github.com/vul-os/pier/tunnel/pubcache"
+	"github.com/vul-os/pier/tunnel/rendezvous"
 )
 
 // Config configures a relay Server.

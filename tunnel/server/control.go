@@ -12,8 +12,8 @@ import (
 
 	"github.com/coder/websocket"
 	"github.com/hashicorp/yamux"
-	"github.com/vul-os/ephor/tunnel/internal/keepalive"
-	"github.com/vul-os/ephor/tunnel/internal/wire"
+	"github.com/vul-os/pier/tunnel/internal/keepalive"
+	"github.com/vul-os/pier/tunnel/internal/wire"
 )
 
 const wireControlPath = wire.ControlPath

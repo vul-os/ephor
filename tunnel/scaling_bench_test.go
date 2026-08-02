@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vul-os/ephor/tunnel/agent"
-	"github.com/vul-os/ephor/tunnel/server"
+	"github.com/vul-os/pier/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/server"
 )
 
 // scaling_bench_test.go — OPTIMAL-SIZE BENCH HARNESS (cost vs scaling).

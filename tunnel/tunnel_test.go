@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/vul-os/ephor/tunnel/agent"
-	"github.com/vul-os/ephor/tunnel/server"
+	"github.com/vul-os/pier/tunnel/agent"
+	"github.com/vul-os/pier/tunnel/server"
 )
 
 const (

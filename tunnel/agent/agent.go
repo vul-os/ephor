@@ -1,6 +1,6 @@
-// Package agent is the box-side half of the Ephor sovereign reverse tunnel.
+// Package agent is the box-side half of the Pier sovereign reverse tunnel.
 //
-// An Agent dials a SINGLE outbound wss:// connection to an Ephor relay server,
+// An Agent dials a SINGLE outbound wss:// connection to an Pier relay server,
 // authenticates with a bearer token, claims its token-authorized name, then hands
 // the connection to yamux and services inbound requests: for each yamux stream the
 // server opens, the agent reads one HTTP request and proxies it to its ONE
