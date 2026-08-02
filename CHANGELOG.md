@@ -1,6 +1,6 @@
 # Changelog
 
-## Ephor broker — Rust reference implementation (Unreleased)
+## Pier broker — Rust reference implementation (Unreleased)
 
 The all-Rust coordinator (broker) reference implementation of the KOTVA standard, living in
 `crates/` (`coordinator/CONTRACT.md`). New top section — the Go reverse-tunnel relay + JS SDK's
@@ -13,7 +13,7 @@ own changelog, preserved unchanged, follows below.
   unchanged — DS-tags stay `dmtap-*`, only the Rust crate identifiers renamed `dmtap_core` →
   `kotva_core`.
 - envoir is now **node-only**: the mail gateway and its conformance/fuzz moved here.
-- The mail gateway **folded into ephor** as `crates/gateway`, the sole `terminating` kind.
+- The mail gateway **folded into pier** as `crates/gateway`, the sole `terminating` kind.
 
 ### The broker model
 
@@ -67,7 +67,7 @@ Ten coordinator kinds now exist in `crates/`, each declaring exactly one content
   (rejects a silent visibility downgrade and any `token` field), metering/receipts GET, quota/rate
   GET/PUT (declared, not enforced), key GET/rotate, and `/conformance` running the live COORD-1..8
   checklist. Auth is a constant-time bearer token, fail-closed default-deny; reference binary
-  `ephor-admin` binds loopback by default.
+  `pier-admin` binds loopback by default.
 - **Runtime conformance tests** — real sign/verify + tamper cases and observed-vs-declared
   visibility checks against the live wire path, for the kinds with real implementations (gateway,
   reachability-adapter), discharging the COORD-1/COORD-5 behavioral findings the static harness
@@ -104,19 +104,19 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-### Changed — Go module path is now `github.com/vul-os/ephor` (BREAKING for importers)
+### Changed — Go module path is now `github.com/vul-os/pier` (BREAKING for importers)
 
 `go.mod` declared `module github.com/vul-os/vulos-relay`, a path that has never
-existed on GitHub — the repo is `vul-os/ephor`. No outside Go product could
+existed on GitHub — the repo is `vul-os/pier`. No outside Go product could
 `go get` the tunnel agent, and a dependent carrying
 `replace … => ../vulos-relay` pointed at a directory that is not there.
 
-- **Module path → `github.com/vul-os/ephor`**, and every internal import rewritten
+- **Module path → `github.com/vul-os/pier`**, and every internal import rewritten
   with it. `tunnel/agent` and `tunnel/server` are now resolvable by an outside
   module; nothing in their exported API reaches into `tunnel/internal/…`, so an
   embedder needs only the public packages.
 - **The published tags still carry the old path.** v0.1.0–v0.3.0 were cut before
-  this change, so `go get github.com/vul-os/ephor@v0.3.0` will not resolve — only a
+  this change, so `go get github.com/vul-os/pier@v0.3.0` will not resolve — only a
   commit or a tag cut after the rename will. A dependent pinning a released
   version must wait for the next tag or pin a commit.
 - **Nothing else was renamed.** The binaries (`vulos-relayd`, `vulos-relay-agent`),
@@ -125,7 +125,7 @@ existed on GitHub — the repo is `vul-os/ephor`. No outside Go product could
   all deployed contract — a rename there breaks running installs, not just builds.
 - Repository URLs that 404'd against the old name (clone commands, changelog
   compare links, systemd `Documentation=`, the demo footer link) now point at
-  `vul-os/ephor`.
+  `vul-os/pier`.
 
 ### Fixed — the rendezvous P2P path, as exercised by a real browser
 
@@ -801,7 +801,7 @@ brings it to internet-facing production quality.
 
 ---
 
-[Unreleased]: https://github.com/vul-os/ephor/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/vul-os/ephor/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/vul-os/ephor/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/vul-os/ephor/releases/tag/v0.1.0
+[Unreleased]: https://github.com/vul-os/pier/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/vul-os/pier/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/vul-os/pier/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/vul-os/pier/releases/tag/v0.1.0

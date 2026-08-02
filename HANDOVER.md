@@ -1,20 +1,20 @@
-# Ephor — build handover
+# Pier — build handover
 
-You are taking over the **Ephor** build. This file is your brief. Read it fully, then the
+You are taking over the **Pier** build. This file is your brief. Read it fully, then the
 referenced KOTVA spec docs and the memories listed at the bottom, then begin at **Build order**.
 
-## What Ephor is
+## What Pier is
 
-Ephor is the **broker (coordinator) reference implementation** of the KOTVA standard — the
+Pier is the **broker (coordinator) reference implementation** of the KOTVA standard — the
 single project that implements `coordinator/CONTRACT.md`. It houses every broker *kind*: relay,
 media-relay, reachability-adapter, mail gateway (adapter), and scaffolding for
-indexer/labeler/matcher/arbiter/oracle/compute. (*ephor* = Swahili for agent/agency — a
+indexer/labeler/matcher/arbiter/oracle/compute. (*pier* = Swahili for agent/agency — a
 swappable, fee-taking service point acting on a network's behalf. Provisional; the umbrella-term
 name is not final — see Open decisions.)
 
 ## Current state (as of handover)
 
-- This repo lives at `git@github.com:vul-os/ephor.git`. GitHub description/topics
+- This repo lives at `git@github.com:vul-os/pier.git`. GitHub description/topics
   may still read "relay" — update them.
 - Existing code is **Go** (a reverse-tunnel server, frp/ngrok replacement, wss + yamux,
   SSRF-guarded) + a **JS client SDK** (`@vulos/relay-client`, WebRTC peer-fabric). Clean tree,
@@ -40,7 +40,7 @@ name is not final — see Open decisions.)
 
 1. **isango lesson.** Extracting the gateway from envoir failed twice due to `dmtap-core` churn.
    So `kotva-core` MUST be a stable, versioned, **pinned** crate *before* the gateway is folded.
-   Sequence: (a) carve `kotva-core` + tag it → (b) Ephor pins the tag → (c) fold the gateway.
+   Sequence: (a) carve `kotva-core` + tag it → (b) Pier pins the tag → (c) fold the gateway.
    Do not port the gateway against an unstable core.
 2. **Content-blindness is spec-mandated and per-kind** (`coordinator/CONTRACT.md` §3). Follow the
    spec, NOT the old relay's L7-visible behavior:
@@ -61,7 +61,7 @@ name is not final — see Open decisions.)
 1. **Read the spec** (in the kotva repo, `~/code/vulos/kotva`): `coordinator/CONTRACT.md`,
    `DIRECTION.md`, `STYLE.md`, `THREAT-MODEL.md`, `bindings/README.md`, `profiles/reachability.md`,
    `profiles/rtc.md`, `profiles/media.md`.
-2. **Scaffold** the Rust cargo workspace: one crate per kind + a shared `broker-economics` crate
+2. **Scaffold** the Rust cargo workspace: one crate per kind + a shared `pier-economics` crate
    (authz / tariff / usage-receipts / content-visibility descriptor). Add a broker-contract
    conformance harness.
 3. **Port the reverse-tunnel + reachability-adapter** to Rust (tokio, tokio-tungstenite, yamux),
@@ -81,16 +81,16 @@ storage → iroh / Walrus SDK. (One caveat: large-scale SFU is orchestrated exte
 
 ## Open decisions (confirm with the user via COORDINATION.md before large moves)
 
-- Umbrella-term name: **ephor** (repo name) vs **broker** for the coordinator concept.
+- Umbrella-term name: **pier** (repo name) vs **broker** for the coordinator concept.
 - `kotva-core` as a crate-in-kotva (`crates/kotva-core`, pinned tag — current lean) vs its own repo.
 - Large-SFU: embed `webrtc-rs` vs orchestrate external LiveKit/coturn (lean: orchestrate).
 
 ## Memories to load first (in `~/.claude/projects/-Users-pc-code-vulos/memory/`)
 
-- `kotva-substrate-rename-fold-2026-07-23.md` — **master**: the Ephor plan, kotva-core decision,
+- `kotva-substrate-rename-fold-2026-07-23.md` — **master**: the Pier plan, kotva-core decision,
   isango reversal, primitive set, the 68-defect fix pass.
 - `gateway-isango-in-place-decision-2026-07-23.md` — the isango history (**now reversed**: the
-  gateway DOES leave envoir → ephor; the churn lesson still governs sequencing).
+  gateway DOES leave envoir → pier; the churn lesson still governs sequencing).
 - `envoir-impl-status-2026-07-23.md` — envoir/gateway structure (what you're folding).
 - `vulos-relay-sovereign-tunnel.md` — this relay's origin and design.
 - `dmtap-vs-libp2p-reinvention-eval-2026-07-23.md` — libp2p is used off-the-shelf, not reinvented.

@@ -1,14 +1,14 @@
 /**
  * fabric.js — Diwan fabric client adapter (OFFICE-20).
  *
- * Joins an Ephor fabric session for a given document/session id:
+ * Joins a Pier fabric session for a given document/session id:
  *  1. Fetches ICE/TURN credentials from the OS relay  (/api/peering/ice  or
  *     the cloud /api/turn/credentials as fallback).
  *  2. Opens a SignalingClient to the OS peering WebSocket stream.
  *  3. Negotiates a WebRTC RTCPeerConnection per remote peer (offer/answer/ICE
  *     via the "signal" channel).
  *  4. Opens an RTCDataChannel for duplex application messages.
- *  5. Falls back to a relay circuit (via the Ephor relay deposit/pickup HTTP
+ *  5. Falls back to a relay circuit (via the Pier relay deposit/pickup HTTP
  *     API) when the data channel cannot be established within RELAY_TIMEOUT_MS.
  *
  * Usage:
@@ -855,7 +855,7 @@ export class FabricClient extends EventTarget {
   }
 
   /**
-   * Deposit a message via the Ephor relay for a specific peer.
+   * Deposit a message via the Pier relay for a specific peer.
    *
    * Integrity signature: the deposit payload (blob_b64 + nonce + to + from)
    * is signed with a per-session ECDSA P-256 key held in memory.  The relay

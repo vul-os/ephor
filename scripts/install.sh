@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# install.sh — stand up a sovereign Ephor relay in one command.
+# install.sh — stand up a sovereign Pier relay in one command.
 #
 # The relay is the PUBLIC half of the Vulos reverse tunnel: the self-hosted
 # replacement for a third-party frp server. A box elsewhere dials one outbound

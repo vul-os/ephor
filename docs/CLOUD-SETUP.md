@@ -1,8 +1,8 @@
-# Cloud setup — run an Ephor relay on a VPS with a static IP
+# Cloud setup — run a Pier relay on a VPS with a static IP
 
-This is the **golden path**: take a fresh Ubuntu VPS with a static IP and a domain, and turn it into a working Ephor relay that a box anywhere can dial out to and be reachable through. Every command is copy-pasteable; substitute your own domain and IP where shown.
+This is the **golden path**: take a fresh Ubuntu VPS with a static IP and a domain, and turn it into a working Pier relay that a box anywhere can dial out to and be reachable through. Every command is copy-pasteable; substitute your own domain and IP where shown.
 
-You do **not** need an account with anyone. The relay is self-hostable and content-blind on the tunnel path: the box dials **out** to it, the relay never dials in. A hosted Ephor relay is a convenience some operator may run — it is never required, and this guide never assumes one.
+You do **not** need an account with anyone. The relay is self-hostable and content-blind on the tunnel path: the box dials **out** to it, the relay never dials in. A hosted Pier relay is a convenience some operator may run — it is never required, and this guide never assumes one.
 
 **What you'll have at the end:**
 
@@ -53,7 +53,7 @@ ssh youruser@203.0.113.10
 sudo apt-get update && sudo apt-get -y upgrade
 ```
 
-Nothing Ephor-specific yet — just a current base system.
+Nothing Pier-specific yet — just a current base system.
 
 ## Step 2 — Point DNS at the VPS
 
@@ -85,8 +85,8 @@ curl -fsSL https://go.dev/dl/go1.25.0.linux-amd64.tar.gz | sudo tar -C /usr/loca
 export PATH=$PATH:/usr/local/go/bin
 
 # fetch and build both binaries
-git clone https://github.com/vul-os/ephor.git
-cd ephor
+git clone https://github.com/vul-os/pier.git
+cd pier
 go build -o /tmp/vulos-relayd ./cmd/vulos-relayd
 sudo install -m755 /tmp/vulos-relayd /usr/local/bin/vulos-relayd
 vulos-relayd -h    # sanity-check the flags
@@ -205,7 +205,7 @@ Now on **the box you want to expose** (your laptop, a NAT'd home server, anythin
 
 ```bash
 # build the agent (or use the Docker image's --entrypoint /usr/local/bin/vulos-relay-agent)
-git clone https://github.com/vul-os/ephor.git && cd ephor
+git clone https://github.com/vul-os/pier.git && cd pier
 go build -o /tmp/vulos-relay-agent ./cmd/vulos-relay-agent
 sudo install -m755 /tmp/vulos-relay-agent /usr/local/bin/vulos-relay-agent
 
@@ -315,7 +315,7 @@ If the box *also* has its own public HTTPS endpoint, tell the relay with `-direc
 If you'd rather not build from source, the repo ships a one-command self-host path. On the VPS with Docker + the Compose plugin installed:
 
 ```bash
-git clone https://github.com/vul-os/ephor.git && cd ephor
+git clone https://github.com/vul-os/pier.git && cd pier
 ./scripts/install.sh --domain relay.example.com --path-mode
 ```
 

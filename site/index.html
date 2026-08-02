@@ -3,30 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Ephor — the coordinator reference implementation of KOTVA</title>
-<meta name="description" content="Ephor is the reference broker for KOTVA's coordinator contract: content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
-<link rel="canonical" href="https://vulos.org/projects/ephor/">
+<title>Pier — the coordinator reference implementation of KOTVA</title>
+<meta name="description" content="Pier is the reference broker for KOTVA's coordinator contract: content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
+<link rel="canonical" href="https://vulos.org/projects/pier/">
 <meta name="color-scheme" content="dark light">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="Ephor">
-<meta property="og:title" content="Ephor — the coordinator reference implementation of KOTVA">
+<meta property="og:site_name" content="Pier">
+<meta property="og:title" content="Pier — the coordinator reference implementation of KOTVA">
 <meta property="og:description" content="Content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
-<meta property="og:url" content="https://vulos.org/projects/ephor/">
-<meta property="og:image" content="https://vulos.org/projects/ephor/assets/og-card.png">
+<meta property="og:url" content="https://vulos.org/projects/pier/">
+<meta property="og:image" content="https://vulos.org/projects/pier/assets/og-card.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Ephor — the reference broker implementation of the KOTVA coordinator contract">
+<meta property="og:image:alt" content="Pier — the reference broker implementation of the KOTVA coordinator contract">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Ephor — the coordinator reference implementation of KOTVA">
+<meta name="twitter:title" content="Pier — the coordinator reference implementation of KOTVA">
 <meta name="twitter:description" content="Content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
-<meta name="twitter:image" content="https://vulos.org/projects/ephor/assets/og-card.png">
+<meta name="twitter:image" content="https://vulos.org/projects/pier/assets/og-card.png">
 <link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg">
 <link rel="stylesheet" href="./assets/site-theme.css">
 <script>
   (function () {
     try {
-      var s = localStorage.getItem('ephor-site-theme');
+      var s = localStorage.getItem('pier-site-theme');
       var t = s || (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
       document.documentElement.setAttribute('data-theme', t);
     } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
@@ -266,7 +266,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
           </g>
         </svg>
       </div>
-      <div class="side-word"><span class="w">Ephor</span><span class="s">Pre-alpha reference</span></div>
+      <div class="side-word"><span class="w">Pier</span><span class="s">Pre-alpha reference</span></div>
     </div>
 
     <nav aria-label="Page sections">
@@ -322,7 +322,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
       </div>
       <div class="top-actions">
         <a class="top-link" href="docs.html">Docs</a>
-        <a class="top-link" href="https://github.com/vul-os/ephor" target="_blank" rel="noopener">GitHub</a>
+        <a class="top-link" href="https://github.com/vul-os/pier" target="_blank" rel="noopener">GitHub</a>
         <button class="theme-switch" id="themeBtn" type="button" role="switch" aria-checked="true" aria-label="Toggle light and dark theme">
           <span class="track" id="themeTrack">
             <span class="thumb" id="themeThumb">
@@ -343,7 +343,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
           <span class="panel-kicker">Overview</span>
           <h1>A broker that can prove it isn't reading your traffic.</h1>
           <p class="lede">
-            Ephor is the reference implementation of KOTVA's coordinator contract — the spec's
+            Pier is the reference implementation of KOTVA's coordinator contract — the spec's
             answer to the parts of a peer-to-peer system that genuinely need one party in the
             middle: routing packets past a NAT, bridging to legacy mail, giving two strangers a
             place to rendezvous. Every kind it houses is <strong style="color:var(--text-primary)">accountable</strong>,
@@ -359,13 +359,13 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
             (556 tests, clippy-clean) but is not yet the shipping default — the Go reverse-tunnel
             relay and <code>@vulos/relay-client</code> JS SDK remain the working implementation in
             production today.
-            <a href="https://github.com/vul-os/ephor#status-honest-as-of-this-writing" target="_blank" rel="noopener" style="color:var(--accent)">Read the full status &rarr;</a></span>
+            <a href="https://github.com/vul-os/pier#status-honest-as-of-this-writing" target="_blank" rel="noopener" style="color:var(--accent)">Read the full status &rarr;</a></span>
         </div>
 
         <div class="cta-row">
           <a class="cbtn cbtn-primary" href="docs.html">Read the docs</a>
           <a class="cbtn" href="https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md" target="_blank" rel="noopener">View the contract</a>
-          <a class="cbtn" href="https://github.com/vul-os/ephor" target="_blank" rel="noopener">GitHub</a>
+          <a class="cbtn" href="https://github.com/vul-os/pier" target="_blank" rel="noopener">GitHub</a>
         </div>
 
         <div class="stat-grid">
@@ -377,12 +377,12 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
 
         <figure style="margin:28px 0 0">
           <div class="shot-frame">
-            <div class="bar"><i></i><i></i><i></i><span>Ephor operator console — Overview</span></div>
+            <div class="bar"><i></i><i></i><i></i><span>Pier operator console — Overview</span></div>
             <div class="imgwrap">
               <picture>
                 <source srcset="./assets/console-dark.png" media="(prefers-color-scheme: dark)">
                 <img id="heroShot" data-dark="./assets/console-dark.png" data-light="./assets/console-light.png"
-                     src="./assets/console-light.png" alt="Ephor operator console Overview page: declared content-visibility (Blind-routing / Declared), a live COORD-1..8 conformance strip, and metered-usage figures.">
+                     src="./assets/console-light.png" alt="Pier operator console Overview page: declared content-visibility (Blind-routing / Declared), a live COORD-1..8 conformance strip, and metered-usage figures.">
               </picture>
             </div>
           </div>
@@ -397,10 +397,10 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
       <!-- ═══ TOPOLOGY ═══════════════════════════════════════════════ -->
       <section class="page" id="topology">
         <header class="page-head">
-          <span class="panel-kicker">Topology &middot; the overseer, not the owner</span>
-          <h2>Ephor is Greek for <em>overseer</em>.</h2>
-          <p class="lede">In Sparta, an ephor was one of five magistrates elected annually to
-            check the kings' power — never sovereign, never reappointed. The same shape survives
+          <span class="panel-kicker">Topology &middot; the berth, not the owner</span>
+          <h2>A pier serves vessels it does not own.</h2>
+          <p class="lede">Many independent piers exist; you use whichever one you reach, and you
+            leave. The same shape survives
             in the software: a coordinator is <strong style="color:var(--text-primary)">hired for a function, not depended on
             for identity</strong>. It sits on the wire between two peers only because one of
             KOTVA's ten coordinator kinds needs to — routing around a NAT, bridging to legacy
@@ -410,7 +410,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
 
         <figure class="diagram">
           <div class="diagram-box">
-            <svg viewBox="0 0 800 240" role="img" aria-label="Diagram: Peer A and Peer B each connect through a checkpoint labelled Ephor, relay, gateway, adapter. A sealed pipe runs the whole distance between the two peers; the checkpoint sits translucently over the middle of it, and a padlock marks the exact point where the sealed pipe passes through the checkpoint, still shut.">
+            <svg viewBox="0 0 800 240" role="img" aria-label="Diagram: Peer A and Peer B each connect through a checkpoint labelled Pier, relay, gateway, adapter. A sealed pipe runs the whole distance between the two peers; the checkpoint sits translucently over the middle of it, and a padlock marks the exact point where the sealed pipe passes through the checkpoint, still shut.">
               <text x="400" y="24" text-anchor="middle" class="d-text-dim" font-size="12">sees only the envelope: who, how much, when — never what</text>
 
               <rect x="20" y="85" width="140" height="90" rx="10" class="d-node"/>
@@ -427,7 +427,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
               <!-- coordinator checkpoint (octagon: a gate, not a diamond that starves its own label) -->
               <polygon points="324,50 476,50 500,74 500,186 476,210 324,210 300,186 300,74" class="d-node-accent"/>
 
-              <text x="400" y="104" text-anchor="middle" class="d-text-accent" font-size="15">EPHOR</text>
+              <text x="400" y="104" text-anchor="middle" class="d-text-accent" font-size="15">PIER</text>
               <text x="400" y="158" text-anchor="middle" class="d-text-dim" font-size="12">relay &middot; gateway</text>
               <text x="400" y="174" text-anchor="middle" class="d-text-dim" font-size="12">/ adapter</text>
 
@@ -453,10 +453,10 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
         <header class="page-head">
           <span class="panel-kicker">Visibility &middot; content-blind by construction</span>
           <h2>Content-visibility is a checkable type, not a policy promise.</h2>
-          <p class="lede"><code>broker-economics</code> models it as <code>VisibilityClass</code>
+          <p class="lede"><code>pier-economics</code> models it as <code>VisibilityClass</code>
             (<code>blind</code> / <code>blind-routing</code> / <code>terminating</code>) crossed
             with <code>AssuranceLevel</code> (<code>structural</code> / <code>attested</code> /
-            <code>declared</code>) — CONTRACT §3 — and <code>broker-conformance</code>'s
+            <code>declared</code>) — CONTRACT §3 — and <code>pier-conformance</code>'s
             <strong style="color:var(--text-primary)">COORD-1..8</strong> harness checks a coordinator's implementation
             against its own declaration instead of trusting prose. A coordinator authorizes from
             identity and rate; it never classifies content on a delivery path — that judgement
@@ -483,7 +483,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
                 <span><strong>Declared, not verified.</strong> A shared vanity-subdomain
                   <code>reachability-adapter</code> only <em>promises</em> it is blind — nothing
                   structural stops it lying. A relying party cannot check a <code>declared</code>
-                  claim independently (CONTRACT §3.4); Ephor's own console says so on-screen
+                  claim independently (CONTRACT §3.4); Pier's own console says so on-screen
                   rather than implying otherwise.</span>
               </div>
             </div>
@@ -553,7 +553,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
                   </g>
 
                   <line x1="12" y1="278" x2="808" y2="278" class="d-hatch-line" stroke-dasharray="2 3"/>
-                  <text x="20" y="298" class="d-text-dim" font-size="12">In Ephor today: <tspan fill="var(--text-secondary)">relay</tspan> = blind &middot; <tspan fill="var(--text-secondary)">reachability-adapter</tspan> / <tspan fill="var(--text-secondary)">media-relay</tspan> = blind-routing</text>
+                  <text x="20" y="298" class="d-text-dim" font-size="12">In Pier today: <tspan fill="var(--text-secondary)">relay</tspan> = blind &middot; <tspan fill="var(--text-secondary)">reachability-adapter</tspan> / <tspan fill="var(--text-secondary)">media-relay</tspan> = blind-routing</text>
                   <text x="20" y="316" class="d-text-dim" font-size="12"><tspan fill="var(--text-secondary)">gateway</tspan> = terminating (the one disclosed exception)</text>
                 </svg>
               </div>
@@ -573,7 +573,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
           <h2>Every coordinator function lives behind the same contract.</h2>
           <p class="lede">A coordinator is any party providing a function the peer-to-peer
             substrate can't provide reciprocally: a global view, a scarce resource, a legal
-            anchor. Ephor houses every kind KOTVA defines behind
+            anchor. Pier houses every kind KOTVA defines behind
             <a href="https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md" target="_blank" rel="noopener" style="color:var(--accent)">one contract</a> —
             four are running implementations today, six are signed, conformance-tested scaffolds
             whose own function (ranking, arbitration, attestation…) is disclosed future work, not
@@ -606,14 +606,14 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
               was never the thing your identity depended on.</p>
             <div class="swap-grid">
               <div class="code-card">
-                <div class="lbl">ephor.toml — before</div>
+                <div class="lbl">pier.toml — before</div>
                 <pre>kind = <span class="c">"reachability-adapter"</span>
 identity = <span class="c">"b47a…9de3"</span>
 visibility = <span class="c">"blind-routing"</span></pre>
               </div>
               <div class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
               <div class="code-card">
-                <div class="lbl">ephor.toml — after</div>
+                <div class="lbl">pier.toml — after</div>
                 <pre>kind = <span class="c">"relay"</span>
 identity = <span class="c">"b47a…9de3"</span>
 visibility = <span class="c">"blind"</span></pre>
@@ -636,7 +636,7 @@ visibility = <span class="c">"blind"</span></pre>
             verify. Read <code>.verify()</code> honestly: it proves the coordinator
             <em>signed a claim</em>, never that the claim is true, and never that no unreceipted
             charge happened elsewhere — a one-directional audit, demonstrated by a test rather
-            than asserted in prose. Ephor itself holds no funds and brokers no settlement; it
+            than asserted in prose. Pier itself holds no funds and brokers no settlement; it
             adapts onto rails it doesn't operate.</p>
         </header>
       </section>
@@ -687,7 +687,7 @@ visibility = <span class="c">"blind"</span></pre>
         <header class="page-head">
           <span class="panel-kicker">Start</span>
           <h2>Run the console, or build the workspace.</h2>
-          <p>Ephor is <strong>MIT OR Apache-2.0</strong> licensed, with no token, ever — the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</p>
+          <p>Pier is <strong>MIT OR Apache-2.0</strong> licensed, with no token, ever — the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</p>
         </header>
         <div class="code-grid">
           <div class="code-card">
@@ -715,7 +715,7 @@ go test -race ./...</pre>
           </div>
         </div>
         <p class="trust-note">Full commands, flags and CI gates:
-          <a href="https://github.com/vul-os/ephor#development" target="_blank" rel="noopener">README &rarr; Development</a>.</p>
+          <a href="https://github.com/vul-os/pier#development" target="_blank" rel="noopener">README &rarr; Development</a>.</p>
 
         <div class="final-cta">
           <div>
@@ -724,7 +724,7 @@ go test -race ./...</pre>
               a crate, a test, or the README it was drawn from.</p>
           </div>
           <div class="cta-row" style="margin-top:0">
-            <a class="cbtn cbtn-primary" href="https://github.com/vul-os/ephor" target="_blank" rel="noopener">Clone it on GitHub</a>
+            <a class="cbtn cbtn-primary" href="https://github.com/vul-os/pier" target="_blank" rel="noopener">Clone it on GitHub</a>
             <a class="cbtn" href="docs.html">Read the docs</a>
           </div>
         </div>
@@ -734,7 +734,7 @@ go test -race ./...</pre>
 
     <footer class="site-footer"><div class="wrap foot">
       <a class="vulos-foot" href="https://vulos.org" target="_blank" rel="noopener"><img src="./assets/vulos-logo.png" alt="" width="18" height="18"><span>Part of <strong>Vulos</strong> — open, self-hostable software</span></a>
-      <div><a href="https://github.com/vul-os/ephor" target="_blank" rel="noopener">github.com/vul-os/ephor</a></div>
+      <div><a href="https://github.com/vul-os/pier" target="_blank" rel="noopener">github.com/vul-os/pier</a></div>
     </div></footer>
   </div>
 </div>
@@ -769,7 +769,7 @@ go test -race ./...</pre>
   document.getElementById('themeBtn').addEventListener('click', function () {
     var next = root.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
     root.setAttribute('data-theme', next);
-    try { localStorage.setItem('ephor-site-theme', next); } catch (e) {}
+    try { localStorage.setItem('pier-site-theme', next); } catch (e) {}
     applyShots();
     syncThemeUI();
   });
@@ -781,7 +781,7 @@ go test -race ./...</pre>
     var mq = matchMedia('(prefers-color-scheme: light)');
     var follow = function () {
       var chosen = null;
-      try { chosen = localStorage.getItem('ephor-site-theme'); } catch (e) {}
+      try { chosen = localStorage.getItem('pier-site-theme'); } catch (e) {}
       if (chosen === 'light' || chosen === 'dark') return;
       root.setAttribute('data-theme', mq.matches ? 'light' : 'dark');
       applyShots();

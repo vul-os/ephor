@@ -15,9 +15,9 @@ were copied files. Copy it.
 
 1. **`scripts/verify.sh`** — one line:
    ```sh
-   DEFAULT_REPO="vul-os/ephor"     # ← your owner/repo
+   DEFAULT_REPO="vul-os/pier"     # ← your owner/repo
    ```
-   Nothing else is Ephor-specific. `MANIFEST="SHA256SUMS"` only changes if you
+   Nothing else is Pier-specific. `MANIFEST="SHA256SUMS"` only changes if you
    already publish a differently-named manifest.
 
 2. **The `github-release` job** — three things:

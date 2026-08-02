@@ -1,9 +1,9 @@
 [Unit]
-# Ephor relay agent (vulos-relay-agent) — runs ON THE BOX you want to expose,
+# Pier relay agent (vulos-relay-agent) — runs ON THE BOX you want to expose,
 # NOT on the relay host. It dials ONE outbound wss:// connection to the relay;
 # it binds nothing inbound and forwards only to its one loopback target.
-Description=Ephor relay agent (vulos-relay-agent)
-Documentation=https://github.com/vul-os/ephor/blob/main/docs/CLOUD-SETUP.md
+Description=Pier relay agent (vulos-relay-agent)
+Documentation=https://github.com/vul-os/pier/blob/main/docs/CLOUD-SETUP.md
 After=network-online.target
 Wants=network-online.target
 

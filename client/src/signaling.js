@@ -1,5 +1,5 @@
 /**
- * signaling.js — Ephor signaling client for the office suite.
+ * signaling.js — Pier signaling client for the office suite.
  *
  * Opens a WebSocket to the Vulos OS signaling stream
  * (GET /api/peering/stream) and multiplexes offer/answer/ICE frames

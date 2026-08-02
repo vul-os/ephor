@@ -4,7 +4,7 @@
 # (https://vulos-cp-dev.fly.dev) for entitlement checks + usage metering. Built
 # from the repo Dockerfile (the GHCR image may not be published for dev).
 #
-# Deploy: cd ephor && fly deploy --config fly.dev.toml --app vulos-relay-dev
+# Deploy: cd pier && fly deploy --config fly.dev.toml --app vulos-relay-dev
 # Secrets (fly secrets set): CP_SHARED_SECRET (MUST equal the CP's), and
 # VULOS_RELAY_TOKENS if using static agent grants.
 

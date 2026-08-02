@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="brand/logo-mark.svg" width="88" height="88" alt="Ephor" />
+  <img src="brand/logo-mark.svg" width="88" height="88" alt="Pier" />
 </p>
 
-<h1 align="center">Ephor</h1>
+<h1 align="center">Pier</h1>
 
 <p align="center">
   <b>The broker (coordinator) reference implementation of the KOTVA standard — content-blind
@@ -18,24 +18,28 @@
 </p>
 
 <p align="center">
-  <img src="docs/img/console-dark.png#gh-dark-mode-only" width="900" alt="Ephor operator console — Overview, dark theme">
-  <img src="docs/img/console-light.png#gh-light-mode-only" width="900" alt="Ephor operator console — Overview, light theme">
+  <img src="docs/img/console-dark.png#gh-dark-mode-only" width="900" alt="Pier operator console — Overview, dark theme">
+  <img src="docs/img/console-light.png#gh-light-mode-only" width="900" alt="Pier operator console — Overview, light theme">
 </p>
 
-*ephor — Greek for overseer: in Sparta, one of five magistrates elected annually to
-check the kings' power, never sovereign and never reappointed — the same shape here, a
-swappable service point that watches traffic pass without ever seeing inside it, hired
-for a term and replaced without ceremony.*
+*pier — infrastructure that serves vessels it does not own. Many independent piers exist;
+you use whichever one you reach, and you leave. That is the shape of a KOTVA coordinator:
+a service point you tie up to for as long as it is useful, that never becomes part of
+what you are. It completes the family — **kotva** (anchor) → **pier** → **depot**.*
+
+<sub>This project carried an earlier name, taken from the Spartan magistracy that oversaw the
+kings. It was retired because it named **authority** — precisely what a coordinator is not:
+accountable, swappable, never load-bearing. See [DECISIONS.md](DECISIONS.md).</sub>
 
 ---
 
-## What is Ephor
+## What is Pier
 
-Ephor is the **single project that implements
+Pier is the **single project that implements
 [`coordinator/CONTRACT.md`](https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md)**
 — the KOTVA spec's contract for centralization that is *hired, not depended-on*. A
 **coordinator** is any party providing a function the peer-to-peer substrate can't provide
-reciprocally: a global view, a scarce resource, a legal anchor. Ephor houses **every
+reciprocally: a global view, a scarce resource, a legal anchor. Pier houses **every
 coordinator kind** behind that one contract (see [The coordinator kinds](#the-coordinator-kinds)
 below).
 
@@ -47,9 +51,9 @@ Every kind is:
   (port-25 egress for `gateway`, public ingress for `reachability-adapter`).
 - **Declared content-visible** at exactly one class × level, never silently downgraded.
 
-**Content-visibility is a checkable type, not a policy promise.** `broker-economics` models it
+**Content-visibility is a checkable type, not a policy promise.** `pier-economics` models it
 as `VisibilityClass` (`blind` / `blind-routing` / `terminating`) × `AssuranceLevel` (`structural`
-/ `attested` / `declared`) — CONTRACT §3 — and `broker-conformance`'s **COORD-1..8** harness
+/ `attested` / `declared`) — CONTRACT §3 — and `pier-conformance`'s **COORD-1..8** harness
 checks a coordinator's implementation against its own declaration rather than trusting prose.
 Some clauses are decidable from the descriptor alone; COORD-5 (observed-vs-declared visibility)
 is behavioral and can only be caught against real traffic, so the harness marks it
@@ -61,12 +65,12 @@ or canonical path — that judgement belongs to the recipient. **No token.** Eco
 signed tariff plus signed usage receipts delivered to the payer (a one-directional audit — proves
 a claimed operation happened, can't disconfirm a fabricated one, see
 [Billing & pricing](#billing--pricing)). Settlement rides an existing stablecoin or fiat rail;
-Ephor brokers none and takes no cut. Stake (where a kind requires skin-in-the-game — `arbiter`,
+Pier brokers none and takes no cut. Stake (where a kind requires skin-in-the-game — `arbiter`,
 `oracle`) is verified on the settlement rail itself, never merely asserted.
 
 > **Not** the OS app-gateway. Routing `/app/<id>` to a box's local app ports (with auth-token
 > injection) is the VulOS shell's own internal reverse proxy — a separate concern that stays in
-> the OS. Ephor crosses the *network* boundary (P2P, public exposure, mail egress), not the
+> the OS. Pier crosses the *network* boundary (P2P, public exposure, mail egress), not the
 > in-box one.
 
 ## The coordinator kinds
@@ -84,7 +88,7 @@ Ephor brokers none and takes no cut. Stake (where a kind requires skin-in-the-ga
 | `oracle` | Physical-world/real-fact attestation (`ORACLE ⊂ ATTEST`, DIRECTION §2) | `terminating` / `declared` — `Gate::NoDeliveryPath` | **scaffold**, 7 tests |
 | `compute` | Outsourced computation, provisional per CONTRACT §5's own table | `terminating` / `declared` (attested-TEE "blind compute" option) — `Gate::NoDeliveryPath` | **scaffold**, 8 tests |
 
-"scaffold" means a real `broker_conformance::Coordinator` implementation and a real
+"scaffold" means a real `pier_conformance::Coordinator` implementation and a real
 `kotva-core`-signed descriptor exist and are tested, but the kind's own function (ranking,
 labeling, matching, arbitration, attestation, compute) is future work, disclosed in each crate's
 docs — not silently stubbed. `indexer` / `labeler` / `matcher` never present their opt-in ranking
@@ -94,12 +98,12 @@ nor a §4 derived view, so they declare `Gate::NoDeliveryPath` instead.
 ## The operator console
 
 <p align="center">
-  <img src="docs/img/console-dark.png#gh-dark-mode-only" width="900" alt="Ephor operator console — Overview, dark theme">
-  <img src="docs/img/console-light.png#gh-light-mode-only" width="900" alt="Ephor operator console — Overview, light theme">
+  <img src="docs/img/console-dark.png#gh-dark-mode-only" width="900" alt="Pier operator console — Overview, dark theme">
+  <img src="docs/img/console-light.png#gh-light-mode-only" width="900" alt="Pier operator console — Overview, light theme">
 </p>
 
-The **Ephor operator console** (`console/`) is the web UI an operator runs a coordinator with:
-one Svelte 5 app fronting the [`admin`](crates/admin) crate's HTTP API — the coordinator-kind-
+The **Pier operator console** (`console/`) is the web UI an operator runs a coordinator with:
+one Svelte 5 app fronting the [`admin`](crates/pier-admin) crate's HTTP API — the coordinator-kind-
 agnostic control plane for a descriptor, a tariff, metering/receipts, quota, and the operator's
 signing keys. Six views behind one left-nav shell:
 
@@ -112,46 +116,46 @@ signing keys. Six views behind one left-nav shell:
 | 05 | Keys | Current signing pubkey + rotate (re-signs the descriptor; old keys kept in history, never dropped) |
 | 06 | Conformance | The full COORD-1..8 checklist — pass / behavioral / violation, with clause refs |
 
-Run it locally in mock mode (no `ephor-admin` needed — full in-memory fixture data):
+Run it locally in mock mode (no `pier-admin` needed — full in-memory fixture data):
 
 ```sh
 cd console && pnpm install && pnpm dev   # http://localhost:5173, VITE_MOCK=1 by default
 ```
 
 To point it at a live coordinator instead, build with `VITE_MOCK=0` and `VITE_API_BASE` set to
-your `ephor-admin` bind address (loopback by default, bearer-token gated, fail-closed if no
+your `pier-admin` bind address (loopback by default, bearer-token gated, fail-closed if no
 token is configured). See [`console/README.md`](console/README.md) for the full DTO-to-Rust
 mapping and the screenshot pipeline (`pnpm build && pnpm screenshot`).
 
 ## Billing & pricing
 
 **Prepaid top-up credit metered against usage is the primary model.** An operator's payer tops
-up a credit balance (via a settlement rail, see below); `broker-billing::prepaid::PrepaidLedger`
+up a credit balance (via a settlement rail, see below); `pier-billing::prepaid::PrepaidLedger`
 debits it against real metered usage and issues a signed receipt per debit
 (`BillingState::{Ok, LowBalance, Exhausted}`). This preserves zero-lock-in (CONTRACT §2.2), fits
 the anonymous-but-accountable posture SEC-7 allows, matches §6's continuous-metering model better
-than an after-the-fact tab, and mirrors patala's own prepaid `PostageProvider` seam. **Ephor
+than an after-the-fact tab, and mirrors patala's own prepaid `PostageProvider` seam. **Pier
 holds no funds** — a credit is a claim backed by an on-rail funding reference, never custody.
 
-A thin, **optional** monthly-card postpaid add-on (`broker_billing::subscription::Subscription`)
+A thin, **optional** monthly-card postpaid add-on (`pier_billing::subscription::Subscription`)
 rides the exact same `SettlementRail` seam for operators who want a card-on-file experience
 instead — secondary by design, not the default.
 
 <p align="center">
-  <img src="docs/img/console-billing-dark.png#gh-dark-mode-only" width="900" alt="Ephor operator console — Billing view, dark theme">
-  <img src="docs/img/console-billing-light.png#gh-light-mode-only" width="900" alt="Ephor operator console — Billing view, light theme">
+  <img src="docs/img/console-billing-dark.png#gh-dark-mode-only" width="900" alt="Pier operator console — Billing view, dark theme">
+  <img src="docs/img/console-billing-light.png#gh-light-mode-only" width="900" alt="Pier operator console — Billing view, light theme">
 </p>
 
 The console is responsive: on a phone the sidebar collapses to a drawer and the
 metric grid drops to a single column so no figure is truncated.
 
 <p align="center">
-  <img src="docs/img/console-mobile-dark.png" width="300" alt="Ephor operator console on a phone viewport — Overview, dark theme">
+  <img src="docs/img/console-mobile-dark.png" width="300" alt="Pier operator console on a phone viewport — Overview, dark theme">
 </p>
 
 ### Recommended pricing (cost-plus, illustrative)
 
-`broker-billing::pricing::recommended_tariff` turns a real infra cost profile into a **starting
+`pier-billing::pricing::recommended_tariff` turns a real infra cost profile into a **starting
 point**, never a mandate — CONTRACT §6 is explicit that quotas, rates, and prices are operator
 policy. The formula amortizes a `HostingProfile`'s fixed VPS cost (plus, for the two
 scarce-reachability kinds, a reachability premium) into a per-unit cost, then applies a 2.00x
@@ -166,7 +170,7 @@ cost-plus markup:
 
 The exact cents come out of `recommended_tariff` against a chosen `HostingProfile`
 (`HETZNER_CX`, `VULTR_GENERIC`, or a padded `GENERIC_VPS`) — see
-[`crates/broker-billing/src/pricing.rs`](crates/broker-billing/src/pricing.rs) for the full
+[`crates/pier-billing/src/pricing.rs`](crates/pier-billing/src/pricing.rs) for the full
 formula, the batching rationale (bandwidth/messages/compute-seconds are priced per-batch so
 integer cents stay non-zero), and the sourcing caveat on the illustrative profile constants. USD
 is the **pricing/display** currency only; settlement itself is stablecoin or fiat via the rail —
@@ -174,7 +178,7 @@ every number here is operator-overridable before it's ever signed.
 
 ### Signed usage receipts — and the one-directional-audit caveat
 
-Every billed operation gets a signed `UsageReceipt` (`broker-billing::ReceiptLog`) the payer can
+Every billed operation gets a signed `UsageReceipt` (`pier-billing::ReceiptLog`) the payer can
 verify. Read `.verify()` honestly: it proves the coordinator **signed a claim**, never that the
 claim is **true**, and never that no unreceipted charge happened elsewhere. This is demonstrated
 by a test — a receipt for a fabricated, never-metered operation verifies identically to a receipt
@@ -182,17 +186,17 @@ for a real one. It's a real accountability primitive, not a fraud-proof one; tre
 
 ### Settlement rails — no token
 
-`broker-billing::SettlementRail` is a provider-agnostic seam with one in-tree mock reference
+`pier-billing::SettlementRail` is a provider-agnostic seam with one in-tree mock reference
 adapter (`InMemoryLedger`, an explicit double-entry mock, no external custody). The optional
-**[`broker-billing-patala`](crates/broker-billing-patala)** crate adapts it onto real
+**[`pier-billing-patala`](crates/pier-billing-patala)** crate adapts it onto real
 [`patala`](https://github.com/vul-os/patala) rails — `patala-stellar` shipped as the one
 reference crypto top-up rail (Ed25519-native, so a coordinator's own substrate identity key can
 double as the receiving wallet), `patala-hyperswitch` noted (not depended on) for the optional
 card/monthly path. It is **`exclude`d from the workspace** (it is its own single-crate workspace)
-because it path-depends on the sibling `patala` repo, which a fresh checkout of ephor does not
+because it path-depends on the sibling `patala` repo, which a fresh checkout of pier does not
 have — nothing at the repo root, `--workspace` included, resolves or compiles a patala crate.
-Build it explicitly, with `patala` checked out next to `ephor`:
-`cargo test --manifest-path crates/broker-billing-patala/Cargo.toml`. There is **no
+Build it explicitly, with `patala` checked out next to `pier`:
+`cargo test --manifest-path crates/pier-billing-patala/Cargo.toml`. There is **no
 protocol token anywhere** (DIRECTION §5) — `Descriptor` structurally cannot carry a stake field
 or a price rank (CONTRACT §2.1); stake, where a kind requires it, is verified on the settlement
 rail itself.
@@ -207,13 +211,13 @@ extracting this same gateway from envoir failed twice before against a moving co
 
 | Crate | Role | Status |
 |---|---|---|
-| [`broker-economics`](crates/broker-economics) | Content-visibility model, coordinator-kinds table, signed descriptor/tariff/usage-receipt shapes | built |
-| [`broker-conformance`](crates/broker-conformance) | The `Coordinator` trait + COORD-1..8 checklist harness | built |
-| [`broker-billing`](crates/broker-billing) | Metering, `TariffSchedule`, prepaid ledger, signed receipts, `SettlementRail`/`StakeVerifier` seams, USD recommended pricing | built |
-| [`broker-billing-patala`](crates/broker-billing-patala) | **Optional**, excluded from the workspace: `SettlementRail` over real `patala` rails | built, isolated, not in CI |
-| [`admin`](crates/admin) | Kind-agnostic operator HTTP API (`ephor-admin` binary) | built |
-| [`gateway`](crates/gateway), [`relay`](crates/relay), [`reachability-adapter`](crates/reachability-adapter), [`media-relay`](crates/media-relay) | The four built coordinator kinds | built |
-| [`indexer`](crates/indexer), [`labeler`](crates/labeler), [`matcher`](crates/matcher), [`arbiter`](crates/arbiter), [`oracle`](crates/oracle), [`compute`](crates/compute) | The six scaffolded kinds | scaffold |
+| [`pier-economics`](crates/pier-economics) | Content-visibility model, coordinator-kinds table, signed descriptor/tariff/usage-receipt shapes | built |
+| [`pier-conformance`](crates/pier-conformance) | The `Coordinator` trait + COORD-1..8 checklist harness | built |
+| [`pier-billing`](crates/pier-billing) | Metering, `TariffSchedule`, prepaid ledger, signed receipts, `SettlementRail`/`StakeVerifier` seams, USD recommended pricing | built |
+| [`pier-billing-patala`](crates/pier-billing-patala) | **Optional**, excluded from the workspace: `SettlementRail` over real `patala` rails | built, isolated, not in CI |
+| [`admin`](crates/pier-admin) | Kind-agnostic operator HTTP API (`pier-admin` binary) | built |
+| [`gateway`](crates/pier-gateway), [`relay`](crates/pier-relay), [`reachability-adapter`](crates/pier-reachability-adapter), [`media-relay`](crates/pier-media-relay) | The four built coordinator kinds | built |
+| [`indexer`](crates/pier-indexer), [`labeler`](crates/pier-labeler), [`matcher`](crates/pier-matcher), [`arbiter`](crates/pier-arbiter), [`oracle`](crates/pier-oracle), [`compute`](crates/pier-compute) | The six scaffolded kinds | scaffold |
 
 Full crate map, per-crate detail, and the `kotva-core` pin mechanics:
 [crates/README.md](crates/README.md).
@@ -228,7 +232,7 @@ cargo fmt --all --check
 These four are exactly what the `Rust Workspace` CI job runs (`.github/workflows/ci.yml`), plus a
 crate-count guard so the job cannot go green by resolving an empty workspace. `--workspace` is
 equivalent here: the 14 members are the only members. The one crate NOT covered by that job is the
-optional `broker-billing-patala` adapter — see [Settlement rails](#settlement-rails--no-token).
+optional `pier-billing-patala` adapter — see [Settlement rails](#settlement-rails--no-token).
 
 The Go tree (`go build ./...`) and the Rust workspace coexist at the repo root (`Cargo.toml` +
 `go.mod`) — building one does not affect the other; see
@@ -242,12 +246,12 @@ Disclosed residuals, not silently fixed:
   (challenge-response against the box's identity, replay-inert) but **not yet Noise-encrypted** —
   an on-path attacker can observe/DoS the control channel but not impersonate a box. Transport
   confidentiality/integrity is still open; do not expose it publicly until that lands.
-- **`broker-billing` receipts are a one-directional audit** (CONTRACT §6, R-6):
+- **`pier-billing` receipts are a one-directional audit** (CONTRACT §6, R-6):
   `UsageReceipt::verify()` proves the coordinator signed a claim, never that the claim is true or
   that no unreceipted charge exists elsewhere.
 - **Settlement and stake are seams, not rails**: `SettlementRail`/`StakeVerifier` each ship with
   one mock reference adapter (`InMemoryLedger`; fail-closed `NoStakeRail`). The real
-  `broker-billing-patala` adapter is untested against a live Stellar network — disclosed in-crate,
+  `pier-billing-patala` adapter is untested against a live Stellar network — disclosed in-crate,
   not merely absent.
 - **`indexer` / `labeler` / `matcher` / `arbiter` / `oracle` / `compute` are scaffolds** — a real
   signed descriptor and conformance posture exist; the kind's own function does not yet.
@@ -266,7 +270,7 @@ Disclosed residuals, not silently fixed:
 
 ## Status (honest, as of this writing)
 
-Ephor is **mid-rewrite**. Read this before relying on any of it in production.
+Pier is **mid-rewrite**. Read this before relying on any of it in production.
 
 - **The Rust workspace is in progress, not the shipping implementation yet.** The
   **Go reverse-tunnel relay** (`tunnel/`, `cmd/`) and the **`@vulos/relay-client` JS
@@ -425,7 +429,7 @@ that project, not duplicated here.
 ## Development
 
 ```sh
-# Rust workspace (the optional broker-billing-patala adapter is excluded — see
+# Rust workspace (the optional pier-billing-patala adapter is excluded — see
 # "Settlement rails" above for how to build that one)
 cargo build && cargo test
 
@@ -497,9 +501,12 @@ something downstream.
 
 ## License
 
-[MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE) — © VulOS. Ephor is a VulOS
-project; source and issues at
-[github.com/vul-os/ephor](https://github.com/vul-os/ephor). Brand mark, palette, and
+[MIT](LICENSE-MIT) OR [Apache-2.0](LICENSE-APACHE) — © VulOS. Pier is **published by**
+VulOS, not a VulOS product and not a VulOS-operated service: it is the broker
+(coordinator) reference implementation of the KOTVA standard, and anyone may run their
+own. A third-party deployment is that operator's, not VulOS's — the console's operator
+branding is swappable for exactly that reason. Source and issues at
+[github.com/vul-os/pier](https://github.com/vul-os/pier). Brand mark, palette, and
 usage rules: [brand/README.md](brand/README.md).
 
 ---

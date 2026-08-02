@@ -1,4 +1,4 @@
-# Contributing to Ephor
+# Contributing to Pier
 
 This repo ships **two deliverables in two languages**:
 
@@ -17,10 +17,10 @@ All three are built, tested, and CI-gated independently — see `.github/workflo
 side's checks to pass, but keep all three green on `main`/`dev`.
 
 One crate is deliberately outside that net and says so on every CI run:
-`crates/broker-billing-patala`, the optional patala-backed settlement adapter, is
+`crates/pier-billing-patala`, the optional patala-backed settlement adapter, is
 `exclude`d from the Rust workspace because it path-depends on the sibling `patala`
 repo, which CI does not check out. If you touch it, run it yourself:
-`cargo test --manifest-path crates/broker-billing-patala/Cargo.toml`.
+`cargo test --manifest-path crates/pier-billing-patala/Cargo.toml`.
 
 ## Code of Conduct
 
@@ -56,7 +56,7 @@ go vet ./...
 go test ./... -race
 ```
 
-Run from the repo root — the Go module (`github.com/vul-os/ephor`) covers
+Run from the repo root — the Go module (`github.com/vul-os/pier`) covers
 `cmd/vulos-relayd`, `cmd/vulos-relay-agent`, and everything under `tunnel/`
 (server, agent, rendezvous, pubcache, autoscale, cost/billing, direct). Several
 packages have `_e2e_test.go` suites (drain, shutdown, revocation, demand-signal,
@@ -121,5 +121,5 @@ handling, session isolation, SSRF guards) require explicit test coverage.
 
 ## Licensing
 
-Ephor — both the `@vulos/relay-client` SDK and the Go tunnel service —
+Pier — both the `@vulos/relay-client` SDK and the Go tunnel service —
 is MIT-licensed. Contributions inherit MIT. No CLA required.

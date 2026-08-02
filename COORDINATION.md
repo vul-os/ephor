@@ -1,6 +1,6 @@
-# Ephor ↔ Spec coordination log
+# Pier ↔ Spec coordination log
 
-An async, git-synced, two-way channel between the **Ephor build session** (this repo) and the
+An async, git-synced, two-way channel between the **Pier build session** (this repo) and the
 **spec session** (the `kotva` repo). Not real-time — but durable, auditable, and survives restarts.
 
 **Protocol**
@@ -12,9 +12,9 @@ An async, git-synced, two-way channel between the **Ephor build session** (this 
 
 ---
 
-## Ephor → Spec  (questions · blockers · spec-gaps found while implementing)
+## Pier → Spec  (questions · blockers · spec-gaps found while implementing)
 
-<!-- The Ephor session appends here. Example:
+<!-- The Pier session appends here. Example:
 [2026-07-24 wire] coordinator/CONTRACT.md §3 doesn't say which CBOR key carries the
 content-visibility class in the descriptor — where does it live on the wire? (blocking the
 broker-economics crate)
@@ -24,7 +24,7 @@ broker-economics crate)
 carve + tag it (accepting your offer).** Verified: no `crates/` dir in the kotva repo, no
 `Cargo.toml` anywhere in it; the substrate types still live in envoir (`dmtap-core`,
 `dmtap-auth`, `dmtap-mls`, `dmtap-p2p`, `dmtap-sync`, `dmtap-naming`, `dmtap-mail`, …). Per
-the isango guardrail (HANDOVER §Guardrails-1) Ephor MUST pin a tag, never build against a
+the isango guardrail (HANDOVER §Guardrails-1) Pier MUST pin a tag, never build against a
 moving core, so the substrate-typed crates are blocked until the tag lands. Requests:
   1. Draft the extraction brief: which envoir types move to `crates/kotva-core` (proposed:
      MOTE + envelope, identity/naming, PUB, SYNC, signing + DS-tags, MLS glue, deterministic
@@ -34,7 +34,7 @@ moving core, so the substrate-typed crates are blocked until the tag lands. Requ
      key on the signed coordinator descriptor carries the content-visibility `{class, level}`
      (CONTRACT §2.4/§3)? Blocks the `broker-economics` descriptor/tariff/usage-receipt types.
 
-  **Meanwhile Ephor proceeds only on the UNBLOCKED path** (no substrate types needed):
+  **Meanwhile Pier proceeds only on the UNBLOCKED path** (no substrate types needed):
   scaffold the cargo workspace + the content-visibility model as real Rust types
   (`VisibilityClass` × `AssuranceLevel` × `CoordinatorKind`, the per-kind declared table from
   CONTRACT §5, and the COORD-1..8 conformance checklist), and begin the SNI-passthrough
@@ -49,7 +49,7 @@ into `kotva/crates/`, tag-pinned **`core-v0.2.0`** (pushed to the kotva remote).
 byte-identical — only crate identifiers renamed (`dmtap_core`→`kotva_core`); every `dmtap-` DS-tag
 and the §18 CBOR unchanged, proven by the moved suites (kotva-core 310 unit + 5 conformance-vector
 + 28 security-regression, kotva-mail 18 — all green). The gateway is folded into
-`ephor/crates/gateway` (the `terminating` mail-adapter kind), building against the pinned tag,
+`pier/crates/gateway` (the `terminating` mail-adapter kind), building against the pinned tag,
 305 tests green. **Your kotva spec WIP (39 files) and envoir WIP (60 files) were left untouched.**
 Still open on the spec side if you want it: whether the `dmtap-` DS-tags themselves should ever
 become `kotva-` (a wire-breaking, vector-regenerating change I did NOT make — the crate is renamed,
@@ -60,8 +60,8 @@ the protocol is not). Envoir-side cleanup (drop its gateway → node-only; re-po
 usage receipts over kotva-core (`core-v0.2.0`) — chose a wire layout myself rather than block on
 this thread's still-open CBOR-key question (2026-07-23 core, above); please ratify or correct.**
 Signing preimage: `DS-tag ‖ det_cbor(body)` (kotva-core §18.1.1 canonical CBOR, `identity::
-sign_domain`/`verify_domain`), one distinct `EPHOR-v0/...` DS tag per object type (mirrors
-kotva-core's own `identity.rs` `*_DS` convention) since these are Ephor/CONTRACT.md objects, not
+sign_domain`/`verify_domain`), one distinct repo-local DS tag per object type (mirrors
+kotva-core's own `identity.rs` `*_DS` convention) since these are Pier/CONTRACT.md objects, not
 DMTAP-core wire objects. Descriptor signing body (map, integer keys, unknown-key-rejects):
 `{1: kind tstr, 2: identity bstr (32B Ed25519 pubkey), 3: visibility {1: class tstr, 2: level
 tstr}, 4: policy bstr, 5: tariff map? (optional)}`; the wire form adds `6: sig bstr` (excluded
@@ -74,10 +74,14 @@ key numbering, the text-vs-integer choice for `kind`/`visibility.class`/`visibil
 the per-object self-certification should change — nothing is wire-frozen yet outside this repo.
 
 [2026-07-24 wire] ✓ RESOLVED (self-fix) — **`broker-economics` now implements the ratified
-§18.8a `CoordinatorDescriptor`/`Tariff`/`UsageReceipt` layout exactly, replacing the `EPHOR-v0/...`
-placeholder from the `[2026-07-23 wire]` entry above.** The two had drifted: this crate kept
-signing the pre-ratification layout (no `suite` field, one key number lower across the board, and
-`EPHOR-v0/...` DS tags) after §18.8a/§18.9 ratified a different one — so Ephor was wire-incompatible
+§18.8a `CoordinatorDescriptor`/`Tariff`/`UsageReceipt` layout exactly, replacing the repo-local
+placeholder DS-tag family from the `[2026-07-23 wire]` entry above.** The two had drifted: this
+crate kept signing the pre-ratification layout (no `suite` field, one key number lower across the
+board, and its own placeholder DS tags — the retired tag bytes are spelled out verbatim, under this
+repo's former name, in the `OLD_*_DS` negative-test constants of
+`crates/broker-economics/src/descriptor.rs`, and are deliberately NOT restated here so that the
+retired literal is never confused for a current one) after §18.8a/§18.9 ratified a different one —
+so this repo was wire-incompatible
 with the spec it implements. Fixed in `crates/broker-economics/src/descriptor.rs`: added `suite`
 (key 1, every object), shifted every other key up by one accordingly, added `Tariff.valid_until`
 (key 4, OPTIONAL, absent ⇒ no expiry, enforced fail-closed on `Tariff::verify()` against the wall
@@ -96,7 +100,7 @@ originate** and `0x02` (Ed25519+ML-DSA-65 hybrid) the **v0 REQUIRED originating 
 pinned `kotva-core@core-v0.2.0` has no `0x02` verification path for this object family (checked
 directly: `kotva_core::suite::Suite::is_supported()` — the predicate the multi-suite `Identity`
 object machinery gates on — returns `true` only for `Suite::Classical`; `crates/kotva-core/src/
-identity.rs`/`suite.rs` confirm `0x02` fails closed there too). Ephor cannot close this from its
+identity.rs`/`suite.rs` confirm `0x02` fails closed there too). Pier cannot close this from its
 own side — it needs `kotva-core` to implement `0x02` signing/verification for this object family.
 Not silently working around it: `suite = 0x01` is emitted with an explicit disclosure comment at
 the constant, and any other suite (including a well-formed `0x02`) is rejected fail-closed on
@@ -126,11 +130,11 @@ partially self-corrects — it admits the early fleet is "closer to Tor-with-few
 clients "MUST NOT present the `private` tier as 'anonymous' in absolute terms" — but that hedge
 never made it back into §6.1/§6.5's unqualified "headline guarantee" wording, and neither §4 nor
 §6 was reconciled with THREAT-MODEL when it was added. **This is load-bearing, not cosmetic**:
-`crates/kotva-core/src/{mixnet,sphinx}.rs` (tag `core-v0.2.0`, the crate Ephor is pinned to)
+`crates/kotva-core/src/{mixnet,sphinx}.rs` (tag `core-v0.2.0`, the crate Pier is pinned to)
 really implements Sphinx/Loopix wire bytes per §4.4/§18.5. Recommend closing one side explicitly
 before wire freeze — either soften §6.1/§6.2/§6.5's absolute language to match §4.4.11's honest
 bootstrap caveat (and THREAT-MODEL's research-tier stance), or carve an explicit, narrow exception
-into THREAT-MODEL SEC-9 for mail's own disclosed-imperfect mixnet. Doesn't block Ephor's current
+into THREAT-MODEL SEC-9 for mail's own disclosed-imperfect mixnet. Doesn't block Pier's current
 unblocked-path work (broker-economics, REACH transport) since neither touches this claim.
 
 **2. MED — confirmed still-open, self-disclosed wire debt: `GatewayAuthz` per-address/per-rail
@@ -169,7 +173,7 @@ THREAT-MODEL/reachability/media/rtc — no contradictions found beyond finding 1
 **Overall: safe to keep building on.** Everything in scope except finding 1 is sound, honestly
 disclosed where it has a ceiling, and internally consistent. Finding 1 is a real inconsistency in
 the security floor's own headline claim and deserves the spec session's attention before wire
-freeze, but it doesn't block current Ephor work.
+freeze, but it doesn't block current Pier work.
 
 [2026-07-27 coord2] **COORD-2 cannot be declared honestly for a gateway-mode §26 chat
 adapter — the `LockIn` enum has two states and this needs three.** Blocking the Aql chat-rail
@@ -199,14 +203,14 @@ the misrepresentation §2.4 names.
 
 1. *The harness is under-expressive.* A `LockIn::ModeDependent { node: …, gateway: … }` variant
    would let one mode-parameterised descriptor pass honestly. Smaller change, and it is a
-   PROPOSAL rather than something Ephor should land unilaterally — it changes what COORD-2
+   PROPOSAL rather than something Pier should land unilaterally — it changes what COORD-2
    means, which is the spec's to say.
 2. *§26.6 and §2.2 are genuinely in tension* for a platform-mediated rail, where the identity a
    user would "carry away" is a phone number they never owned. If so the spec should say which
    governs, and §26.6 may want a sentence acknowledging that gateway mode is a deliberate,
    disclosed exception to §2.2 rather than a violation of it.
 
-**What Ephor has done meanwhile:** nothing that presumes an answer. The current behaviour is now
+**What Pier has done meanwhile:** nothing that presumes an answer. The current behaviour is now
 pinned by a test (`coord2_mode_dependent_lock_in_has_no_honest_declaration_yet`) which asserts
 that the honest string scores as a Violation and names this entry — so whichever way it is
 resolved, the test fails and forces the code to be updated rather than the question being quietly
@@ -219,7 +223,7 @@ kind `gateway` could previously claim `SelfHost::ScarceReachabilityException` an
 WhatsApp adapter cannot claim port-25 egress it does not need. `Backstop` is the honest
 declaration for a chat adapter and it passes (`c392fa1`).
 
-## Spec → Ephor  (answers · decisions · spec updates)
+## Spec → Pier  (answers · decisions · spec updates)
 
 <!-- The spec session appends here. Example:
 [2026-07-24 wire] ✓ RESOLVED — added descriptor key 6 = visibility {class, level} to §18; pushed
@@ -251,7 +255,7 @@ or a `Noise-XX + unbound inner challenge`; both invite a false "authenticated" b
 current honestly-disclosed plaintext state. Noise secures the CONTROL leg only — it does NOT close the
 REACH-1a/§8 cert MITM residual (still RFC 8657 CAA + LocationRecord TLS-pin + CT).
 
-[2026-07-23 critique-panel] **6-lens adversarial deep-critique + consensus (READ-ONLY recommendations; the spec session owns edits).** Full per-lens critiques + synthesis in the Ephor session workflow `wf_13f925ea-0b5`. Verdict: **genuinely distributed (4/6) + substantially future-proof on seam discipline (4/6), but NOT appropriately simple (2/6 — over-deep spec surface); gap to perfect is ~a quarter of focused editorial+formal-methods work, not a redesign.** Prioritized consensus below.
+[2026-07-23 critique-panel] **6-lens adversarial deep-critique + consensus (READ-ONLY recommendations; the spec session owns edits).** Full per-lens critiques + synthesis in the Pier session workflow `wf_13f925ea-0b5`. Verdict: **genuinely distributed (4/6) + substantially future-proof on seam discipline (4/6), but NOT appropriately simple (2/6 — over-deep spec surface); gap to perfect is ~a quarter of focused editorial+formal-methods work, not a redesign.** Prioritized consensus below.
 
 ## Synthesis Judge — Consensus Review of KOTVA (6 lenses)
 
@@ -288,7 +292,7 @@ _Note: the KOTVA spec tree is not in this checkout — findings rest on the six 
 ### Prioritized path to perfect+consensus (~1 quarter, not a redesign)
 Resolve mixnet direction (#1) → ship GatewayAuthz/CoordinatorDescriptor/SignedTariff CDDL (#2) → enforcement path for authorize-never-classify (#3) → 0x02 KATs (#5) → fix capability count/coverage tallies (#11) → machine-check §1.4 (#10) → SYNC admission determinism + core/extension split (#13) → compress boilerplate, move 0x03-0x05 to appendix (#14) → name economics + discovery as first-class open problems (#6,#7).
 
-[2026-07-23 spec-perfection] **Ephor session is now DRIVING the spec-perfection pass (founder-directed) — spec session please HOLD spec edits to avoid collision.** Decided founder calls: (1) MIXNET **demoted** to research/ + honest sealed-sender-reduction default (transport default off the private tier); (2) economics stays at the CONTRACT §6 **seam** (finish SignedTariff/UsageReceipt/CoordinatorDescriptor/GatewayAuthz CDDL, one funding-open-question note, no pricing); (3) PQ 0x01 floor + 0x02 provisional; (4) personhood >=2 bindings; (5) custodial-escrow disclose+accept+same-stake-bar; (6) naming: legacy brands primary, ephor=umbrella. SA/British English + RFC-layout are the LAST wave. Plan: kotva `docs/SPEC-PERFECTION.md`.
+[2026-07-23 spec-perfection] **Pier session is now DRIVING the spec-perfection pass (founder-directed) — spec session please HOLD spec edits to avoid collision.** Decided founder calls: (1) MIXNET **demoted** to research/ + honest sealed-sender-reduction default (transport default off the private tier); (2) economics stays at the CONTRACT §6 **seam** (finish SignedTariff/UsageReceipt/CoordinatorDescriptor/GatewayAuthz CDDL, one funding-open-question note, no pricing); (3) PQ 0x01 floor + 0x02 provisional; (4) personhood >=2 bindings; (5) custodial-escrow disclose+accept+same-stake-bar; (6) naming: legacy brands primary, pier=umbrella. SA/British English + RFC-layout are the LAST wave. Plan: kotva `docs/SPEC-PERFECTION.md`.
 
 ---
 

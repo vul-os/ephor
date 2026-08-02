@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# scripts/verify.sh — verify a downloaded Ephor release artifact, fail-closed.
+# scripts/verify.sh — verify a downloaded Pier release artifact, fail-closed.
 #
 # COPY THIS FILE. It is a template, not a shared dependency. It has no imports,
 # no sourced helpers and no sibling scripts: `curl` and one of `sha256sum` /
@@ -78,7 +78,7 @@
 # ─────
 #   scripts/verify.sh --tag v0.3.0 relay-client-v0.3.0-dist.tar.gz
 #   scripts/verify.sh --tag v0.3.0 --attest relay-client-v0.3.0-dist.tar.gz
-#   scripts/verify.sh --repo vul-os/ephor --tag v0.3.0 --out ~/Downloads ASSET
+#   scripts/verify.sh --repo vul-os/pier --tag v0.3.0 --out ~/Downloads ASSET
 #   scripts/verify.sh --base-url https://example.com/rel ASSET       # any origin
 #   scripts/verify.sh --dir ./release-out ASSET...   # already downloaded
 #   scripts/verify.sh --selftest                     # prove the guards refuse
@@ -92,7 +92,7 @@
 set -euo pipefail
 
 # ── Things a copying repo changes ────────────────────────────────────────────
-DEFAULT_REPO="vul-os/ephor"
+DEFAULT_REPO="vul-os/pier"
 MANIFEST="SHA256SUMS"
 HTTP_TIMEOUT="${VERIFY_HTTP_TIMEOUT:-120}"
 
@@ -275,7 +275,7 @@ done
 TMPDIR_V=""
 cleanup() { [ -n "$TMPDIR_V" ] && rm -rf -- "$TMPDIR_V"; return 0; }
 trap cleanup EXIT
-TMPDIR_V="$(mktemp -d "${TMPDIR:-/tmp}/ephor-verify.XXXXXX")"
+TMPDIR_V="$(mktemp -d "${TMPDIR:-/tmp}/pier-verify.XXXXXX")"
 
 # =============================================================================
 # The verifier
@@ -528,7 +528,7 @@ import hashlib, sys, threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ART   = "relay-client-v9.9.9-dist.tar.gz"
-GOOD  = b"ephor-relay-client-dist-bytes\n" * 64
+GOOD  = b"pier-relay-client-dist-bytes\n" * 64
 OTHER = b"tampered-substituted-bytes!!!\n" * 64
 HTML  = (b"<!DOCTYPE html><html><head><title>404 Not Found</title></head>"
          b"<body><h1>Not Found</h1></body></html>")
@@ -746,7 +746,7 @@ run_selftest() {
     p="$(command -v "$t" 2>/dev/null || true)"
     [ -n "$p" ] && ln -sf "$p" "${fakebin}/${t}"
   done
-  expect_exit "--attest but no gh installed"  "$E_ATTEST"         yes -- env PATH="$fakebin" "$bash_abs" "$SELF_PATH" --out "$outd" --attest --repo vul-os/ephor --base-url "$base/good" "$art"
+  expect_exit "--attest but no gh installed"  "$E_ATTEST"         yes -- env PATH="$fakebin" "$bash_abs" "$SELF_PATH" --out "$outd" --attest --repo vul-os/pier --base-url "$base/good" "$art"
 
   printf '\n'
   if [ "$SELFTEST_FAILURES" -ne 0 ]; then
