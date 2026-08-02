@@ -4,8 +4,20 @@
   import { router, type Route } from '../router.svelte';
   import { theme } from '../theme.svelte';
   import { IS_MOCK } from '../api';
+  // The single branding site in this component. Nothing below branches on WHICH
+  // brand is active — the mark, the wordmark and the two footer links are just
+  // values, so a rebranded deployment needs no component change at all.
+  import { brand } from '$brand';
+  import { contactHref, scopeSvgIds } from '../brand-mark';
 
   let { children }: { children: Snippet } = $props();
+
+  // Three copies of one inline SVG on a page collide on any ids inside <defs>.
+  // Give each placement its own id namespace up front rather than relying on
+  // the current default mark happening not to use any.
+  const markSidebar = scopeSvgIds(brand.markSvg, 'sidebar');
+  const markTopbar = scopeSvgIds(brand.markSvg, 'topbar');
+  const markFooter = scopeSvgIds(brand.markSvg, 'footer');
 
   // Mobile: the sidebar collapses to a slide-in drawer behind a hamburger.
   let drawerOpen = $state(false);
@@ -38,8 +50,7 @@
     if (e.key === 'Escape' && drawerOpen) closeDrawer();
   }
 
-  // Grouped like the Vulos OS settings rail: plain labels under small muted
-  // section headers, no leading numbers.
+  // Plain labels under small muted section headers, no leading numbers.
   const NAV_GROUPS: { heading: string; items: { id: Route; label: string }[] }[] = [
     {
       heading: 'Posture',
@@ -65,43 +76,6 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-<!-- The paired mark (brand/ephor-combined.svg): two commas turned to face each
-     other — the broker's shape, two parties with the mark between them. Used in
-     the topbar and the sidebar footer. Rendered via a snippet because it is
-     inlined more than once and each instance needs its own mask ids; a shared
-     id would make the second instance reuse the first one's mask. -->
-{#snippet combinedMark(uid: string)}
-  <svg class="combined-mark" viewBox="14 5 130 92" role="presentation" aria-hidden="true">
-    <defs>
-      <mask id="{uid}-a">
-        <rect x="-40" y="-40" width="240" height="240" fill="#fff" />
-        <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000"
-              transform="translate(16 5) rotate(200 47.5 36)" />
-      </mask>
-      <mask id="{uid}-b">
-        <rect x="-40" y="-40" width="240" height="240" fill="#fff" />
-        <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000"
-              transform="translate(16 5) rotate(200 47.5 36)" />
-      </mask>
-    </defs>
-    <g mask="url(#{uid}-a)" fill="currentColor">
-      <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
-        <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
-                 C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
-                 C 20,23 32,10 50,10 Z" />
-      </g>
-    </g>
-    <g transform="translate(158 0) scale(-1 1)">
-      <g mask="url(#{uid}-b)" fill="currentColor" opacity="0.5">
-        <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
-          <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
-                   C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
-                   C 20,23 32,10 50,10 Z" />
-        </g>
-      </g>
-    </g>
-  </svg>
-{/snippet}
 
 <div class="shell" class:drawer-open={drawerOpen}>
   <a href="#main" class="skip-link">Skip to content</a>
@@ -118,30 +92,13 @@
 
   <aside class="nav" class:open={drawerOpen} bind:this={navEl} tabindex="-1">
     <div class="brandblock">
-      <div class="mark" aria-hidden="true">
-        <!-- The Ephor mark (brand/ephor.svg): a comma whose notch opens it into
-             a lowercase "e". currentColor, tinted by .mark so it holds up on
-             both the near-black and the warm-paper canvas. -->
-        <svg viewBox="14 5 72 92" role="presentation">
-          <defs>
-            <mask id="shell-mark-cut">
-              <rect x="-40" y="-40" width="200" height="200" fill="#fff"/>
-              <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000"
-                    transform="translate(16 5) rotate(200 47.5 36)"/>
-            </mask>
-          </defs>
-          <g mask="url(#shell-mark-cut)" fill="currentColor">
-            <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
-              <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
-                       C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
-                       C 20,23 32,10 50,10 Z"/>
-            </g>
-          </g>
-        </svg>
-      </div>
+      <!-- The brand's own mark, inlined from src/brands/<VITE_BRAND>.ts. Marks
+           are currentColor-filled, so .mark tints them with the accent and one
+           file holds up on both the near-black and the warm-paper canvas. -->
+      <div class="mark" aria-hidden="true">{@html markSidebar}</div>
       <div class="wordblock">
-        <span class="word">Ephor</span>
-        <span class="sub">Operator Console</span>
+        <span class="word">{brand.wordmark}</span>
+        <span class="sub">{brand.tagline}</span>
       </div>
     </div>
 
@@ -167,13 +124,21 @@
     </nav>
 
     <div class="nav-foot">
-      <div class="foot-mark">{@render combinedMark('ft-mark')}</div>
+      <div class="foot-mark" aria-hidden="true">{@html markFooter}</div>
       {#if IS_MOCK}
-        <span class="mode-badge" title="This build is running on fixture data, not a live ephor-admin — see console/README.md">
+        <span class="mode-badge" title="This build is running on fixture data, not a live coordinator admin API — see console/README.md">
           <span class="light-dot" aria-hidden="true"></span> Demo data
         </span>
       {/if}
       <p class="foot-note">Binds operator-local by default (127.0.0.1:8090). Bearer-token gated, fail-closed.</p>
+      <!-- Both destinations belong to the deployment, not to this codebase: an
+           operator who rebrands the console points them at their own docs and
+           their own inbox by editing one brand file. -->
+      <p class="foot-links">
+        <a href={brand.docsUrl} target="_blank" rel="noreferrer noopener">Docs</a>
+        <span class="dot" aria-hidden="true">·</span>
+        <a href={contactHref(brand.supportContact)}>Support</a>
+      </p>
     </div>
   </aside>
 
@@ -190,7 +155,7 @@
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
-        {@render combinedMark('tb-mark')}
+        <span class="crumb-mark" aria-hidden="true">{@html markTopbar}</span>
         <span class="crumb-kicker">Coordinator control plane</span>
       </div>
       <button
@@ -329,36 +294,51 @@
     background: linear-gradient(90deg, var(--border-emphasis), transparent 85%);
   }
 
-  /* The mark is portrait (72×92), so height leads and width follows — forcing
-     it into a square box would squash the comma. Bronze is the product accent
-     and clears contrast on both canvases. */
+  /* ── Brand mark placements ──────────────────────────────────────────────
+     The mark is supplied by the brand, so its aspect ratio is NOT known here:
+     the default is landscape, the first alternate is near-square, the next one
+     could be portrait. So every placement sets a height and lets width follow from
+     the viewBox (`width: auto` on a replaced element with an intrinsic ratio),
+     with a max-width backstop for a pathologically wide mark. Never the other
+     way round — fixing width would squash a portrait mark.
+
+     The marks are currentColor-filled, so `color` here is what tints them. */
   .mark {
     color: var(--accent);
     display: flex;
     align-items: center;
+    flex-shrink: 0;
   }
-  .mark svg {
-    height: 2rem;
+  .mark :global(svg) {
+    height: 1.75rem;
     width: auto;
+    max-width: 4.5rem;
     display: block;
   }
 
-  /* Paired mark: landscape (130×92). Sized by height in both placements. */
-  .combined-mark {
-    height: 1.15rem;
-    width: auto;
-    display: block;
+  .crumb-mark {
+    display: flex;
+    align-items: center;
+    color: var(--text-secondary);
     flex-shrink: 0;
   }
-  .crumbs .combined-mark {
-    color: var(--text-secondary);
+  .crumb-mark :global(svg) {
+    height: 1rem;
+    width: auto;
+    max-width: 3rem;
+    display: block;
   }
+
   .foot-mark {
     color: var(--text-faint);
     margin-bottom: var(--space-3);
+    display: flex;
   }
-  .foot-mark .combined-mark {
-    height: 1rem;
+  .foot-mark :global(svg) {
+    height: 0.9rem;
+    width: auto;
+    max-width: 3rem;
+    display: block;
   }
 
   .wordblock {
@@ -450,8 +430,8 @@
   }
 
   /* Active state reaches for the tokens app.css built specifically for a
-     selection surface (--bg-selected / --bg-selected-border, the Vulos
-     selection pair retinted to Ephor bronze) rather than inventing a fresh
+     selection surface (--bg-selected / --bg-selected-border, which app.css
+     mixes from the active brand's accent) rather than inventing a fresh
      accent-tint — a precise inset edge plus that surface reads as "this is
      where you are" without the tint feeling like a hover left on by mistake. */
   .navitem.active {
@@ -501,6 +481,31 @@
     color: var(--text-tertiary);
     line-height: 1.5;
     margin: 0;
+  }
+
+  /* Where this deployment's operator goes for help. Both hrefs are brand
+     values, so a rebrand never leaves an operator pointed at someone else's
+     documentation or inbox. */
+  .foot-links {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    margin: 0;
+  }
+  .foot-links a {
+    color: var(--text-tertiary);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  }
+  .foot-links a:hover {
+    color: var(--accent);
+    border-bottom-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .foot-links .dot {
+    color: var(--text-ghost);
   }
 
   .content-col {

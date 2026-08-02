@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="46" viewBox="0 0 48 46" fill="none" role="img" aria-label="Vulos">
+  <title>Vulos</title>
+  <!--
+    The canonical Vulos mark. The path is copied VERBATIM from
+    vulos-static/public/favicon.svg — nothing here is re-drawn, and the glyph
+    must not be edited: this file exists only so the console can render the real
+    mark rather than an approximation of it.
+
+    The one change from the source file is `fill="currentColor"` in place of the
+    canonical slate #2e383a. That is a recolour, not a redraw, and it is the
+    same treatment vulos-static already gives the mark itself (404.astro paints
+    /brand/vulos.png through a CSS mask). It is required here because the
+    console has two canvases: slate vanishes on the near-black dark chrome.
+    The favicon this brand emits pins `color` to the Vulos accent (#0f6a6c,
+    verbatim from vulos-static/src/theme.css) so the tab icon reads on both a
+    light and a dark browser chrome, which the canonical slate does not.
+  -->
+  <path
+    d="M25.946 44.938c-.664.845-2.021.375-2.021-.698V33.937a2.26 2.26 0 0 0-2.262-2.262H10.287c-.92 0-1.456-1.04-.92-1.788l7.48-10.471c1.07-1.497 0-3.578-1.842-3.578H1.237c-.92 0-1.456-1.04-.92-1.788L10.013.474c.214-.297.556-.474.92-.474h28.894c.92 0 1.456 1.04.92 1.788l-7.48 10.471c-1.07 1.498 0 3.579 1.842 3.579h11.377c.943 0 1.473 1.088.89 1.83L25.947 44.94z"
+    fill="currentColor"
+  />
+</svg>

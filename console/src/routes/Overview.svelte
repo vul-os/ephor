@@ -208,7 +208,7 @@
       <div class="footer-notes reveal reveal-6">
         <div class="note note-caution">
           <span aria-hidden="true">⚑</span>
-          <span><strong>Demo data.</strong> This build is reading fixture data (VITE_MOCK=1), not a live <code>ephor-admin</code> instance. See <code>console/README.md</code> to point it at a real coordinator.</span>
+          <span><strong>Demo data.</strong> This build is reading fixture data (VITE_MOCK=1), not a live coordinator admin API. See <code>console/README.md</code> to point it at a real coordinator.</span>
         </div>
       </div>
     {/if}

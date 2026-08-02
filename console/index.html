@@ -2,14 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <meta
-      name="description"
-      content="Ephor Operator Console — run a Ephor coordinator: descriptor, pricing, prepaid billing, keys, and COORD-1..8 conformance."
-    />
-    <title>Ephor · Operator Console</title>
+    <!--
+      No <title>, <meta name="description"> or <link rel="icon"> here on purpose:
+      all three are branding sites, and all three are injected at build time by
+      the `brand-html` plugin in vite.config.ts from src/brands/<VITE_BRAND>.ts.
+      Hardcoding them would mean a rebranded deployment shipping someone else's
+      name in the browser tab.
+    -->
   </head>
   <body>
     <div id="app"></div>

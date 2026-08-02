@@ -1,4 +1,4 @@
-// Wire types mirrored from crates/admin/src/*.rs — kept 1:1 with the Rust DTOs so this
+// Wire types mirrored from crates/pier-admin/src/*.rs — kept 1:1 with the Rust DTOs so this
 // client never drifts from the real HTTP surface. See each field's source file in the
 // comment above the block.
 

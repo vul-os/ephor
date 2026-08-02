@@ -1,9 +1,11 @@
-// Typed client for the `admin` crate's HTTP API (crates/admin/src/lib.rs).
+// Typed client for the `admin` crate's HTTP API (crates/pier-admin/src/lib.rs).
 //
-// Two implementations share one interface: `RealAdminClient` calls a live `ephor-admin`
+// Two implementations share one interface: `RealAdminClient` calls a live admin API
 // instance; `MockAdminClient` serves realistic in-memory fixtures so the console runs
 // standalone (VITE_MOCK=1, the default for this build — see console/README.md). The rest
 // of the app talks only to `AdminClient` and never knows which backend it got.
+
+import { brand } from '$brand';
 
 import type {
   DescriptorPutRequest,
@@ -53,7 +55,7 @@ export class ApiError extends Error {
   }
 }
 
-/** Talks to a real `ephor-admin` instance (see crates/admin). */
+/** Talks to a real coordinator's admin API (see crates/pier-admin). */
 export class RealAdminClient implements AdminClient {
   constructor(
     private baseUrl: string,
@@ -205,7 +207,7 @@ const TARIFF_SCHEDULE: TariffScheduleDto = {
 const DESCRIPTOR_POLICY = {
   region: 'eu-west',
   capabilities: ['reachability-adapter', 'sni-passthrough', 'own-domain-cert'],
-  contact: 'ops@ephor.example',
+  contact: 'ops@example.invalid',
   notes:
     'Public reachable ingress for self-hosted boxes. SNI-passthrough profile; operator does not hold the origin TLS key for adapter-zone vanity names.',
 };
@@ -564,11 +566,21 @@ export const MOCK_PAYERS = [PAYER_A, PAYER_B, PAYER_C];
 // Client factory
 // ---------------------------------------------------------------------------------------
 
+/**
+ * localStorage key this build reads the operator's bearer token from.
+ *
+ * Brand-namespaced, and this one is a security fix rather than a cosmetic
+ * rename: two brands of this console served from one origin previously shared a
+ * single hardcoded key, so signing into one deployment handed its admin token to
+ * the other. Distinct `storagePrefix` values keep them apart.
+ */
+export const ADMIN_TOKEN_KEY = `${brand.storagePrefix}:admin-token`;
+
 export function createClient(): AdminClient {
   const isMock = import.meta.env.VITE_MOCK !== '0';
   if (isMock) return new MockAdminClient();
   const base = import.meta.env.VITE_API_BASE ?? 'http://127.0.0.1:8090';
-  const token = localStorage.getItem('ephor:admin-token') ?? import.meta.env.VITE_ADMIN_TOKEN ?? '';
+  const token = localStorage.getItem(ADMIN_TOKEN_KEY) ?? import.meta.env.VITE_ADMIN_TOKEN ?? '';
   return new RealAdminClient(base, token);
 }
 

@@ -6,6 +6,11 @@
     "module": "esnext",
     "types": ["svelte", "vite/client"],
     "allowArbitraryExtensions": true,
+    /* Mirrors the `$brand` alias vite.config.ts resolves from VITE_BRAND. The
+       mapping is pinned to the default brand because a tsconfig cannot read an
+       env var; every brand module exports the same `Brand`, so typechecking one
+       typechecks the shape all of them must satisfy. */
+    "paths": { "$brand": ["./src/brands/pier.ts"] },
     "noEmit": true,
     /**
      * Typecheck JS in `.svelte` and `.js` files by default.

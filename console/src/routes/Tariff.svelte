@@ -208,7 +208,7 @@
             <div class="field field-currency">
               <label for="currency">Currency / asset</label>
               <input id="currency" type="text" bind:value={currency} placeholder="USD" />
-              <p class="field-hint">Any existing currency or asset string — USD, USDC, EUR. Never a Ephor-minted token.</p>
+              <p class="field-hint">Any existing currency or asset string — USD, USDC, EUR. Never a coordinator-minted token.</p>
             </div>
             <div class="field field-period">
               <label for="period">Billing period</label>

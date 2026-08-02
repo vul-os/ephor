@@ -1,16 +1,22 @@
-/* Ephor Operator Console
+/* Operator Console — shared stylesheet
    ────────────────────────────────────────────────────────────────────────────
-   Same design system as Vulos, its own product. The token ladder, geometry,
-   shadows, semantic colours and the monospace IDE/terminal aesthetic are
-   adopted VERBATIM from the Vulos theme (vulos-static/src/theme.css, which
-   mirrors the OS index.css). The one deliberate divergence — Ephor's identity —
-   is the accent: Vulos's teal/iris is swapped for Ephor bronze (#C89A56, the
-   value the brand mark is drawn in). One colour out, everything else the same:
-   standalone, but unmistakably of the family.
+   This file is BRAND-NEUTRAL and is shared by every brand of this console. The
+   token ladder, geometry, shadows, semantic colours and the monospace
+   IDE/terminal aesthetic are the same for all of them; only four values differ
+   per brand, and none of them are written here.
 
-   Body and chrome are monospace (the Vulos "IDE/terminal" signature); Inter is
-   used only for running prose. Both fonts are self-hosted — a self-host product
-   must never fetch a webfont at runtime and must stay air-gappable. */
+   Those four arrive as `--brand-accent`, `--brand-accent-contrast`,
+   `--brand-accent-fill` and `--brand-accent-fill-contrast`, stamped into the
+   HTML <head> at build time by the `brand-html` plugin in vite.config.ts from
+   src/brands/<VITE_BRAND>.ts. Everything accent-shaped below — hover, soft
+   tint, focus ring, the selection surface pair — is DERIVED from them with
+   color-mix, so a new brand supplies one hex and the whole ladder retints.
+   Nothing else in this file needs to change to rebrand the console, and no hex
+   in this file may be brand-specific.
+
+   Body and chrome are monospace (an IDE/terminal signature); Inter is used only
+   for running prose. Both fonts are self-hosted — a self-host product must
+   never fetch a webfont at runtime and must stay air-gappable. */
 
 @import '@fontsource-variable/inter';
 @import '@fontsource/jetbrains-mono/400.css';
@@ -20,35 +26,42 @@
 :root {
   color-scheme: dark;
 
-  /* SF Mono first so this renders identically to the Vulos screenshots on the
+  /* SF Mono first so this renders identically to the reference screenshots on the
      reference machine; bundled JetBrains Mono is the air-gap/cross-platform
      fallback. Inter (variable, vendored) carries running prose only. */
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
   --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, sans-serif;
 
-  /* ── Accent — Ephor bronze (the swapped colour) ─────────────────────────── */
-  --accent: #c89a56;
+  /* ── Accent — derived, never literal ────────────────────────────────────────
+     The four --brand-* inputs come from the active brand file (see the header).
+     A fallback is given on each so an unbuilt/handcrafted index.html degrades to
+     a legible neutral rather than to an invalid `var()` and an unstyled page. */
+  --accent: var(--brand-accent, #8a8a8a);
   --accent-hover: color-mix(in srgb, var(--accent) 85%, white 15%);
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  /* Text/glyph colour sitting ON a solid accent fill. Bronze is mid-light, so
-     on the dark canvas this must be near-black, not white. Formula-tied to
-     --bg-base so it tracks the theme. */
-  --accent-contrast: var(--bg-base);
-  /* Fill role: the true brand bronze with a near-black label. On dark it equals
+  /* Text/glyph colour sitting ON a solid accent fill. Cannot be derived: a
+     mid-light accent needs near-black ink and a dark one needs near-white, and
+     CSS has no portable way to choose. Each brand states it. */
+  --accent-contrast: var(--brand-accent-contrast, #0c0c0c);
+  /* Fill role: the true brand colour with its own label. On dark it equals
      --accent; on light --accent deepens for text contrast while the fill does
      not (a fill is only read against its own label). */
-  --accent-fill: #c89a56;
-  --accent-fill-contrast: #14100a;
+  --accent-fill: var(--brand-accent-fill, #8a8a8a);
+  --accent-fill-contrast: var(--brand-accent-fill-contrast, #0c0c0c);
 
-  /* ═══ DARK PALETTE — verbatim Vulos ladder (vulos-static theme.css) ═══ */
+  /* ═══ DARK PALETTE — brand-neutral greyscale ladder ═══ */
   --bg-base: #0c0c0c;
   --bg-surface: #111111;
   --bg-elevated: #1a1a1a;
   --bg-hover: #1e1e1e;
   --bg-active: #262626;
-  /* selection surface retinted from Vulos teal to Ephor bronze */
-  --bg-selected: #1b1509;
-  --bg-selected-border: #3a2e17;
+  /* Selection surface, mixed from the raw brand accent into the canvas so it
+     follows the brand automatically. Mixed from --brand-accent rather than
+     --accent because --accent deepens on the light theme while a *surface* tint
+     must not; custom properties substitute at use time, so this one declaration
+     retints correctly for whichever --bg-base is winning on the element. */
+  --bg-selected: color-mix(in srgb, var(--brand-accent, #8a8a8a) 10%, var(--bg-base));
+  --bg-selected-border: color-mix(in srgb, var(--brand-accent, #8a8a8a) 25%, var(--bg-base));
 
   --border-subtle: #111111;
   --border-default: #1a1a1a;
@@ -62,13 +75,14 @@
   --text-faint: #666666;
   --text-ghost: #555555;
 
-  /* Deep shadows, no bloom (Vulos) */
+  /* Deep shadows, no bloom */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.50), 0 1px 3px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 8px 32px rgba(0, 0, 0, 0.60), 0 2px 8px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.65), 0 8px 20px rgba(0, 0, 0, 0.40);
   --shadow-xl: 0 40px 100px rgba(0, 0, 0, 0.70), 0 16px 40px rgba(0, 0, 0, 0.45);
 
-  /* Semantic status — Vulos values (COORD-1..8 running lights + prepaid states) */
+  /* Semantic status (COORD-1..8 running lights + prepaid states). Shared by every
+     brand: pass/behavioral/violation must not change meaning with the logo. */
   --status-success: #2dd4bf;
   --status-warning: #f59e0b;
   --status-danger: #f43f5e;
@@ -76,7 +90,7 @@
   --status-warning-soft: color-mix(in srgb, var(--status-warning) 14%, transparent);
   --status-danger-soft: color-mix(in srgb, var(--status-danger) 12%, transparent);
 
-  /* Geometry — Vulos radii */
+  /* Geometry — radii */
   --radius-xs: 4px;
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -84,7 +98,7 @@
   --radius-xl: 24px;
   --radius-full: 9999px;
 
-  /* Spacing — 8px base (Vulos) */
+  /* Spacing — 8px base */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -117,8 +131,8 @@
   --bg-elevated: #1a1a1a;
   --bg-hover: #1e1e1e;
   --bg-active: #262626;
-  --bg-selected: #1b1509;
-  --bg-selected-border: #3a2e17;
+  --bg-selected: color-mix(in srgb, var(--brand-accent, #8a8a8a) 10%, var(--bg-base));
+  --bg-selected-border: color-mix(in srgb, var(--brand-accent, #8a8a8a) 25%, var(--bg-base));
   --border-subtle: #111111;
   --border-default: #1a1a1a;
   --border-strong: #222222;
@@ -135,14 +149,16 @@
   --nav-scrim: rgba(12, 12, 12, 0.82);
 }
 
-/* ═══ LIGHT PALETTE — warm-neutral paper (Vulos), accent deepened for text ═══
-   Vulos light is a warm paper canvas, not a raw inversion. --accent deepens
-   from the raw brand bronze so accent-as-text clears WCAG AA 4.5:1 on paper
-   (raw ~2.6:1 on white → deepened ~6:1), while --accent-fill stays true bronze
-   (read only against its own near-black label). */
+/* ═══ LIGHT PALETTE — warm-neutral paper, accent deepened for text ═══
+   Light is a warm paper canvas, not a raw inversion. --accent is DERIVED from
+   the raw brand accent by mixing toward black, so accent-as-text clears WCAG AA
+   4.5:1 on paper whatever the brand hue is (the default bronze goes from ~2.6:1
+   raw on white to ~6:1 deepened). --accent-fill stays the true brand colour,
+   since a fill is read only against its own label. The canvas, border and text
+   ladders below are brand-neutral and shared by every brand. */
 :root[data-theme='light'] {
   color-scheme: light;
-  --accent: color-mix(in srgb, #c89a56 60%, black);
+  --accent: color-mix(in srgb, var(--brand-accent, #8a8a8a) 60%, black);
   --accent-hover: color-mix(in srgb, var(--accent) 84%, black 16%);
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
 
@@ -151,8 +167,8 @@
   --bg-elevated: #efebe3;
   --bg-hover: #e9e4da;
   --bg-active: #e2dccf;
-  --bg-selected: #f3ecdc;
-  --bg-selected-border: #dcc79a;
+  --bg-selected: color-mix(in srgb, var(--brand-accent, #8a8a8a) 14%, var(--bg-base));
+  --bg-selected-border: color-mix(in srgb, var(--brand-accent, #8a8a8a) 50%, var(--bg-base));
 
   --border-subtle: #f0ebe2;
   --border-default: #e6e0d5;
@@ -184,7 +200,7 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
-    --accent: color-mix(in srgb, #c89a56 60%, black);
+    --accent: color-mix(in srgb, var(--brand-accent, #8a8a8a) 60%, black);
     --accent-hover: color-mix(in srgb, var(--accent) 84%, black 16%);
     --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
     --bg-base: #fdfcfa;
@@ -192,8 +208,8 @@
     --bg-elevated: #efebe3;
     --bg-hover: #e9e4da;
     --bg-active: #e2dccf;
-    --bg-selected: #f3ecdc;
-    --bg-selected-border: #dcc79a;
+    --bg-selected: color-mix(in srgb, var(--brand-accent, #8a8a8a) 14%, var(--bg-base));
+    --bg-selected-border: color-mix(in srgb, var(--brand-accent, #8a8a8a) 50%, var(--bg-base));
     --border-subtle: #f0ebe2;
     --border-default: #e6e0d5;
     --border-strong: #dad3c6;
@@ -227,7 +243,7 @@ body {
   height: 100%;
 }
 
-/* Monospace body — the Vulos IDE/terminal signature. Flat near-black canvas,
+/* Monospace body — the IDE/terminal signature. Flat near-black canvas,
    no grid, no ambient glow. */
 body {
   background-color: var(--bg-base);
@@ -240,7 +256,7 @@ body {
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
-/* Headings are monospace too (Vulos), tight and bold. */
+/* Headings are monospace too, tight and bold. */
 h1,
 h2,
 h3,
@@ -293,14 +309,14 @@ button {
   color: var(--text-primary);
 }
 
-/* Vulos focus: a soft accent ring via box-shadow, not a hard outline. */
+/* Focus: a soft accent ring via box-shadow, not a hard outline. */
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
   border-radius: var(--radius-sm);
 }
 
-/* Thin Vulos scrollbars */
+/* Thin scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -322,7 +338,7 @@ button {
 
 /* ---------- shared primitives ---------- */
 
-/* Vulos cards are flat: a thin subtle border on the surface tone, no drop
+/* Cards are flat: a thin subtle border on the surface tone, no drop
    shadow, modest radius. The shadow read as "web dashboard"; the OS chrome is
    calmer than that. Refined here so the card reads as CONSTRUCTED rather than
    an outline around empty space: a barely-there top-to-bottom surface-tone
@@ -369,7 +385,7 @@ button {
   font-size: 1.05rem;
 }
 
-/* Section kicker in the Vulos idiom: small muted monospace small-caps — the
+/* Section kicker: small muted monospace small-caps — the
    same treatment as the file-view NAME / SIZE / MODIFIED column headers. The
    leading tick is a small IDE-grade tell (a prompt mark, not a bullet) that
    costs nothing layout-wise since panel-kicker only ever appears inline. */

@@ -2,9 +2,15 @@
 // explicit choice via the [data-theme] override in app.css. Persisted so a reload keeps the
 // operator's pick.
 
+import { brand } from '$brand';
+
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
-const STORAGE_KEY = 'ephor:theme';
+// Namespaced by the active brand, not by a hardcoded product name. Two brands of
+// this console served from the same origin used to share one key and silently
+// overwrite each other's theme choice; `storagePrefix` is unique per brand, so
+// they no longer collide.
+const STORAGE_KEY = `${brand.storagePrefix}:theme`;
 
 function readInitial(): ThemeChoice {
   if (typeof localStorage === 'undefined') return 'system';
