@@ -86,7 +86,7 @@ Pier brokers none and takes no cut. Stake (where a kind requires skin-in-the-gam
 | `matcher` | Real-time supply/demand matching (rides, delivery) | `terminating` / `declared` (attested-TEE option) — `Gate::DerivedViewOnly` | **scaffold**, 8 tests |
 | `arbiter` | Dispute resolution over disclosed evidence, staked jury | `terminating` / `declared` — `Gate::NoDeliveryPath` | **scaffold**, 7 tests |
 | `oracle` | Physical-world/real-fact attestation (`ORACLE ⊂ ATTEST`, DIRECTION §2) | `terminating` / `declared` — `Gate::NoDeliveryPath` | **scaffold**, 7 tests |
-| `infra-service` | Managed infrastructure — the DEPOT elementals, with hosted inference among the formulas composing them. Draft per CONTRACT §5; absorbed the former `compute` kind | `terminating` / `declared` (attested-TEE blind-workload option) — `Gate::NoDeliveryPath` | **scaffold**, 8 tests |
+| `infra-service` | Managed infrastructure — the DEPOT elementals, with hosted inference among the formulas composing them. Draft per CONTRACT §5; absorbed the former `compute` kind | `terminating` / `declared` (attested-TEE blind-workload option) — `Gate::NoDeliveryPath` | **scaffold**, 19 tests |
 
 "scaffold" means a real `pier_conformance::Coordinator` implementation and a real
 `kotva-core`-signed descriptor exist and are tested, but the kind's own function (ranking,
@@ -94,6 +94,13 @@ labeling, matching, arbitration, attestation, compute) is future work, disclosed
 docs — not silently stubbed. `indexer` / `labeler` / `matcher` never present their opt-in ranking
 as an authoritative delivery path; `arbiter` / `oracle` / `infra-service` are neither a delivery path
 nor a §4 derived view, so they declare `Gate::NoDeliveryPath` instead.
+
+That is **ten of the canonical eleven** kinds. The eleventh, `custodial-escrow`, is **not
+implemented here and is not planned here**: it is confined to the commerce extension (TRACT), it
+is not in KOTVA Core v1, and it is the family's one load-bearing exception — the one kind that
+does not fade once hired. The count and the list are CONTRACT §5's, which forbids any other
+document enumerating a different one; this table reports *implementation status* against it, and
+`pier_economics::CoordinatorKind` carries all eleven variants regardless of what has a crate.
 
 ## The operator console
 
@@ -218,20 +225,21 @@ extracting this same gateway from envoir failed twice before against a moving co
 | [`admin`](crates/pier-admin) | Kind-agnostic operator HTTP API (`pier-admin` binary) | built |
 | [`gateway`](crates/pier-gateway), [`relay`](crates/pier-relay), [`reachability-adapter`](crates/pier-reachability-adapter), [`media-relay`](crates/pier-media-relay) | The four built coordinator kinds | built |
 | [`indexer`](crates/pier-indexer), [`labeler`](crates/pier-labeler), [`matcher`](crates/pier-matcher), [`arbiter`](crates/pier-arbiter), [`oracle`](crates/pier-oracle), [`infra-service`](crates/pier-infra-service) | The six scaffolded kinds | scaffold |
+| [`pier-cli`](crates/pier-cli) | `pier`, the flyctl-shaped CLI over the DEPOT control plane (`profiles/cloud.md` §5) — every verb resolves to a `kotva_depot::Ability` from the closed §5.2 registry | **no transport**: the vocabulary, the fail-closed authorisation path and the `certs add` planner are real; no subcommand reaches a coordinator |
 
 Full crate map, per-crate detail, and the `kotva-core` pin mechanics:
 [crates/README.md](crates/README.md).
 
 ```sh
 cargo build
-cargo test                    # 561 tests, clippy clean
+cargo test                    # 614 tests, clippy clean
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all --check
 ```
 
 These four are exactly what the `Rust Workspace` CI job runs (`.github/workflows/ci.yml`), plus a
 crate-count guard so the job cannot go green by resolving an empty workspace. `--workspace` is
-equivalent here: the 14 members are the only members. The one crate NOT covered by that job is the
+equivalent here: the 15 members are the only members. The one crate NOT covered by that job is the
 optional `pier-billing-patala` adapter — see [Settlement rails](#settlement-rails--no-token).
 
 The Go tree (`go build ./...`) and the Rust workspace coexist at the repo root (`Cargo.toml` +
