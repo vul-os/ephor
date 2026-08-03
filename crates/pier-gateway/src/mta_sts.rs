@@ -321,7 +321,7 @@ impl HttpsPolicyFetcher {
         tls.conn.complete_io(&mut tls.sock)?;
 
         let request = format!(
-            "GET /.well-known/mta-sts.txt HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: envoir-gateway\r\n\r\n"
+            "GET /.well-known/mta-sts.txt HTTP/1.1\r\nHost: {host}\r\nConnection: close\r\nUser-Agent: pier-gateway\r\n\r\n"
         );
         tls.write_all(request.as_bytes())?;
         tls.flush()?;

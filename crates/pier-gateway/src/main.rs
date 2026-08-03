@@ -6,10 +6,10 @@
 //! Two ways to launch the same real, long-running daemon (both compose the pieces in
 //! [`pier_gateway::PersonalConfig`] and serve until `SIGINT`/`SIGTERM`, then shut down gracefully):
 //!
-//! - `envoir-gateway personal <config.toml>` — the **personal / single-operator** mode: bridge your
+//! - `pier-gateway personal <config.toml>` — the **personal / single-operator** mode: bridge your
 //!   OWN domain and account(s) from one small config file. This is the "just a gateway for my own
 //!   email" path (see `gateway/README.md`, `gateway/examples/personal.toml`).
-//! - `envoir-gateway run` — the same daemon configured from `GATEWAY_*` environment variables
+//! - `pier-gateway run` — the same daemon configured from `GATEWAY_*` environment variables
 //!   (handy for containers / systemd drop-ins). Equivalent to `personal` with an env-sourced config.
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -99,12 +99,12 @@ fn main() {
 
     match cmd {
         "version" => {
-            println!("envoir-gateway {}", env!("CARGO_PKG_VERSION"));
+            println!("pier-gateway {}", env!("CARGO_PKG_VERSION"));
         }
         "personal" => {
             let Some(path) = args.get(2) else {
                 eprintln!(
-                    "gateway: usage: envoir-gateway personal <config.toml>\n\
+                    "gateway: usage: pier-gateway personal <config.toml>\n\
                      See gateway/examples/personal.toml for a commented template."
                 );
                 std::process::exit(2);
@@ -142,10 +142,10 @@ fn main() {
         }
         _ => {
             println!(
-                "envoir-gateway — optional DMTAP <-> legacy SMTP bridge (reference)\n\
+                "pier-gateway — optional DMTAP <-> legacy SMTP bridge (reference)\n\
                  \n\
                  USAGE:\n\
-                 \x20 envoir-gateway <command>\n\
+                 \x20 pier-gateway <command>\n\
                  \n\
                  COMMANDS:\n\
                  \x20 personal <config.toml>  run the daemon for YOUR OWN domain from a config file\n\

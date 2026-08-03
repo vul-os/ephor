@@ -1,7 +1,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# envoir-gateway — PERSONAL (single-operator) config
+# pier-gateway — PERSONAL (single-operator) config
 #
-#   Run: envoir-gateway personal /path/to/personal.toml
+#   Run: pier-gateway personal /path/to/personal.toml
 #
 # This is the "just a gateway for my own email" configuration: one person bridging
 # THEIR OWN domain between legacy SMTP and DMTAP. No mesh, cloud, or billing needed.

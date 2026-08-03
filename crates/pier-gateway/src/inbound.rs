@@ -935,7 +935,7 @@ impl<'g> MxSession<'g> {
 
     /// The 220 service banner.
     pub fn greeting(&self) -> SmtpReply {
-        SmtpReply::new(220, "envoir-gateway DMTAP MX ready")
+        SmtpReply::new(220, "pier-gateway DMTAP MX ready")
     }
 
     fn reset_transaction(&mut self) {
@@ -975,7 +975,7 @@ impl<'g> MxSession<'g> {
                 // Captured for the SPF null-reverse-path fallback (spec item 1, RFC 7208 §2.4).
                 let arg = rest.trim();
                 self.helo = if arg.is_empty() { None } else { Some(arg.to_string()) };
-                SmtpReply::new(250, "envoir-gateway at your service")
+                SmtpReply::new(250, "pier-gateway at your service")
             }
             "MAIL" => self.cmd_mail(rest),
             "RCPT" => self.cmd_rcpt(rest),

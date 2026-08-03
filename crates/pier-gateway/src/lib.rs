@@ -1,4 +1,4 @@
-//! # envoir-gateway — the DMTAP legacy SMTP bridge (spec §7)
+//! # pier-gateway — the DMTAP legacy SMTP bridge (spec §7)
 //!
 //! The **optional**, **stateless** component that bridges legacy SMTP ↔ DMTAP MOTEs — the only
 //! part of the system that speaks SMTP and the only one not content-blind (the legacy leg is

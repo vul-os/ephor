@@ -14,14 +14,26 @@ and `kotva-mail` now) and still links a `SEPARATION.md` that does not exist in t
 crate/binary/library names and the `cargo` commands ARE current. Treat the rest as history.
 
 Spec §0.2 also allows running the gateway **as a mode of the node binary**: `envoir-node --gateway
-<args>` (equivalently `envoir-node gateway <args>`) execs this same `pier-gateway` binary as a
-genuinely separate OS process — never in-process, so a gateway invocation never shares memory with
-one holding the node's identity key. Every command below works identically whether you invoke
-`pier-gateway` directly or through `envoir-node gateway`/`envoir-node --gateway`; see the root
-[`README.md`](../README.md#one-binary-roles-as-flags) for why that split exists.
+<args>` (equivalently `envoir-node gateway <args>`) execs a gateway binary as a genuinely separate
+OS process — never in-process, so a gateway invocation never shares memory with one holding the
+node's identity key.
 
-See the normative DMTAP spec, §7 "Gateway", in the spec repo:
-[`vul-os/dmtap` → `07-gateway.md`](https://github.com/vul-os/dmtap/blob/main/07-gateway.md). A node
+**That path needs one piece of configuration since the carve-out, and it is not optional.** envoir's
+`locate_gateway_binary` (`node/src/main.rs`) looks for a binary called **`envoir-gateway`**: first
+`$ENVOIR_GATEWAY_BIN`, then next to the `envoir-node` executable, then bare on `$PATH`. This crate
+builds `pier-gateway`, and the gateway crate no longer exists in envoir's workspace at all, so the
+second and third lookups can never resolve. Point the override at this crate's build output:
+
+```sh
+ENVOIR_GATEWAY_BIN=/path/to/pier/target/release/pier-gateway envoir-node gateway version
+```
+
+With that set, every command below works identically whether you invoke `pier-gateway` directly or
+through `envoir-node gateway` / `envoir-node --gateway`. envoir's own
+`node/tests/gateway_dispatch.rs` documents the same arrangement and is `#[ignore]`d for it.
+
+See the normative KOTVA spec, §7 "Gateway", in the spec repo:
+[`vul-os/kotva` → `07-gateway.md`](https://github.com/vul-os/kotva/blob/main/07-gateway.md). A node
 with no legacy correspondents never uses a gateway; at full DMTAP adoption it is unnecessary.
 
 ## Quickstart — a personal gateway for your own domain (2 commands)
@@ -255,8 +267,8 @@ uses the git CLI (the monorepo is public, so plain https works).
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([`LICENSE-APACHE`](LICENSE-APACHE))
-- MIT license ([`LICENSE-MIT`](LICENSE-MIT))
+- Apache License, Version 2.0 ([`LICENSE-APACHE`](../../LICENSE-APACHE))
+- MIT license ([`LICENSE-MIT`](../../LICENSE-MIT))
 
 at your option. Unless you explicitly state otherwise, any contribution intentionally submitted for
 inclusion in this crate by you, as defined in the Apache-2.0 license, shall be dual licensed as above,

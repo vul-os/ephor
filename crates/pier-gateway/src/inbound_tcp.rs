@@ -335,10 +335,10 @@ fn handle_connection(
         match verb.as_str() {
             "EHLO" | "HELO" => {
                 if tls.is_some() && !secured {
-                    write_all(&mut conn, "250-envoir-gateway at your service\r\n")?;
+                    write_all(&mut conn, "250-pier-gateway at your service\r\n")?;
                     write_all(&mut conn, "250 STARTTLS\r\n")?;
                 } else {
-                    write_all(&mut conn, "250 envoir-gateway at your service\r\n")?;
+                    write_all(&mut conn, "250 pier-gateway at your service\r\n")?;
                 }
             }
             "STARTTLS" => match (&tls, secured) {

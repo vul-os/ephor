@@ -1,4 +1,4 @@
-# envoir-gateway recipient directory — YOUR OWN identities (spec §3 resolve).
+# pier-gateway recipient directory — YOUR OWN identities (spec §3 resolve).
 #
 # One recipient per line, whitespace-separated:
 #     <email>  <ed25519-identity-key-b64>  <x25519-seal-key-b64>

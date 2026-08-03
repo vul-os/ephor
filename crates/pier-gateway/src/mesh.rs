@@ -135,7 +135,7 @@ impl HttpMeshDelivery {
         let head = format!(
             "POST {path} HTTP/1.1\r\n\
              Host: {host}\r\n\
-             User-Agent: envoir-gateway\r\n\
+             User-Agent: pier-gateway\r\n\
              Content-Type: application/dmtap-mote\r\n\
              Content-Length: {len}\r\n\
              X-Dmtap-Mote-Id: {mote_id}\r\n\
