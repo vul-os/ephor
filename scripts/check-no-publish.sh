@@ -82,6 +82,36 @@ else
   fi
 fi
 
+# ── 5. npm packages must declare a posture, not drift into one ──────────────────────────────
+# The crates rule above is about crates.io. This repo ALSO carries npm packages, and the gate
+# was blind to them: `client/package.json` (@vulos/relay-client) sits `private: false` with
+# `publishConfig` aimed at the public registry, which nothing here had ever checked.
+#
+# This does NOT extend the crates rule to npm by fiat. That rule's stated rationale is about
+# spec-defined WIRE OBJECTS needing one published home and about crate-name squatting; a client
+# SDK is neither, and publishing one may well be correct. What is NOT acceptable is a package
+# becoming publishable by nobody noticing. So: every package.json must EITHER be `private: true`
+# OR appear in NPM_PUBLISHABLE below with a reason a reader can weigh.
+declare -a NPM_PUBLISHABLE=(
+  # path                     reason it is deliberately publishable
+  "client/package.json:@vulos/relay-client is the JS SDK a browser installs to talk to a relay; README.md and the landing both describe it as part of the CURRENT working implementation. UNRESOLVED, flagged not decided: the @vulos/ scope on a package shipped by a repo whose positioning is 'not a Vulos product'. Not yet on npm (404), so the scope is still free to change."
+)
+mapfile -t pkgs < <(find . -name package.json -not -path '*/node_modules/*' -not -path '*/dist*/*' | sort)
+(( ${#pkgs[@]} >= 3 )) || bad "found ${#pkgs[@]} package.json files, expected at least 3 — the find is broken, not the repo clean"
+note "checking ${#pkgs[@]} package.json files"
+for f in "${pkgs[@]}"; do
+  rel="${f#./}"
+  priv=$(python3 -c "import json,sys; print(json.load(open('$f')).get('private'))" 2>/dev/null)
+  [[ "$priv" == "True" ]] && continue
+  allowed=0
+  for entry in "${NPM_PUBLISHABLE[@]}"; do [[ "${entry%%:*}" == "$rel" ]] && allowed=1; done
+  if (( allowed )); then
+    note "$rel is publishable BY DECLARATION (see NPM_PUBLISHABLE)"
+  else
+    bad "$rel is neither 'private: true' nor declared in NPM_PUBLISHABLE — a package must not become publishable by omission"
+  fi
+done
+
 if (( fail )); then
   echo
   echo "PUBLISH RULE violated. If a crate here genuinely needs external consumers, the fix is to"
