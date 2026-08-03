@@ -18,14 +18,24 @@ pub enum CoordinatorKind {
     MediaRelay,
     /// ngrok-style public subdomains for arbitrary box services (REACH profile).
     ReachabilityAdapter,
+    /// Managed infrastructure — the four DEPOT elementals `box`/`bucket`/`volume`/`edge-fn`, with
+    /// `database`, `queue`, `cdn`, image `registry`, static `site` and hosted inference as
+    /// **formulas** composing them (`profiles/cloud.md` §3.6–§3.7). Draft. Its descriptor `policy`
+    /// blob is `kotva_depot::DepotServicePolicy`.
+    ///
+    /// This kind **absorbed the former `compute` kind**. CONTRACT §5's design note ("Why there is
+    /// no separate `compute` kind") records the fold: invoking a model endpoint is "an `edge-fn`
+    /// with `artifact-source = operator` on a class declaring `gpu-count` — an *attribute wearing
+    /// a kind's clothes*", and two kinds both meaning "run code on your machine" left a client
+    /// with nothing to disambiguate them by. `"compute"` is therefore **not** a wire kind and is a
+    /// hard decode-time reject — see [`Self::from_wire_str`].
+    InfraService,
     /// Search / discovery / global product-and-price view.
     Indexer,
     /// Moderation labels, opt-in, subscribable.
     Labeler,
     /// Real-time supply↔demand matching (rides, delivery).
     Matcher,
-    /// Hosted/outsourced computation (e.g. private-AI inference). Provisional.
-    Compute,
     /// Dispute resolution (staked jury).
     Arbiter,
     /// Physical-world / real-fact attestation (delivered? ride done?).
@@ -43,10 +53,10 @@ impl CoordinatorKind {
             CoordinatorKind::Relay => "relay",
             CoordinatorKind::MediaRelay => "media-relay",
             CoordinatorKind::ReachabilityAdapter => "reachability-adapter",
+            CoordinatorKind::InfraService => "infra-service",
             CoordinatorKind::Indexer => "indexer",
             CoordinatorKind::Labeler => "labeler",
             CoordinatorKind::Matcher => "matcher",
-            CoordinatorKind::Compute => "compute",
             CoordinatorKind::Arbiter => "arbiter",
             CoordinatorKind::Oracle => "oracle",
             CoordinatorKind::CustodialEscrow => "custodial-escrow",
@@ -78,7 +88,10 @@ impl CoordinatorKind {
             // Labels public objects — visibility is n/a to a delivery path.
             CoordinatorKind::Labeler => None,
             CoordinatorKind::Matcher => v(Terminating, Declared),
-            CoordinatorKind::Compute => v(Terminating, Declared),
+            // The operator's hardware sees whatever the workload holds — a disclosed trust
+            // boundary. A TEE-attested variant (`blind`/`attested`) is an operator's declaration
+            // to make, not this table's default; see `pier-infra-service`.
+            CoordinatorKind::InfraService => v(Terminating, Declared),
             CoordinatorKind::Arbiter => v(Terminating, Declared),
             CoordinatorKind::Oracle => v(Terminating, Declared),
             CoordinatorKind::CustodialEscrow => v(Terminating, Declared),
@@ -95,16 +108,21 @@ impl CoordinatorKind {
     /// Parse the stable string id back into a kind (the inverse of [`Self::as_str`]), failing
     /// closed (`None`) on any unknown value — used decoding a wire descriptor (`descriptor.rs`),
     /// never guessing at an unrecognized kind string.
+    ///
+    /// `"compute"` is deliberately **absent**: CONTRACT §5 folded it into `infra-service`, and
+    /// §18-wire-format §18.8a.1 requires a decoder reject it. A folded kind that still parses is
+    /// precisely how a retired concept survives in the field, so this is a hard `None` and is
+    /// pinned by `compute_is_a_hard_reject_on_the_wire`.
     pub fn from_wire_str(s: &str) -> Option<Self> {
         Some(match s {
             "gateway" => CoordinatorKind::Gateway,
             "relay" => CoordinatorKind::Relay,
             "media-relay" => CoordinatorKind::MediaRelay,
             "reachability-adapter" => CoordinatorKind::ReachabilityAdapter,
+            "infra-service" => CoordinatorKind::InfraService,
             "indexer" => CoordinatorKind::Indexer,
             "labeler" => CoordinatorKind::Labeler,
             "matcher" => CoordinatorKind::Matcher,
-            "compute" => CoordinatorKind::Compute,
             "arbiter" => CoordinatorKind::Arbiter,
             "oracle" => CoordinatorKind::Oracle,
             "custodial-escrow" => CoordinatorKind::CustodialEscrow,
@@ -129,24 +147,71 @@ impl CoordinatorKind {
 mod tests {
     use super::*;
 
+    /// The CONTRACT §5 registry, in the same order as `kotva_coordinator::CoordinatorKind`.
+    /// §5 is explicit that it is "the single canonical, authoritative list … **eleven** kinds …
+    /// and no other document may enumerate a different count".
+    const ALL_KINDS: [CoordinatorKind; 11] = [
+        CoordinatorKind::Gateway,
+        CoordinatorKind::Relay,
+        CoordinatorKind::MediaRelay,
+        CoordinatorKind::ReachabilityAdapter,
+        CoordinatorKind::InfraService,
+        CoordinatorKind::Indexer,
+        CoordinatorKind::Labeler,
+        CoordinatorKind::Matcher,
+        CoordinatorKind::Arbiter,
+        CoordinatorKind::Oracle,
+        CoordinatorKind::CustodialEscrow,
+    ];
+
     #[test]
     fn as_str_from_str_round_trips_every_kind() {
-        for k in [
-            CoordinatorKind::Gateway,
-            CoordinatorKind::Relay,
-            CoordinatorKind::MediaRelay,
-            CoordinatorKind::ReachabilityAdapter,
-            CoordinatorKind::Indexer,
-            CoordinatorKind::Labeler,
-            CoordinatorKind::Matcher,
-            CoordinatorKind::Compute,
-            CoordinatorKind::Arbiter,
-            CoordinatorKind::Oracle,
-            CoordinatorKind::CustodialEscrow,
-        ] {
+        for k in ALL_KINDS {
             assert_eq!(CoordinatorKind::from_wire_str(k.as_str()), Some(k));
         }
         assert_eq!(CoordinatorKind::from_wire_str("not-a-kind"), None);
+    }
+
+    /// The registry is the eleven of CONTRACT §5 and matches `kotva-coordinator`'s wire strings
+    /// byte for byte. Asserted as an exact set, so neither a silently-added twelfth kind nor a
+    /// dropped one can read as a pass.
+    #[test]
+    fn the_registry_is_exactly_the_canonical_eleven() {
+        let wire: Vec<&str> = ALL_KINDS.iter().map(|k| k.as_str()).collect();
+        assert_eq!(
+            wire,
+            [
+                "gateway",
+                "relay",
+                "media-relay",
+                "reachability-adapter",
+                "infra-service",
+                "indexer",
+                "labeler",
+                "matcher",
+                "arbiter",
+                "oracle",
+                "custodial-escrow",
+            ],
+            "the CONTRACT §5 registry, verbatim as kotva-coordinator emits it"
+        );
+    }
+
+    /// CONTRACT §5 folded `compute` into `infra-service`; §18.8a.1 requires a decoder reject the
+    /// retired string. This is the pier-side twin of kotva-coordinator's `DESCRIPTOR_KIND_COMPUTE`
+    /// corruption control — without it, the two implementations disagree about what is a valid
+    /// descriptor, which is the whole point of a shared registry.
+    #[test]
+    fn compute_is_a_hard_reject_on_the_wire() {
+        assert_eq!(
+            CoordinatorKind::from_wire_str("compute"),
+            None,
+            "`compute` is a retired kind (folded into `infra-service`) and MUST NOT decode"
+        );
+        assert!(
+            !ALL_KINDS.iter().any(|k| k.as_str() == "compute"),
+            "no kind may emit the retired `compute` string"
+        );
     }
 
     #[test]
@@ -181,22 +246,11 @@ mod tests {
 
     #[test]
     fn exactly_two_scarce_reachability_members() {
-        let scarce: Vec<_> = [
-            CoordinatorKind::Gateway,
-            CoordinatorKind::Relay,
-            CoordinatorKind::MediaRelay,
-            CoordinatorKind::ReachabilityAdapter,
-            CoordinatorKind::Indexer,
-            CoordinatorKind::Labeler,
-            CoordinatorKind::Matcher,
-            CoordinatorKind::Compute,
-            CoordinatorKind::Arbiter,
-            CoordinatorKind::Oracle,
-            CoordinatorKind::CustodialEscrow,
-        ]
-        .into_iter()
-        .filter(|k| k.is_scarce_reachability())
-        .collect();
+        assert_eq!(ALL_KINDS.len(), 11, "the registry is the canonical eleven");
+        let scarce: Vec<_> = ALL_KINDS
+            .into_iter()
+            .filter(|k| k.is_scarce_reachability())
+            .collect();
         assert_eq!(scarce.len(), 2);
     }
 }

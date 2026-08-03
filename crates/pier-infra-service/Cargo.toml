@@ -1,6 +1,6 @@
 [package]
-name = "pier-compute"
-description = "The KOTVA `compute` coordinator kind (provisional): hosted/outsourced computation on rented resources, e.g. private-AI inference (CONTRACT §5/§6)."
+name = "pier-infra-service"
+description = "The KOTVA `infra-service` coordinator kind (draft): managed infrastructure — the DEPOT elementals, with hosted inference among the formulas composing them (CONTRACT §5/§6)."
 publish.workspace = true
 version.workspace = true
 edition.workspace = true

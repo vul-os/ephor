@@ -2422,14 +2422,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pier-compute"
-version = "0.0.0"
-dependencies = [
- "pier-conformance",
- "pier-economics",
-]
-
-[[package]]
 name = "pier-conformance"
 version = "0.0.0"
 dependencies = [
@@ -2467,6 +2459,14 @@ dependencies = [
 
 [[package]]
 name = "pier-indexer"
+version = "0.0.0"
+dependencies = [
+ "pier-conformance",
+ "pier-economics",
+]
+
+[[package]]
+name = "pier-infra-service"
 version = "0.0.0"
 dependencies = [
  "pier-conformance",

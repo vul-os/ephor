@@ -488,7 +488,7 @@ mod scarce_resource_tests {
             CoordinatorKind::Indexer,
             CoordinatorKind::Labeler,
             CoordinatorKind::Matcher,
-            CoordinatorKind::Compute,
+            CoordinatorKind::InfraService,
             CoordinatorKind::Arbiter,
             CoordinatorKind::Oracle,
         ] {

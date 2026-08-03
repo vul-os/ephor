@@ -86,13 +86,13 @@ Pier brokers none and takes no cut. Stake (where a kind requires skin-in-the-gam
 | `matcher` | Real-time supply/demand matching (rides, delivery) | `terminating` / `declared` (attested-TEE option) — `Gate::DerivedViewOnly` | **scaffold**, 8 tests |
 | `arbiter` | Dispute resolution over disclosed evidence, staked jury | `terminating` / `declared` — `Gate::NoDeliveryPath` | **scaffold**, 7 tests |
 | `oracle` | Physical-world/real-fact attestation (`ORACLE ⊂ ATTEST`, DIRECTION §2) | `terminating` / `declared` — `Gate::NoDeliveryPath` | **scaffold**, 7 tests |
-| `compute` | Outsourced computation, provisional per CONTRACT §5's own table | `terminating` / `declared` (attested-TEE "blind compute" option) — `Gate::NoDeliveryPath` | **scaffold**, 8 tests |
+| `infra-service` | Managed infrastructure — the DEPOT elementals, with hosted inference among the formulas composing them. Draft per CONTRACT §5; absorbed the former `compute` kind | `terminating` / `declared` (attested-TEE blind-workload option) — `Gate::NoDeliveryPath` | **scaffold**, 8 tests |
 
 "scaffold" means a real `pier_conformance::Coordinator` implementation and a real
 `kotva-core`-signed descriptor exist and are tested, but the kind's own function (ranking,
 labeling, matching, arbitration, attestation, compute) is future work, disclosed in each crate's
 docs — not silently stubbed. `indexer` / `labeler` / `matcher` never present their opt-in ranking
-as an authoritative delivery path; `arbiter` / `oracle` / `compute` are neither a delivery path
+as an authoritative delivery path; `arbiter` / `oracle` / `infra-service` are neither a delivery path
 nor a §4 derived view, so they declare `Gate::NoDeliveryPath` instead.
 
 ## The operator console
@@ -166,7 +166,7 @@ cost-plus markup:
 | `relay` / `media-relay` | per GiB forwarded | recommended | no |
 | `reachability-adapter` | per GiB forwarded | recommended, **higher than `relay`** for the same profile | yes (+$5/mo) |
 | `gateway` | per 1,000 messages | recommended | yes (+$5/mo) |
-| `compute` | per 1,000 compute-seconds | recommended | no |
+| `infra-service` | per 1,000 compute-seconds | recommended | no |
 
 The exact cents come out of `recommended_tariff` against a chosen `HostingProfile`
 (`HETZNER_CX`, `VULTR_GENERIC`, or a padded `GENERIC_VPS`) — see
@@ -217,7 +217,7 @@ extracting this same gateway from envoir failed twice before against a moving co
 | [`pier-billing-patala`](crates/pier-billing-patala) | **Optional**, excluded from the workspace: `SettlementRail` over real `patala` rails | built, isolated, not in CI |
 | [`admin`](crates/pier-admin) | Kind-agnostic operator HTTP API (`pier-admin` binary) | built |
 | [`gateway`](crates/pier-gateway), [`relay`](crates/pier-relay), [`reachability-adapter`](crates/pier-reachability-adapter), [`media-relay`](crates/pier-media-relay) | The four built coordinator kinds | built |
-| [`indexer`](crates/pier-indexer), [`labeler`](crates/pier-labeler), [`matcher`](crates/pier-matcher), [`arbiter`](crates/pier-arbiter), [`oracle`](crates/pier-oracle), [`compute`](crates/pier-compute) | The six scaffolded kinds | scaffold |
+| [`indexer`](crates/pier-indexer), [`labeler`](crates/pier-labeler), [`matcher`](crates/pier-matcher), [`arbiter`](crates/pier-arbiter), [`oracle`](crates/pier-oracle), [`infra-service`](crates/pier-infra-service) | The six scaffolded kinds | scaffold |
 
 Full crate map, per-crate detail, and the `kotva-core` pin mechanics:
 [crates/README.md](crates/README.md).
@@ -253,7 +253,7 @@ Disclosed residuals, not silently fixed:
   one mock reference adapter (`InMemoryLedger`; fail-closed `NoStakeRail`). The real
   `pier-billing-patala` adapter is untested against a live Stellar network — disclosed in-crate,
   not merely absent.
-- **`indexer` / `labeler` / `matcher` / `arbiter` / `oracle` / `compute` are scaffolds** — a real
+- **`indexer` / `labeler` / `matcher` / `arbiter` / `oracle` / `infra-service` are scaffolds** — a real
   signed descriptor and conformance posture exist; the kind's own function does not yet.
 - **The Go reverse-tunnel relay + the `@vulos/relay-client` JS SDK remain the working
   implementation** until the Rust `relay` port is proven in production and this note is removed

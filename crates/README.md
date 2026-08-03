@@ -34,7 +34,7 @@ asserted in prose.
 | `pier-matcher` | Real-time supply/demand matching (rides, delivery); `terminating`/`declared` default, attested-TEE option. `Gate::DerivedViewOnly`. | **scaffold** — 8 tests |
 | `pier-arbiter` | Dispute resolution (staked jury) over disclosed evidence; `terminating`/`declared`. `Gate::NoDeliveryPath`; stake is a `pier-billing::StakeVerifier` seam, no field in the descriptor. | **scaffold** — 7 tests |
 | `pier-oracle` | Physical-world/real-fact attestation (ORACLE ⊂ ATTEST, DIRECTION §2); `terminating`/`declared`. `Gate::NoDeliveryPath`. | **scaffold** — 7 tests |
-| `pier-compute` | Outsourced computation, *provisional* per CONTRACT §5's own table; `terminating`/`declared` default, attested-TEE "blind compute" option. `Gate::NoDeliveryPath`. | **scaffold** — 8 tests |
+| `pier-infra-service` | Managed infrastructure — the DEPOT elementals `box`/`bucket`/`volume`/`edge-fn`, with hosted inference among the formulas composing them; *draft* per CONTRACT §5, and the kind that absorbed the former `compute`. `terminating`/`declared` default, attested-TEE blind-workload option. `Gate::NoDeliveryPath`. | **scaffold** — 8 tests |
 
 "scaffold" means: a real `pier_conformance::Coordinator` implementation and a real
 `kotva-core`-signed descriptor exist and are tested, but the kind's own function (ranking,
