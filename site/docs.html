@@ -97,8 +97,11 @@
 .markdown th{background:var(--bg-surface);font-weight:600;color:var(--text-primary)}
 .markdown img{border-radius:10px;margin:1em 0;border:1px solid var(--border-default);max-width:100%;height:auto}
 .markdown hr{border:none;border-top:1px solid var(--border-default);margin:2em 0}
-.markdown .mermaid{background:var(--bg-surface);border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:1.2em 0;text-align:center;overflow:auto}
-.markdown .mermaid svg{max-width:none}
+.markdown .mermaid{background:var(--bg-surface);border:1px solid var(--border-default);border-radius:10px;padding:18px;margin:1.2em 0;text-align:center;overflow-x:auto;overflow-y:hidden}
+/* Never let the diagram be scaled down to fit — see renderMermaid(): shrinking
+   the drawing shrinks its labels below legibility. It renders at its own size
+   and this box scrolls. !important because mermaid writes an inline max-width. */
+.markdown .mermaid svg{max-width:none !important;height:auto !important}
 .docs-error{color:#f3b3a6;background:rgba(220,80,38,.08);border:1px solid rgba(220,80,38,.25);padding:14px 16px;border-radius:10px}
 
   /* ── Vulos suite chrome — identical on every product landing ───────────────
@@ -230,6 +233,23 @@ async function renderMermaid(){
   });
   const nodes = content.querySelectorAll('.mermaid');
   if(nodes.length){ try { await mermaid.run({ nodes }); } catch(e){ console.warn('mermaid', e); } }
+  // Mermaid emits width="100%" over a viewBox far wider than the column, so the
+  // whole drawing is scaled DOWN to fit — which silently shrinks every label
+  // with it. Measured before this fix: a nominal 16px node label rendered at
+  // 9.17px at a 1280px viewport and 3.63px at 390px, i.e. unreadable, and
+  // invisible to any check that only looks at declared font-size. Pin the svg
+  // to its viewBox's own width so the render scale can never fall below 1; the
+  // .mermaid box already has overflow:auto, so a wide diagram scrolls inside
+  // itself instead of shrinking its own type or pushing the page sideways.
+  content.querySelectorAll('.mermaid svg').forEach(svg=>{
+    const vb=(svg.getAttribute('viewBox')||'').split(/[\s,]+/).map(Number);
+    if(vb.length!==4||!vb[2]||!vb[3]) return;
+    svg.removeAttribute('height');
+    svg.setAttribute('width', vb[2]);
+    svg.style.maxWidth='none';
+    svg.style.width=vb[2]+'px';
+    svg.style.height='auto';
+  });
 }
 
 async function load(slug){
