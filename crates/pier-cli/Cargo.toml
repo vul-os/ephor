@@ -1,0 +1,57 @@
+# pier-cli — `pier`, the operator/user CLI over the DEPOT control plane (profiles/cloud.md §5).
+#
+# STATUS, stated here because it is the first thing a reader needs: this crate has NO TRANSPORT.
+# Not one subcommand performs a real operation against a coordinator. What is real is the
+# *vocabulary* — every action in the command table resolves to a `kotva_depot::Ability` from the
+# CLOSED §5.2 registry and a `kotva_depot::ResourceRef` from the §5.1 grammar, enforced by
+# `tests/ability_mapping.rs` — plus the fail-closed authorisation path and the `certs add` planner.
+# Everything else prints what it WOULD send and exits non-zero. See src/table.rs.
+[package]
+name = "pier-cli"
+description = "`pier` — a flyctl-shaped CLI over the KOTVA DEPOT control plane: closed ability registry, capability-token auth (no bearer keys), box-held-key certificate issuance."
+publish.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "pier_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "pier"
+path = "src/main.rs"
+
+[dependencies]
+# --- THE PATH DEPENDENCY, and why it is a path and not a pin --------------------------------
+# `kotva-depot` is the reference implementation of profiles/cloud.md — the closed §5.2 ability
+# registry and the §5.1 resource grammar this CLI is a client for. It is NOT reachable by the
+# tag-pin convention every other crate here uses (`git = ".../kotva", tag = "core-v0.2.0"`),
+# because that tag predates the crate: `git ls-tree core-v0.2.0 crates/` lists only kotva-core and
+# kotva-mail. So a path dep to the sibling checkout is the only way to consume it today.
+#
+# THIS BECOMES A TAG PIN the moment kotva cuts a tag containing `kotva-depot` — at which point
+# both lines below become `{ git = "https://github.com/vul-os/kotva", tag = "depot-vX.Y.Z" }` and
+# this comment goes away. Tracking kotva's HEAD by path is exactly what the isango guardrail
+# (HANDOVER §Guardrails-1) forbids for the long run; it is tolerated here only because the
+# alternative is vendoring the ability registry into this repo, which would defeat the entire
+# point of the crate — a CLI-local verb vocabulary is the defect §5.2 exists to prevent.
+#
+# CONSEQUENCE, stated plainly rather than discovered later: with this crate in the workspace
+# member list, `cargo build` at the repo root REQUIRES the sibling `../kotva` checkout, the same
+# way `crates/pier-billing-patala` requires `../patala` (which is why that one is `exclude`d).
+# The Rust CI job clones kotva to satisfy it — see .github/workflows/ci.yml.
+kotva-depot = { path = "../../../kotva/crates/kotva-depot" }
+# Same checkout, same reason: `CapabilityToken` (§18.7.3) is the authorisation object, and it must
+# be the SAME type kotva-depot's caveat helpers were written against. Taking this one from the
+# git tag instead would compile — into a second, incompatible `kotva_core`.
+kotva-core = { path = "../../../kotva/crates/kotva-core" }
+
+clap = "4"
+hex = "0.4"
+thiserror = "1"

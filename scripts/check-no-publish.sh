@@ -35,8 +35,8 @@ bad()  { printf 'FAIL: %s\n' "$*"; fail=1; }
 shopt -s nullglob
 mapfile -t manifests < <(find crates -name target -prune -o -name Cargo.toml -print | sort)
 count=${#manifests[@]}
-# 15 workspace/excluded crate dirs + crates/pier-gateway/fuzz. Raise this when a crate is added.
-MIN_CRATES=16
+# 16 workspace/excluded crate dirs + crates/pier-gateway/fuzz. Raise this when a crate is added.
+MIN_CRATES=17
 if (( count < MIN_CRATES )); then
   bad "found $count crate manifests, expected at least $MIN_CRATES — the search matched nothing, or a crate moved"
   echo "(refusing to report a pass over an empty or truncated set)"

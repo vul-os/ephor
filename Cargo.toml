@@ -32,6 +32,7 @@ members = [
     "crates/pier-arbiter",
     "crates/pier-oracle",
     "crates/pier-infra-service",
+    "crates/pier-cli",
 ]
 
 # `crates/pier-billing-patala` is EXCLUDED from this workspace (it is its own single-crate
