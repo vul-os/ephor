@@ -77,7 +77,7 @@ mark itself is **one colour** — there is no secondary mark hue to keep in sync
 |-------|-----|-----|
 | **Bronze (canonical accent)** | **`#C89A56`** | the mark, favicon accent, console theme accent — the one value every surface should agree on |
 | Bronze-ink (text-on-light) | `#8B5A2B` | wordmark fill on light backgrounds — deeper than the accent for legibility on white/cream |
-| Tile ground | `#14100A` | the app tile. A near-black tinted toward bronze, at the same luminance as kotva's `#0f0d0b` and zana's `#14110b`, and identical to the console's `--accent-fill-contrast`. **Do not lighten it** — a ground at twice this brightness vanishes against the dark product grid these tiles sit in. |
+| Tile ground | `#14100A` | the app tile. A near-black tinted toward bronze, in the same near-black band as kotva's `#0f0d0b` and zana's `#14110b` (measured WCAG relative luminance 0.005412, *between* kotva's 0.004136 and zana's 0.005738 — not identical to either, since those two are themselves 1.39x apart), and identical to the console's `--accent-fill-contrast`. **Do not lighten it** — openrate's rejected `#0F1D2E` measures 0.011775, ~2.8x kotva, and a ground at that brightness vanishes against the dark product grid these tiles sit in. |
 | OG tile ground | `#1F1810` | og-image only: one step up from the card ground so the tile edge is visible against it |
 | OG water | `#846639` | og-image only: the card's waterline rule |
 | OG tagline cream | `#EAD4A6` | og-image tagline text |
@@ -124,13 +124,27 @@ The root `logo.png` is `logo-mark.svg` rasterized at 512×512
 
 ## Type
 
-No external fonts are embedded or required. `wordmark.svg` and `og-image.svg` set
-"Pier" with a system font stack (`system-ui, -apple-system, 'Segoe UI', Roboto,
-sans-serif` / `'Helvetica Neue', Arial, sans-serif`) at a heavy weight — this keeps
-the files small and dependency-free; it renders with whatever the OS's default UI
-font is rather than a fixed typeface. If a locked, font-independent wordmark is ever
-needed (e.g. for print), convert the `<text>` node to outlined `<path>` data with a
-tool like `svg-text-to-path` and drop the `font-family`/`font-weight` attributes.
+No external fonts are embedded or required.
+
+**The logotype is DRAWN, not typeset.** The "Pier" in `wordmark.svg` and `og-image.svg`
+is stroked `<path>` letterforms on the mark's own grid — 8-unit strokes, round caps,
+the same bronze — so the wordmark and the tile read as one drawing. They are
+byte-identical on every machine and need no font licence.
+
+This is a rule, not a preference. Both files previously set "Pier" as an SVG `<text>`
+node with a system font stack, and this section used to defend that as "small and
+dependency-free… renders with whatever the OS's default UI font is". That is precisely
+the defect: a logotype that resolves a font at render time is **a different logo on
+every device and in every rasteriser**. The suite retired this construction once
+already — zana's `logo-wordmark*.svg` were deleted for it — so it was a regression
+against a standing decision. **Do not reintroduce `<text>` into a mark or logotype.**
+
+The one remaining exception is the two *supporting* lines on `og-image.svg` (the
+tagline and sub-tagline), which are still `<text>`. They are running copy, not the
+logotype, and `og-image.svg` is rasterised to `icons/og-image.png` by `make-icons.mjs`
+before anyone sees it — so viewers all get the same pixels. The cost is that the PNG
+depends on the fonts of whichever machine ran the generator; regenerate it on a machine
+with Helvetica Neue or Arial available, and check the render.
 
 ## Usage
 

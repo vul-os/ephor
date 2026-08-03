@@ -4,7 +4,12 @@
        standard 84/128) so the gap between the pilings' feet and the water
        still reads as a gap at 16px, and the wave still visibly waves. Below
        that gap the mark stops being a pier and starts being a table. -->
-  <rect width="128" height="128" rx="26" fill="#14100A"/>
+  <!-- rx=28, the product-logo standard, same as logo.svg / logo-mark.svg / wordmark.svg /
+       og-image.svg. This tile read rx=26 for a while; the comment above documents the
+       deliberate 96/128 mark enlargement and says nothing about the radius, so the 26 was an
+       oversight rather than a considered variant — the tile silhouette must not change
+       between the favicon and the app icon. -->
+  <rect width="128" height="128" rx="28" fill="#14100A"/>
   <svg x="16" y="28" width="96" height="72" viewBox="0 0 88 66">
     <g stroke="#C89A56" stroke-width="8" stroke-linecap="round" fill="none">
       <path d="M4 4 H72"/>

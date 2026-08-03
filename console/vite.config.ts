@@ -88,17 +88,40 @@ function brandMark(): Plugin {
 }
 
 /**
- * Emits `/favicon.svg` for the active brand, derived from the same mark file the
- * app inlines — so the tab icon can never disagree with the sidebar.
+ * Emits `/favicon.svg` for the active brand.
  *
- * The marks are `currentColor`-filled (one file, both themes), so the favicon —
- * which has no parent to inherit `color` from — gets `color` pinned to the
- * brand accent on the root element.
+ * Source is `faviconPath` when the brand declares one, else `markPath`. A favicon
+ * is NOT simply the mark at a smaller size: pier ships `brand/favicon.svg`, whose
+ * tile enlarges the mark (96/128 rather than 84/128) so the gap between the
+ * pilings and the water survives 16px. This plugin used to derive unconditionally
+ * from `markPath`, which shipped the untuned bare mark as the tab icon and left
+ * the file built for the job unused.
+ *
+ * The marks are `currentColor`-filled (one file, both themes), so a favicon
+ * derived from one — having no parent to inherit `color` from — gets `color`
+ * pinned to the brand accent on the root element. A dedicated favicon file
+ * normally carries its own fixed palette and needs no pinning.
  */
 function brandFavicon(brandId: string, meta: BrandMeta): Plugin {
+  const source = () => {
+    if (!meta.faviconPath) return readMark(meta);
+    const path = resolve(HERE, meta.faviconPath);
+    try {
+      return readFileSync(path, 'utf8');
+    } catch {
+      throw new Error(
+        `Brand "${meta.name}" declares faviconPath "${meta.faviconPath}" (${path}) but it could not be read.`,
+      );
+    }
+  };
+
   const build = () => {
-    const src = readMark(meta);
-    // A brand whose mark carries its own fixed palette needs no pinning.
+    // Strip design-rationale comments, exactly as brandMark() does. These files
+    // carry more prose than drawing — pier's favicon was ~1.3KB of comment in a
+    // 1.7KB asset — and XML comments have no rendering semantics, so this is
+    // lossless. Omitting it here meant every visitor downloaded the commentary.
+    const src = source().replace(/<!--[\s\S]*?-->/g, '').replace(/\n\s*\n/g, '\n');
+    // A brand whose icon carries its own fixed palette needs no pinning.
     if (!src.includes('currentColor')) return src;
     return src.replace(/<svg\b/, `<svg style="color:${meta.accent}"`);
   };
@@ -115,7 +138,7 @@ function brandFavicon(brandId: string, meta: BrandMeta): Plugin {
     },
     generateBundle() {
       this.emitFile({ type: 'asset', fileName: 'favicon.svg', source: build() });
-      this.info(`emitted favicon.svg for brand "${brandId}" from ${meta.markPath}`);
+      this.info(`emitted favicon.svg for brand "${brandId}" from ${meta.faviconPath ?? meta.markPath}`);
     },
   };
 }

@@ -30,4 +30,8 @@ export const pierMeta: BrandMeta = {
   supportContact: 'https://github.com/vul-os/kotva/issues',
 
   markPath: '../brand/pier.svg',
+  // The tab icon is the tile built for the job, not the bare mark: brand/favicon.svg
+  // enlarges the drawing within its ground (96/128 vs the standard 84/128) so the gap
+  // between the pilings and the water still reads at 16px.
+  faviconPath: '../brand/favicon.svg',
 };

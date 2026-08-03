@@ -14,8 +14,30 @@
       </g>
     </svg>
   </svg>
-  <!-- wordmark: no external fonts — system UI stack only. A deeper bronze-ink than the
-       mark's bright accent, tuned for legibility on light navbars/headers. -->
-  <text x="96" y="61" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
-        font-size="46" font-weight="700" letter-spacing="-1" fill="#8B5A2B">Pier</text>
+  <!-- WORDMARK — DRAWN, NOT TYPESET.
+       These are stroked <path> letterforms, not an SVG <text> node. That is deliberate and
+       load-bearing: a <text> node renders with whatever font the viewing machine happens to
+       resolve, so the "logo" is a different shape on every device and in every rasteriser.
+       The suite retired exactly this construction once before — zana's logo-wordmark*.svg
+       were DELETED for it — so reintroducing it here was a regression against a standing
+       decision, not a fresh tradeoff. Drawn paths are byte-identical everywhere and carry
+       no font licence.
+       The letters speak the mark's own language: 8-unit strokes, round caps, same bronze,
+       so the wordmark and the tile read as one drawing rather than a picture next to a font.
+       Local grid: cap-top y=0, baseline y=46, x-height top y=22; stroke centres inset 4. -->
+  <g transform="translate(100 25)" stroke="#8B5A2B" stroke-width="8" stroke-linecap="round"
+     stroke-linejoin="round" fill="none">
+    <!-- P — stem, plus a bowl that closes back onto it -->
+    <path d="M4 4 V46"/>
+    <path d="M4 4 H17 A11 11 0 0 1 17 26 H4"/>
+    <!-- i — a zero-length stroke renders as a round-cap disc: the tittle -->
+    <path d="M46 8 V8"/>
+    <path d="M46 22 V46"/>
+    <!-- e — crossbar, then 320 degrees of bowl, left open at the lower right -->
+    <path d="M63 34 H85"/>
+    <path d="M85 34 A11 11 0 1 0 82.4 41.1"/>
+    <!-- r — stem, plus a shoulder that lifts and stops, the way the wave stops -->
+    <path d="M100 22 V46"/>
+    <path d="M100 30 Q100 22 112 22"/>
+  </g>
 </svg>

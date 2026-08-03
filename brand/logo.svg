@@ -2,10 +2,15 @@
   <title>Pier</title>
   <!-- Canonical square app tile, to the Vulos product-logo standard: 128 box,
        rx 28, a near-black ground tinted toward the product's own hue. #14100A
-       is bronze-tinted at the same luminance as zana's #14110b and kotva's
-       #0f0d0b (it is the console's own accent-fill-contrast token); a ground at
-       twice that brightness vanishes against the dark product grid these tiles
-       are displayed on. -->
+       is bronze-tinted and sits in the same near-black band as kotva's #0f0d0b
+       and zana's #14110b — measured WCAG relative luminance 0.005412, between
+       kotva's 0.004136 and zana's 0.005738, and identical to openrate's accepted
+       #08111D. (It is also the console's own accent-fill-contrast token.) It is
+       NOT "the same luminance" as either, which is what this note used to claim;
+       those two are themselves 1.39x apart, so no single value could be. The
+       rule the band enforces is the ceiling: openrate's rejected #0F1D2E measured
+       0.011775, ~2.8x kotva, and a ground at that brightness vanishes against the
+       dark product grid these tiles are displayed on. -->
   <rect width="128" height="128" rx="28" fill="#14100A"/>
   <!-- The mark: a deck on three pilings over open water. Geometry is identical
        to pier.svg, scaled to 84/128 (66%) of the tile so its optical weight

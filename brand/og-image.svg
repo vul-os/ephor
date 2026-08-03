@@ -19,7 +19,21 @@
       </g>
     </svg>
   </svg>
-  <text x="112" y="450" fill="#ffffff" font-family="'Helvetica Neue', Arial, sans-serif" font-size="118" font-weight="700" letter-spacing="-4">Pier</text>
+  <!-- The wordmark is DRAWN, the same letterforms as brand/wordmark.svg, scaled 1.85x.
+       It is not an SVG <text> node: a logotype that resolves a font at render time is a
+       different shape on every machine, which is why zana's logo-wordmark*.svg were
+       deleted. The two supporting lines below ARE typeset — see the note there. -->
+  <g transform="translate(112 365) scale(1.85)" stroke="#ffffff" stroke-width="8"
+     stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M4 4 V46"/>
+    <path d="M4 4 H17 A11 11 0 0 1 17 26 H4"/>
+    <path d="M46 8 V8"/>
+    <path d="M46 22 V46"/>
+    <path d="M63 34 H85"/>
+    <path d="M85 34 A11 11 0 1 0 82.4 41.1"/>
+    <path d="M100 22 V46"/>
+    <path d="M100 30 Q100 22 112 22"/>
+  </g>
   <rect x="118" y="482" width="96" height="9" rx="4" fill="#C89A56"/>
   <text x="112" y="546" fill="#EAD4A6" font-family="'Helvetica Neue', Arial, sans-serif" font-size="34" font-weight="500">The broker reference implementation of the KOTVA standard</text>
   <text x="112" y="590" fill="#B99A76" font-family="'Helvetica Neue', Arial, sans-serif" font-size="27">Content-blind · swappable · never sovereign</text>

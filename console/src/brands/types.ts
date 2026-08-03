@@ -69,6 +69,19 @@ export interface BrandMeta {
    * never copied into a TS string — it stays one file on disk.
    */
   markPath: string;
+
+  /**
+   * OPTIONAL path to a favicon-specific SVG, relative to `console/`. When absent
+   * the favicon is derived from `markPath`.
+   *
+   * A favicon is not just the mark at a smaller size. Pier's tile enlarges the
+   * mark within its ground (96/128 rather than the standard 84/128) precisely so
+   * the detail that makes it a *pier* — the gap between the pilings' feet and the
+   * water — still reads at 16px; below that gap "the mark stops being a pier and
+   * starts being a table". Deriving the tab icon from the bare mark threw that
+   * work away and shipped the untuned drawing instead.
+   */
+  faviconPath?: string;
 }
 
 /** A brand as the app sees it: the metadata plus the inlined mark. */
