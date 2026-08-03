@@ -7,8 +7,8 @@ that exercises the SDK in a real browser:
 - **Endpoint failover panel** — live status of the cloud ↔ LAN probe cycle,
   current selected endpoint, and a manual "force re-probe" button.
 - **Fabric/presence panel** — a simulated two-peer fabric session using
-  in-process stub peers (no real backend required); displays the full roster
-  roster, peer connection states, and a broadcast message log.
+  in-process stub peers (no real backend required); displays the full roster,
+  peer connection states, and a broadcast message log.
 - **Architecture diagram** — an embedded SVG sequence diagram of the signaling
   + relay-fallback flow, rendered to a standalone PNG (`docs/screenshots/architecture.png`).
 

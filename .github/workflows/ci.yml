@@ -269,6 +269,25 @@ jobs:
           fi
           echo "working tree clean — the mutation suite restored every file it touched"
 
+  # docs/ and site/docs/ are the same twelve documents kept by hand, with no
+  # generator and no sync step. Duplication like that does not fail loudly; it drifts.
+  # Two of the twelve had already diverged before anything checked.
+  docs:
+    name: Docs — docs/ vs site/docs/ duplication
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # Pure node, no dependencies — nothing to install.
+      - name: Doc duplication drift
+        run: node scripts/check-doc-duplication.mjs
+
   # The release verifier is only worth having if its REFUSALS are exercised.
   # A checksum guard that has quietly stopped failing looks identical, from a
   # green CI run, to one that works. This runs the full synthetic-origin matrix
@@ -299,7 +318,7 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-24.04
-    needs: [client, go, rust, console, verify-script]
+    needs: [client, go, rust, console, docs, verify-script]
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2

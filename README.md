@@ -443,7 +443,7 @@ cd client && npm ci && npm run build && npm test
 cd console && pnpm install && pnpm build && pnpm check
 ```
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs five jobs:
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs six jobs:
 
 - **client** — the JS client on Node 20, including a real-chromium boot guard on the
   BUILT library (the jsdom unit suite imports `client/src` and so cannot see a broken
@@ -455,6 +455,9 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs five jobs:
 - **console** — the operator console on Node 22 (vite 8 requires `^20.19.0 || >=22.12.0`):
   `svelte-check`, build, `check-brand-isolation.sh`, and the six-arm mutation suite that
   proves that gate can still fail, then an assertion that the suite restored the tree.
+- **docs** — `scripts/check-doc-duplication.mjs`. `docs/` and `site/docs/` hold the
+  same twelve documents twice, kept by hand with no generator; every pair must be
+  byte-identical unless the difference is declared with a reason in that script.
 - **verify-script** — `scripts/verify.sh` against a synthetic origin broken in 24
   distinct ways, asserting each exit code *and* that a diagnostic was printed.
 
