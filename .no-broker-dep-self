@@ -1,19 +1,19 @@
 # Scope declaration for tools/gates/no-broker-dep.sh (the R-SOV-1 gate, lifted from kotva).
 #
-# no-broker-dep:self-broker: this repo IS the Ephor broker/coordinator reference implementation that BROKER_RE names, not a product depending on it.
+# no-broker-dep:self-broker: this repo IS the Pier broker/coordinator reference implementation that BROKER_RE names, not a product depending on it.
 #
 # Why a repo-level declaration instead of individual :allow-file markers, and why that is
 # an honest use of the escape hatch rather than a way to dodge it:
 #
-# BROKER_RE defaults to `ephor|vulos-relayd`. Both terms are THIS repo's own names —
-# Cargo.toml's header calls it "Ephor — the broker (coordinator) reference implementation
-# of the KOTVA standard", and cmd/vulos-relayd/main.go is ephor's own Go reverse-tunnel
+# BROKER_RE defaults to `pier|vulos-relayd`. Both terms are THIS repo's own names —
+# Cargo.toml's header calls it "Pier — the broker (coordinator) reference implementation
+# of the KOTVA standard", and cmd/vulos-relayd/main.go is pier's own Go reverse-tunnel
 # relay binary (a legacy binary name for the same product, not a second broker). R-SOV-1
 # asks "does this PRODUCT depend on the broker?" — applied to the broker's own source tree
 # the question is malformed, not merely satisfied: every crate path under this checkout
-# (.../ephor/crates/admin, .../ephor/crates/gateway, ...) matches BROKER_RE purely because
-# the checkout directory is named "ephor", and essentially every source file, README and
-# comment legitimately says "Ephor" in the sense of naming itself. Running the gate here
+# (.../pier/crates/admin, .../pier/crates/pier-gateway, ...) matches BROKER_RE purely because
+# the checkout directory is named "pier", and essentially every source file, README and
+# comment legitimately says "Pier" in the sense of naming itself. Running the gate here
 # produced ~300 structural false positives, none of them a dependency edge.
 #
 # Marking every one of those files individually with :allow-file would either bury that
@@ -25,5 +25,5 @@
 # see tools/gates/no-broker-dep.sh's CONFIGURATION section and selftest controls
 # ('self_broker_reasoned' / 'self_broker_unreasoned') in kotva, which prove a reason-free
 # version of this file is deliberately NOT honoured and the gate runs its normal scan
-# instead. Ephor is not thereby exempt from anything else: a genuine dependency by THIS
+# instead. Pier is not thereby exempt from anything else: a genuine dependency by THIS
 # repo on some OTHER broker would still need its own honest accounting; there is none.

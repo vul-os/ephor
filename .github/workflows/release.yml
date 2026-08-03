@@ -170,7 +170,7 @@ jobs:
   # actions/attest-build-provenance signs with a short-lived sigstore
   # certificate minted from this workflow's OIDC token: no long-lived key, no
   # new secret, no new hosted service, and the identity it binds is
-  # "vul-os/ephor's release workflow at this commit" rather than "whoever holds
+  # "vul-os/pier's release workflow at this commit" rather than "whoever holds
   # the key". Users check it with `gh attestation verify`, which they already
   # have if they use GitHub at all.
   #
