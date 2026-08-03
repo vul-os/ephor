@@ -476,7 +476,7 @@
   }
 
   .foot-note {
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     color: var(--text-tertiary);
     line-height: 1.5;
     margin: 0;
@@ -490,7 +490,7 @@
     align-items: center;
     gap: 0.4rem;
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: 0.7rem;
     margin: 0;
   }
   .foot-links a {
@@ -567,7 +567,7 @@
     margin: 0;
     min-width: 0;
     flex: 1 1 22rem;
-    font-size: 0.72rem;
+    font-size: 0.78rem;
     line-height: 1.4;
     color: var(--text-secondary);
     background: var(--status-warning-soft);
