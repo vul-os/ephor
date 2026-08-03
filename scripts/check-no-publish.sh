@@ -22,12 +22,23 @@ note() { printf '  %s\n' "$*"; }
 bad()  { printf 'FAIL: %s\n' "$*"; fail=1; }
 
 # --- 4. coverage floor first, so an empty glob can never look like success -------------------
+#
+# Discovery is a DEPTH-INDEPENDENT find, not `crates/*/Cargo.toml`. That glob is pinned to exactly
+# one level below crates/ and therefore could not match `crates/pier-gateway/fuzz/Cargo.toml` — a
+# real, separate crate with its own manifest — no matter how many crates existed. The floor could
+# not catch it either: MIN_CRATES equalled the number of top-level crate dirs exactly, so the gate
+# was honest about the 15 it saw and silent about the 16th. A nested crate (fuzz targets, xtask,
+# examples, integration harnesses) is precisely where a stray `publish = true` would go unnoticed,
+# and the gate's stated purpose is that a NEW crate inherits the rule by DEFAULT.
+#
+# `-prune` on target/ keeps vendored/build manifests out; they are not ours to govern.
 shopt -s nullglob
-manifests=(crates/*/Cargo.toml)
+mapfile -t manifests < <(find crates -name target -prune -o -name Cargo.toml -print | sort)
 count=${#manifests[@]}
-MIN_CRATES=15
+# 15 workspace/excluded crate dirs + crates/pier-gateway/fuzz. Raise this when a crate is added.
+MIN_CRATES=16
 if (( count < MIN_CRATES )); then
-  bad "found $count crate manifests, expected at least $MIN_CRATES — glob matched nothing, or a crate moved"
+  bad "found $count crate manifests, expected at least $MIN_CRATES — the search matched nothing, or a crate moved"
   echo "(refusing to report a pass over an empty or truncated set)"
   exit 1
 fi

@@ -78,11 +78,34 @@ while IFS= read -r -d '' file; do
     # -a: read as text even for the vendored .woff/.woff2 faces, so binary
     #     assets are genuinely searched rather than silently skipped.
     # LC_ALL=C: byte-wise matching, no locale surprises on the font blobs.
-    if LC_ALL=C grep -aiq -- "$needle" "$file"; then
-      printf '\033[31m  hit\033[0m %s contains "%s":\n' "${file#"$DIST_DEFAULT"/}" "$needle" >&2
-      LC_ALL=C grep -aio -- ".\{0,60\}$needle.\{0,60\}" "$file" | head -5 | sed 's/^/       /' >&2
-      hits=$((hits + 1))
-    fi
+    #
+    # The exit status is scored in THREE branches, not two. grep exits 0 on a
+    # match, 1 on no match, and 2 on an ERROR — an unreadable file, a permission
+    # denial, an I/O failure. An earlier revision wrote `if grep -aiq ...; then`,
+    # which folds 2 in with 1: a file the scanner could not open was scored
+    # identically to a file it had read and found clean. That is a false green in
+    # the exact case that matters, and the coverage assertions below could not
+    # catch it either, because REQUIRED_ARTIFACTS is satisfied by find's LISTING
+    # of a path, never by a successful READ of it. Observed live: the gate printed
+    # PASS while emitting ~30 "No such file or directory" lines.
+    #
+    # `set -e` is not a backstop here — the status is consumed by `if`, so a
+    # failing grep would not trip it. It has to be scored explicitly.
+    # `|| status=$?` (not a bare call) because `set -e` is in force: an
+    # unmatched grep legitimately exits 1 and would otherwise abort the scan.
+    status=0
+    LC_ALL=C grep -aiq -- "$needle" "$file" || status=$?
+    case "$status" in
+      0)
+        printf '\033[31m  hit\033[0m %s contains "%s":\n' "${file#"$DIST_DEFAULT"/}" "$needle" >&2
+        LC_ALL=C grep -aio -- ".\{0,60\}$needle.\{0,60\}" "$file" | head -5 | sed 's/^/       /' >&2
+        hits=$((hits + 1))
+        ;;
+      1) ;; # genuinely read, genuinely clean
+      *)
+        fail "could not scan ${file#"$DIST_DEFAULT"/} for \"$needle\" (grep exit $status) — an unreadable file is NOT a clean file"
+        ;;
+    esac
   done
 done < <(find "$DIST_DEFAULT" -type f -print0)
 
