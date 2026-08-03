@@ -168,7 +168,7 @@ func TestSharedVectorsRootsAndProofs(t *testing.T) {
 		gotRoot := ManifestRoot(chunks)
 		if gotRoot != wantRoot {
 			t.Errorf("%s: root %s, corpus says %s — the tree, the DS tag or the leaf rule differs",
-				gotRoot, wantRoot, v.Name)
+				v.Name, gotRoot, wantRoot)
 		}
 		if gotRoot.String() != v.RootB64URL {
 			t.Errorf("%s: root base64url %s, corpus says %s", v.Name, gotRoot.String(), v.RootB64URL)

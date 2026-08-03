@@ -21,6 +21,14 @@ import (
 // instead of promoting — one of the two suites fails.
 //
 // This file adds the layer beneath that: the HASH ITSELF.
+//
+// The layer ABOVE it is vectors_test.go, added later: the "IDENTICAL constants"
+// described here were HAND-COPIED between the two suites, and the JS half has
+// since moved to another repo entirely (kotva bindings/js). Copies drift, and a
+// pair of implementations checked against each other cannot see themselves
+// agreeing on something wrong. vectors_test.go checks this package against
+// foreign bytes instead — an independently generated corpus that BOTH languages
+// read, pinned by a sha256 both suites assert.
 
 // TestBLAKE3KnownAnswer pins BLAKE3's output against fixed vectors.
 //

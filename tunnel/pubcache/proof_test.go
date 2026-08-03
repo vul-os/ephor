@@ -698,6 +698,13 @@ func TestChunkProofInteropVector(t *testing.T) {
 // divergence between the Go node and the browser fails one side. If you ever
 // intentionally change the tree or the proof encoding, regenerate BOTH copies
 // together.
+//
+// THAT LOCK IS A PAIR OF HAND-COPIES, and copies drift — worse, two
+// implementations checked against each other cannot see themselves agreeing on
+// something WRONG. The mechanical half now lives in vectors_test.go, which
+// checks this package against foreign bytes (testdata/chunkproof_vectors.json,
+// generated independently in kotva) and asserts that the corpus CONTAINS the
+// constants below, so regenerating it cannot quietly move them.
 const interopRootB64 = "HqmS4uJD2JJOZjmeF-YZikRhImZOgGvZHe6IwCOpRyT_"
 
 var interopProofHex = map[int]string{
