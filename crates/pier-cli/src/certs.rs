@@ -403,7 +403,7 @@ impl CertPlan {
             "2. THE ACME RUN (RFC 8555). No account registration, no newOrder, no challenge \
              response — neither the TLS-ALPN-01 responder on :443 nor the DNS-01 TXT publication — \
              no finalize, and no certificate download. Nothing contacts a CA.",
-            "3. PUBLISHING OR CHECKING THE DNS. The records below are printed for you to publish. \
+            "3. PUBLISHING OR CHECKING THE DNS. The records above are printed for you to publish. \
              `pier` does not write them, and does not resolve them afterwards to confirm they took \
              effect. In particular it has NOT verified that the CAA record exists.",
             "4. THE `reconfigure` CALL. Telling the box to start serving the new name is a DEPOT \

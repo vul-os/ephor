@@ -6,8 +6,12 @@
 //! and with counts, so a command cannot exist without an ability and an ability row cannot exist
 //! without a reachable command.
 
+use std::path::PathBuf;
+
 use clap::{Arg, ArgAction, Command};
 
+use crate::certs::CertRequest;
+use crate::run::Invocation;
 use crate::table::{groups, Cmd, TABLE};
 
 /// The banner every `--help` starts with. It is the first thing a user reads, and it is the
@@ -255,6 +259,59 @@ pub fn selected(m: &clap::ArgMatches) -> Option<(String, &clap::ArgMatches)> {
         Some((tail, leaf_m)) => Some((format!("{head} {tail}"), leaf_m)),
         None => Some((head.to_string(), sub)),
     }
+}
+
+/// Read an optional string argument **without assuming it was defined on this subcommand**.
+///
+/// `ArgMatches::get_one` *panics* on an id the matched subcommand never declared — and since the
+/// arguments here are per-command (`--service` only exists on `logs`, `--ingress` only on `certs
+/// add`), a marshaller that reaches for every id blows up on every command that lacks one. That is
+/// exactly what happened: the marshalling lived in `main.rs`, no test could reach it, and the
+/// binary panicked on literally every invocation while 39 tests were green. `try_get_one` returns
+/// `Err` instead of panicking, which is the only reason this is a lookup and not a landmine.
+fn opt(m: &clap::ArgMatches, id: &str) -> Option<String> {
+    m.try_get_one::<String>(id).ok().flatten().cloned()
+}
+
+/// Same, for flags.
+fn flag(m: &clap::ArgMatches, id: &str) -> bool {
+    matches!(m.try_get_one::<bool>(id), Ok(Some(true)))
+}
+
+/// Marshal parsed matches into the [`Invocation`] the dispatcher runs.
+///
+/// In the library, not the binary, so `tests/end_to_end.rs` can drive every command through it.
+pub fn invocation(matches: &clap::ArgMatches) -> Option<Invocation> {
+    let (key, leaf) = selected(matches)?;
+
+    let cert = if key == "certs add" {
+        Some(CertRequest {
+            domain: opt(leaf, "domain").unwrap_or_default(),
+            ingress: opt(leaf, "ingress").unwrap_or_default(),
+            acme_delegation: opt(leaf, "acme-delegation"),
+            ca: opt(leaf, "ca").unwrap_or_else(|| "letsencrypt.org".to_string()),
+            acme_account: opt(leaf, "acme-account"),
+            exclude_tls_alpn: flag(leaf, "exclude-tls-alpn"),
+            caa_enforcement_established: flag(leaf, "caa-enforcement-established"),
+        })
+    } else {
+        None
+    };
+
+    Some(Invocation {
+        id: if key == "certs add" {
+            opt(leaf, "box-id")
+        } else {
+            opt(leaf, "id")
+        },
+        service: opt(leaf, "service"),
+        token: opt(matches, "token")
+            .or_else(|| opt(leaf, "token"))
+            .map(PathBuf::from),
+        coordinator: opt(matches, "coordinator").or_else(|| opt(leaf, "coordinator")),
+        cert,
+        key,
+    })
 }
 
 #[cfg(test)]
