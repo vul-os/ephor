@@ -281,9 +281,31 @@ h3 {
   font-weight: 600;
 }
 
-/* Running prose uses Inter for readability — the one place sans appears. */
-p {
+/* ── The mono/sans split ─────────────────────────────────────────────────────
+   Mono is the console's signature and carries everything an operator SCANS:
+   chrome, labels, kickers, identifiers, clause refs, figures. Sans (Inter)
+   carries everything an operator READS: sentences.
+
+   This used to be expressed as `p { font-family: sans }` and nothing else,
+   which made the rule accidental rather than intentional — whether a sentence
+   got Inter depended on whether its author happened to reach for a <p>. The
+   caveats and legends written as <span>/<dd> therefore stayed monospace, so
+   multi-line prose was being set in mono at 14px over a ~660px measure.
+
+   So: <p> keeps the rule, and `.prose` states it explicitly for the sentences
+   that are not paragraphs. Anything nested that is an identifier — a hex
+   digest, a §ref, a config key — opts back into mono via <code>/.mono, which
+   is why those two are re-asserted after. */
+p,
+.prose {
   font-family: var(--font-sans);
+}
+
+p code,
+p .mono,
+.prose code,
+.prose .mono {
+  font-family: var(--font-mono);
 }
 
 a {
@@ -411,6 +433,71 @@ button {
 
 .panel-body {
   padding: 1.4rem;
+}
+
+/* ---------- page head (shared by every route) ----------
+   An operator console is not a landing page. This block used to be six
+   near-identical copies across the route files, each a stacked kicker + a
+   1.7–1.9rem h1 + a full-size two-line lede + a ruled gap: ~250px of masthead
+   before the first number, on a viewport that only has 900. Landing-page pacing
+   in a control plane.
+
+   One row instead: title left, an optional status slot right (`.page-head-aside`),
+   and the explanatory sentence demoted to one small muted line underneath. The
+   title still reads first — it is just no longer the tallest thing on screen.
+   Routes now set nothing but their own .lede measure, if that. */
+.page-head {
+  display: flex;
+  align-items: baseline;
+  /* flex-start, NOT space-between. Most routes write the head as three
+     siblings — a kicker, the h1, then the lede — and space-between pushed them
+     to the two edges with the title stranded mid-row, reading as if it were
+     centred. Left-flowing is what a title row actually wants. */
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border-default);
+  position: relative;
+}
+
+/* The short bronze segment riding the head's own rule is kept — it is the same
+   "ruled masthead" device as .panel-header::after and costs no height. */
+.page-head::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 58%;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent 90%);
+  opacity: 0.6;
+}
+
+.page-head h1 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+/* Trailing slot for at-a-glance state (a verdict pill, a count). Sits on the
+   title's baseline at full width and drops below it when the row runs out. */
+.page-head-aside {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* Full-width third line: the sentence, small and quiet. order:3 keeps it under
+   BOTH the title and the aside however the row happens to wrap. */
+.page-head .lede {
+  order: 3;
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--text-tertiary);
+  max-width: 88ch;
 }
 
 .btn {
@@ -581,6 +668,11 @@ textarea:disabled {
 .note {
   font-size: 0.8rem;
   color: var(--text-secondary);
+  /* A note is always a sentence, and its body is written as a <span> (the
+     leading glyph is the first child), so it never picked up the p → sans rule
+     and every note in the console rendered as multi-line prose in monospace.
+     Identifiers nested inside still opt back into mono via <code>/.mono. */
+  font-family: var(--font-sans);
   /* --bg-base rather than a surface tone is deliberate: sitting inside a
      --bg-surface panel-body, a base-tone note reads as a slightly RECESSED
      slot (like a quoted callout), the opposite depth cue from the panel's own
@@ -594,6 +686,11 @@ textarea:disabled {
   align-items: flex-start;
   line-height: 1.45;
   transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.note code,
+.note .mono {
+  font-family: var(--font-mono);
 }
 
 .note strong {

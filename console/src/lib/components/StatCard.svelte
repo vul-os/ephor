@@ -10,7 +10,20 @@
     value: string;
     unit?: string;
     hint?: string;
-    accent?: 'ink' | 'teal' | 'bronze';
+    /**
+     * What the figure MEANS, not what colour to paint it.
+     *
+     * The previous vocabulary was `'ink' | 'teal' | 'bronze'` — colour names,
+     * and both of the coloured ones resolved to `var(--accent)`, so a card
+     * asking for teal silently rendered bronze and "Receipts issued" had been
+     * shipping in the brand colour while claiming to be teal. Naming the
+     * meaning instead of the paint makes that class of mismatch unstateable.
+     *
+     * Brand bronze is deliberately NOT reachable from here. Bronze means brand
+     * and navigation; a metric is data, and data is ink until something about
+     * it is actually good or actually wrong.
+     */
+    accent?: 'ink' | 'good' | 'warn';
   } = $props();
 
   // Long values (hashes, ids, verbose amounts) must stay legible rather than
@@ -26,8 +39,8 @@
     <span
       class="value"
       class:long
-      class:teal={accent === 'teal'}
-      class:bronze={accent === 'bronze'}
+      class:good={accent === 'good'}
+      class:warn={accent === 'warn'}
       title={long ? value : undefined}>{value}</span
     >
     {#if unit}<span class="unit">{unit}</span>{/if}
@@ -37,10 +50,10 @@
 
 <style>
   .stat {
-    padding: 1.15rem 1.3rem 1.25rem;
+    padding: 0.95rem 1.15rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
     min-width: 0;
   }
 
@@ -91,9 +104,15 @@
     letter-spacing: -0.01em;
   }
 
-  .value.teal,
-  .value.bronze {
-    color: var(--accent);
+  /* Semantic, and only when there is something to say. A grid where several
+     figures are tinted by default has no hierarchy — everything is emphasised,
+     so nothing is. A tint here means this number is the one to look at. */
+  .value.good {
+    color: var(--status-success);
+  }
+
+  .value.warn {
+    color: var(--status-warning);
   }
 
   .unit {

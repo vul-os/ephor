@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { client, IS_MOCK } from '../lib/api';
+  import { client } from '../lib/api';
   import type { ReportDto, ReceiptsResponse, PrepaidAccount, SignedDescriptorDto } from '../lib/types';
   import VisibilityBadge from '../lib/components/VisibilityBadge.svelte';
   import ConformanceStrip, { CLAUSE_TITLE } from '../lib/components/ConformanceStrip.svelte';
@@ -53,9 +53,13 @@
 
 <div class="page">
   <header class="page-head reveal">
-    <span class="panel-kicker">Overview</span>
     <h1>Coordinator posture</h1>
-    <p class="lede">The coordinator's declared posture and the numbers an operator checks first.</p>
+    {#if descriptor}
+      <span class="page-head-aside">
+        <span class="kind-chip mono">{descriptor.kind}</span>
+      </span>
+    {/if}
+    <p class="lede">The declared posture and the numbers an operator checks first.</p>
   </header>
 
   {#if loading || !descriptor || !conformance}
@@ -105,21 +109,26 @@
   {:else}
     <div class="grid-top">
       <section class="panel visibility-panel reveal reveal-1">
+        <!-- The "Edit descriptor →" button used to sit in this header row and
+             took enough of it that the title wrapped as "Declared content-" /
+             "visibility". The title is the COORD-4 clause name and is worth
+             keeping verbatim, so the action moved to the card's foot instead —
+             which is also where an action belongs relative to the state it
+             acts on. -->
         <div class="panel-header">
           <div>
-            <span class="panel-kicker">Kind · {descriptor.kind}</span>
+            <span class="panel-kicker">COORD-4</span>
             <h2>Declared content-visibility</h2>
           </div>
-          <button class="btn btn-ghost" type="button" onclick={() => router.go('descriptor')}>Edit descriptor →</button>
         </div>
         <div class="panel-body">
           <VisibilityBadge visibility={descriptor.visibility} />
           {#if descriptor.note}
-            <div class="note">
-              <span aria-hidden="true">◈</span>
-              <span>{descriptor.note}</span>
-            </div>
+            <p class="descriptor-note">{descriptor.note}</p>
           {/if}
+          <button class="btn btn-ghost panel-action" type="button" onclick={() => router.go('descriptor')}>
+            Edit descriptor →
+          </button>
         </div>
       </section>
 
@@ -152,8 +161,12 @@
       </section>
     </div>
 
+    <!-- Every one of these four cards used to repeat the hint "metered this
+         period, all payers" under its figure. Four identical sentences say
+         nothing the section label cannot say once, and they pushed the second
+         row of cards off the fold. Stated once, in the label. -->
     <div class="stat-section">
-      <span class="panel-kicker stat-section-label">Metered usage · this period</span>
+      <span class="panel-kicker stat-section-label">Metered this period · all payers</span>
       <div class="stat-grid">
         {#each RESOURCE_KINDS as k, i (k)}
           <div class="reveal reveal-{i + 3}">
@@ -161,21 +174,25 @@
               label={kindLabel(k)}
               value={kindQuantity(k, usageTotals[k] ?? 0).split(' ')[0]}
               unit={kindQuantity(k, usageTotals[k] ?? 0).split(' ').slice(1).join(' ')}
-              hint="metered this period, all payers"
             />
           </div>
         {/each}
       </div>
     </div>
 
-    <div class="stat-section stat-section-secondary">
+    <div class="stat-section">
       <span class="panel-kicker stat-section-label">Ledger &amp; identity</span>
       <div class="stat-grid">
+        <!-- Was permanently bronze. A figure painted in the brand colour
+             whatever it says is decoration, not signal — so the tint is now
+             earned: amber only while a payer is actually below their top-up
+             threshold, ink the rest of the time. That is the one number on
+             this page that can demand action. -->
         <div class="reveal reveal-3">
           <StatCard
             label="Prepaid balance"
             value={ledgerMoney(totalBalance, currency)}
-            accent="bronze"
+            accent={lowBalanceCount > 0 ? 'warn' : 'ink'}
             hint={lowBalanceCount > 0 ? `${lowBalanceCount} payer${lowBalanceCount > 1 ? 's' : ''} below top-up threshold` : 'all payers above threshold'}
           />
         </div>
@@ -183,7 +200,6 @@
           <StatCard
             label="Receipts issued"
             value={integer(receipts?.receipts.length ?? 0)}
-            accent="teal"
             hint="signed usage receipts on file"
           />
         </div>
@@ -204,63 +220,45 @@
       </div>
     </div>
 
-    {#if IS_MOCK}
-      <div class="footer-notes reveal reveal-6">
-        <div class="note note-caution">
-          <span aria-hidden="true">⚑</span>
-          <span><strong>Demo data.</strong> This build is reading fixture data (VITE_MOCK=1), not a live coordinator admin API. See <code>console/README.md</code> to point it at a real coordinator.</span>
-        </div>
-      </div>
-    {/if}
+    <!-- The fixture-data disclosure used to live here, at the very bottom of
+         this one route — 1254px down, below the fold, and duplicated by a
+         "Demo data" pill in the sidebar. It now sits in the sticky topbar in
+         Shell.svelte, where the full sentence is on screen on every route and
+         never scrolls away. Nothing was softened; it moved up. -->
   {/if}
 </div>
 
 <style>
   /* ---------- page rhythm ----------
-     A two-tier gap scale, both drawn from --space-*: --space-6 between major
-     regions of the page (head → top grid → each stat section → footer), and
-     --space-3/4 for the tighter relationships within a region (a section's
-     label to its grid, a card's own internal padding). The bigger the visual
-     distance between two things, the bigger the token — nothing here is an
-     ad-hoc rem. */
+     A two-tier gap scale, both drawn from --space-*: --space-5 between major
+     regions of the page (head → top grid → each stat section), and --space-2/3
+     for the tighter relationships within a region (a section's label to its
+     grid). The bigger the visual distance between two things, the bigger the
+     token — nothing here is an ad-hoc rem.
+
+     The outer step was --space-6 (32px). At four stacked regions that alone
+     spent ~96px of a 900px viewport on air, which is why the second card row
+     sat below the fold. --space-5 keeps the regions clearly separate and buys
+     the row back. .page-head and .lede now come from app.css, shared by every
+     route instead of copied into six of them. */
   .page {
     display: flex;
     flex-direction: column;
-    gap: var(--space-6);
+    gap: var(--space-5);
   }
 
-  .page-head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding-bottom: var(--space-5);
-    border-bottom: 1px solid var(--border-subtle);
-    position: relative;
-  }
-
-  /* A short bronze segment riding the header's own rule — the same "ruled
-     masthead" idea as .panel-header::after, scaled up for the page's own
-     head instead of a card's. */
-  .page-head::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 58%;
-    bottom: -1px;
-    height: 1px;
-    background: linear-gradient(90deg, var(--accent), transparent 90%);
-    opacity: 0.6;
-  }
-
-  h1 {
-    font-size: 1.7rem;
-    margin: var(--space-1) 0 var(--space-2);
-  }
-
-  .lede {
-    color: var(--text-secondary);
-    margin: 0;
-    max-width: 56ch;
+  /* The descriptor kind, in the page head's trailing slot. It was the panel
+     kicker "Kind · reachability-adapter"; up here it identifies the whole page
+     and frees the panel kicker to name the clause the panel is about. */
+  .kind-chip {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-full);
+    padding: 0.16rem 0.6rem;
   }
 
   /* ---------- loading state ----------
@@ -411,15 +409,45 @@
     }
   }
 
-  /* Kept short and stretched to match the conformance panel's height, but the
-     content is now centred in the available space (badge + the descriptor's
-     own note, moved in from the page footer where it read as a stray aside)
-     rather than pinned to the top with dead air below it. */
+  /* The panel is the flex column and the body is what grows. NOT
+     `.panel-body { height: 100% }`: the body's 100% resolves against the whole
+     PANEL, header included, so the body ended up one header taller than the
+     space it had and pushed its own last child — the "Edit descriptor →"
+     action — clean out of the card and on top of the section label below it.
+     Nothing measured that: the escape is vertical, so scrollWidth was 1440 and
+     no element crossed the right edge. It was visible only in the screenshot. */
+  .visibility-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
   .visibility-panel .panel-body {
     display: flex;
     flex-direction: column;
-    justify-content: center;
-    gap: var(--space-4);
+    gap: var(--space-3);
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* The descriptor's own note. Was a bordered, recessed .note box, which gave a
+     one-sentence aside the same visual weight as the state above it; it is a
+     footnote, so it is now set as one. */
+  .descriptor-note {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-tertiary);
+    padding-left: var(--space-3);
+    border-left: 2px solid var(--border-strong);
+  }
+
+  /* Actions sit at the foot of the state they act on, pushed to the bottom so
+     the card's action line stays put whatever the panel height resolves to. */
+  .panel-action {
+    align-self: flex-start;
+    margin-top: auto;
+    padding-left: 0;
+    padding-right: 0.6rem;
   }
 
   .strip-note {
@@ -480,13 +508,6 @@
     color: var(--text-faint);
   }
 
-  /* Icon glyph on any .note rendered by this page (the descriptor's own note,
-     now living in the visibility panel, and the demo-data caution in the
-     footer) reads in the brand accent either way. */
-  .note span[aria-hidden] {
-    color: var(--accent);
-  }
-
   /* ---------- metric cards ---------- */
   .stat-section {
     display: flex;
@@ -501,7 +522,7 @@
   .stat-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-4);
+    gap: var(--space-3);
   }
 
   @media (max-width: 760px) {
@@ -519,9 +540,4 @@
     }
   }
 
-  .footer-notes {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
 </style>

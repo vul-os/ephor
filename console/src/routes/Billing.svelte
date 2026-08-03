@@ -357,15 +357,6 @@
     letter-spacing: 0.02em;
     color: var(--text-muted);
   }
-  h1 {
-    font-size: 1.9rem;
-    margin: 0.2rem 0 0.35rem;
-  }
-  .lede {
-    color: var(--text-secondary);
-    margin: 0;
-    max-width: 68ch;
-  }
 
   /* ---------- loading skeleton ---------- */
   .skeleton-panel {

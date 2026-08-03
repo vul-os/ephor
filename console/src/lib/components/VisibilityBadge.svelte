@@ -28,7 +28,6 @@
   <div class="text">
     <div class="class-row">
       <span class="class-label">{CLASS_LABEL[visibility.class]}</span>
-      <span class="sep">/</span>
       <span class="level-label">{LEVEL_LABEL[visibility.level]}</span>
     </div>
     <p class="desc">{CLASS_DESCRIPTION[visibility.class]}</p>
@@ -57,31 +56,36 @@
 </div>
 
 <style>
+  /* No fill and no 1.5px coloured frame.
+     The declared CLASS is the answer to "what is this coordinator", and it was
+     being out-shouted by its own footnote: as a filled, amber-bordered box
+     wrapping a second nested amber callout, this component took ~66% of its
+     card and was the loudest element on the page. A permanent, never-changing
+     disclosure rendered as a fat amber alert is how operators learn to ignore
+     amber — so the alert chrome is gone and the class is simply set large in
+     ink. The caveat keeps its words and its shape (see .warn-text) and loses
+     only its volume. */
   .badge {
     display: flex;
-    gap: 1rem;
+    gap: 0.85rem;
     align-items: flex-start;
-    padding: 1.1rem 1.3rem;
-    border-radius: var(--radius-lg);
-    border: 1.5px solid var(--accent);
-    background: var(--accent-soft);
-    transition: border-color var(--dur) var(--ease), background-color var(--dur) var(--ease);
-  }
-
-  .badge.warn {
-    border-color: var(--status-warning);
-    background: var(--status-warning-soft);
+    padding: 0;
+    background: none;
+    border: none;
   }
 
   .badge.sm {
-    padding: 0.7rem 0.9rem;
-    border-radius: var(--radius-md);
+    gap: 0.6rem;
   }
 
+  /* Kept, and kept small. The shield is the one piece of the old alert chrome
+     worth carrying over: it marks the assurance level by SHAPE, so the state
+     survives greyscale and colour-blindness without a coloured container. */
   .glyph {
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 2rem;
+    height: 2rem;
     flex-shrink: 0;
+    margin-top: 0.15rem;
     color: var(--accent);
     border-radius: 50%;
     background: var(--bg-elevated);
@@ -93,61 +97,83 @@
 
   .badge.warn .glyph {
     color: var(--status-warning);
+    border-color: color-mix(in srgb, var(--status-warning) 35%, var(--border-default));
   }
 
   .glyph svg {
-    width: 1.3rem;
-    height: 1.3rem;
+    width: 1.1rem;
+    height: 1.1rem;
   }
 
   .sm .glyph {
-    width: 1.9rem;
-    height: 1.9rem;
+    width: 1.6rem;
+    height: 1.6rem;
+    margin-top: 0;
   }
   .sm .glyph svg {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 0.95rem;
+    height: 0.95rem;
   }
 
   .text {
     min-width: 0;
   }
 
+  /* The headline. Ink, not amber: this is the current state, not a warning. */
   .class-row {
     font-family: var(--font-mono);
     font-weight: 700;
-    font-size: 1.5rem;
-    letter-spacing: -0.01em;
+    font-size: 1.55rem;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
     display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
+    align-items: center;
+    gap: 0.55rem;
     flex-wrap: wrap;
   }
 
   .sm .class-row {
     font-size: 1.05rem;
+    gap: 0.4rem;
   }
 
-  .sep {
-    color: var(--text-tertiary);
-    font-weight: 400;
-  }
-
+  /* The assurance level was a same-size sibling behind a "/" separator, which
+     read as a second half of the title. It is a qualifier, so it is now a chip:
+     clearly attached to the class, clearly subordinate to it. */
   .level-label {
     font-family: var(--font-mono);
-    font-size: 0.95rem;
-    color: var(--text-secondary);
-    font-weight: 500;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--status-warning);
+    background: var(--status-warning-soft);
+    border: 1px solid color-mix(in srgb, var(--status-warning) 32%, transparent);
+    border-radius: var(--radius-full);
+    padding: 0.16rem 0.5rem;
+    white-space: nowrap;
   }
+
+  /* Verifiable levels are a pass, not a caveat, so the chip switches semantic
+     colour with the meaning rather than staying amber for every level. */
+  .badge:not(.warn) .level-label {
+    color: var(--status-success);
+    background: var(--status-success-soft);
+    border-color: color-mix(in srgb, var(--status-success) 32%, transparent);
+  }
+
   .sm .level-label {
-    font-size: 0.8rem;
+    font-size: 0.6rem;
+    padding: 0.1rem 0.4rem;
   }
 
   .desc {
-    margin: 0.3rem 0 0;
-    font-size: 0.82rem;
+    margin: 0.4rem 0 0;
+    font-size: 0.79rem;
+    line-height: 1.5;
     color: var(--text-secondary);
-    max-width: 52ch;
+    max-width: 58ch;
   }
   .sm .desc {
     display: none;
@@ -155,10 +181,10 @@
 
   .assurance-note {
     margin: 0.7rem 0 0;
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     line-height: 1.5;
-    color: var(--text-secondary);
-    max-width: 54ch;
+    color: var(--text-tertiary);
+    max-width: 62ch;
   }
 
   .assurance-note p {
@@ -170,30 +196,32 @@
     margin-top: 0.45rem;
   }
 
-  /* The "declared, not verified" caveat is a callout, not a stray sentence:
-     a left rule + its own icon give it shape independent of colour, so the
-     caveat still reads as a caveat if colour is stripped entirely. */
+  /* The caveat keeps every word and keeps its SHAPE — its own icon plus a rule
+     separating it from the description — so it still reads as a caveat with
+     colour stripped entirely. What it loses is volume: the amber fill and the
+     inset amber bar are gone, and only the lead phrase stays amber. It is a
+     permanent property of a declared claim, not an incident, and permanent
+     incident-styling is what teaches operators to stop seeing amber. */
   .warn-text {
     display: flex;
     align-items: flex-start;
-    gap: 0.5rem;
-    padding: 0.55rem 0.7rem;
-    border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--status-warning) 10%, transparent);
-    box-shadow: inset 2px 0 0 var(--status-warning);
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+    padding-top: 0.7rem;
+    border-top: 1px solid var(--border-default);
   }
 
   .caveat-icon {
-    width: 1.05rem;
-    height: 1.05rem;
+    width: 0.95rem;
+    height: 0.95rem;
     flex-shrink: 0;
-    margin-top: 0.1rem;
+    margin-top: 0.15rem;
     color: var(--status-warning);
   }
 
   .sm .caveat-icon {
-    width: 0.9rem;
-    height: 0.9rem;
+    width: 0.85rem;
+    height: 0.85rem;
   }
 
   .warn-text strong {

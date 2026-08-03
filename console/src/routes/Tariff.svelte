@@ -379,38 +379,6 @@
     gap: var(--space-6);
   }
 
-  .page-head {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    padding-bottom: var(--space-5);
-    border-bottom: 1px solid var(--border-subtle);
-    position: relative;
-  }
-
-  /* A short bronze segment riding the header's own rule — the same "ruled
-     masthead" idiom used on .panel-header::after, scaled up for the page head. */
-  .page-head::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 58%;
-    bottom: -1px;
-    height: 1px;
-    background: linear-gradient(90deg, var(--accent), transparent 90%);
-    opacity: 0.6;
-  }
-
-  h1 {
-    font-size: 1.7rem;
-    margin: var(--space-1) 0 var(--space-2);
-  }
-
-  .lede {
-    color: var(--text-secondary);
-    margin: 0;
-    max-width: 62ch;
-  }
 
   /* ---------- loading state ----------
      A composed skeleton of the real layout (reference table, then the two-up

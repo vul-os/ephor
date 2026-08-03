@@ -125,11 +125,6 @@
 
     <div class="nav-foot">
       <div class="foot-mark" aria-hidden="true">{@html markFooter}</div>
-      {#if IS_MOCK}
-        <span class="mode-badge" title="This build is running on fixture data, not a live coordinator admin API — see console/README.md">
-          <span class="light-dot" aria-hidden="true"></span> Demo data
-        </span>
-      {/if}
       <p class="foot-note">Binds operator-local by default (127.0.0.1:8090). Bearer-token gated, fail-closed.</p>
       <!-- Both destinations belong to the deployment, not to this codebase: an
            operator who rebrands the console points them at their own docs and
@@ -158,6 +153,20 @@
         <span class="crumb-mark" aria-hidden="true">{@html markTopbar}</span>
         <span class="crumb-kicker">Coordinator control plane</span>
       </div>
+      <!-- The fixture-data disclosure. It used to be stated TWICE and neither
+           placement was good: a bare "Demo data" pill in the sidebar (which
+           said nothing about what that meant) and, on the Overview route only,
+           a full-sentence banner 1254px down the page — below the fold, so the
+           only copy carrying VITE_MOCK=1 was the one an operator had to scroll
+           to find. Stated once here instead: the topbar is sticky and shared by
+           every route, so the complete sentence is now permanently on screen
+           everywhere rather than intermittently off it. -->
+      {#if IS_MOCK}
+        <p class="mode-strip">
+          <span class="light-dot" aria-hidden="true"></span>
+          <span><strong>Demo data.</strong> Fixture data (<span class="mono">VITE_MOCK=1</span>), not a live coordinator admin API. See <span class="mono">console/README.md</span>.</span>
+        </p>
+      {/if}
       <button
         type="button"
         class="theme-toggle"
@@ -358,7 +367,7 @@
 
   .sub {
     font-family: var(--font-mono);
-    font-size: 0.63rem;
+    font-size: 0.69rem;
     font-weight: 500;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -367,7 +376,7 @@
 
   .nav-heading {
     font-family: var(--font-mono);
-    font-size: 0.64rem;
+    font-size: 0.69rem;
     font-weight: 600;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -452,28 +461,18 @@
     white-space: nowrap;
   }
 
+  /* NOT `margin-top: auto`. Six nav items in three groups is ~330px of a
+     900px-tall sidebar, so pinning this block to the bottom opened a ~460px
+     hole BETWEEN the nav and the footer — a hole reads as a rendering fault,
+     whereas the same space left trailing at the bottom of a column reads as
+     nothing at all. So the footer now simply follows the nav. */
   .nav-foot {
-    margin-top: auto;
+    margin-top: 1.4rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-default);
     display: flex;
     flex-direction: column;
     gap: 0.65rem;
-  }
-
-  .mode-badge {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.42rem;
-    font-family: var(--font-mono);
-    font-size: 0.71rem;
-    font-weight: 500;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
-    padding: 0.28rem 0.65rem;
-    border-radius: var(--radius-full);
   }
 
   .foot-note {
@@ -518,8 +517,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.8rem;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    padding: 0.7rem 1.8rem;
     border-bottom: 1px solid var(--border-default);
     background: var(--nav-scrim);
     backdrop-filter: blur(10px);
@@ -535,6 +535,7 @@
     align-items: center;
     gap: 0.6rem;
     min-width: 0;
+    flex: 0 1 auto;
   }
 
   .crumb-kicker {
@@ -546,6 +547,53 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    /* Without this the ellipsis never engages: a flex item defaults to
+       min-width:auto, and for nowrap text that min-content floor is the whole
+       string, so .crumbs could not shrink and shoved the theme toggle onto a
+       row of its own — a three-row topbar on a 390px phone. */
+    min-width: 0;
+  }
+
+  /* Amber, and the only amber in the chrome. Across the console amber now means
+     exactly one thing — "do not treat this as verified or live" — which covers
+     both the declared-not-verified caveat and fixture data. It is deliberately
+     NOT the brand bronze: bronze is brand and navigation, and a disclosure
+     wearing the brand colour was one of the four different jobs bronze used to
+     be doing at once. */
+  .mode-strip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    margin: 0;
+    min-width: 0;
+    flex: 1 1 22rem;
+    font-size: 0.72rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    background: var(--status-warning-soft);
+    border: 1px solid color-mix(in srgb, var(--status-warning) 38%, transparent);
+    border-radius: var(--radius-sm);
+    padding: 0.32rem 0.6rem;
+  }
+
+  .mode-strip .light-dot {
+    color: var(--status-warning);
+    margin-top: 0.42rem;
+  }
+
+  .mode-strip strong {
+    color: var(--status-warning);
+    font-family: var(--font-mono);
+  }
+
+  /* Below the drawer breakpoint the topbar row has no width to spare, so the
+     disclosure takes a full row of its own rather than being ellipsised. It is
+     a required statement — it may wrap, but it may never be truncated. */
+  @media (max-width: 900px) {
+    .mode-strip {
+      order: 3;
+      flex-basis: 100%;
+    }
   }
 
   /* Hamburger: hidden on desktop, shown when the sidebar is a drawer. */
@@ -579,6 +627,15 @@
   @media (max-width: 900px) {
     .hamburger {
       display: inline-flex;
+    }
+    /* flex-basis:0, not just min-width:0. Flex assigns items to lines by their
+       HYPOTHETICAL main size and only shrinks afterwards, within a line — so
+       with basis:auto the crumbs measured their full ~273px, the toggle no
+       longer fit beside them and wrapped to a row of its own before any
+       shrinking could happen. Zero basis lets both share row one, after which
+       grow hands the crumbs whatever is left and the kicker ellipsises. */
+    .crumbs {
+      flex: 1 1 0;
     }
   }
 
@@ -641,7 +698,7 @@
   }
 
   main {
-    padding: 1.8rem;
+    padding: 1.5rem 1.8rem;
     max-width: 78rem;
     width: 100%;
     margin: 0 auto;
