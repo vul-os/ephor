@@ -300,6 +300,43 @@ mod tests {
     use super::*;
     use crate::table::TABLE;
 
+    /// Mint a real token granting `ability` over `resource`, bound to `ik`, and write it where
+    /// [`auth::load`] will find it.
+    ///
+    /// This exists because of a hole mutation testing found: every other test in this module gets
+    /// refused at the auth gate, so **nothing reached the code past it**. Changing the tail of
+    /// `run_depot` to return `exit::OK` — a scaffold command claiming success — passed the entire
+    /// suite. A guard you cannot get past is a guard that never inspects what it protects.
+    fn authorised_token(ik: &[u8], resource: &str, ability: &str) -> std::path::PathBuf {
+        use kotva_core::capability::{Capability, CapabilityToken};
+        use kotva_core::cbor::Cv;
+        use kotva_core::identity::IdentityKey;
+
+        let signer = IdentityKey::from_seed(&[3u8; 32]);
+        let t = CapabilityToken::issue(
+            &signer,
+            vec![4u8; 32],
+            vec![Capability {
+                resource: resource.to_string(),
+                ability: ability.to_string(),
+                caveats: Some(Cv::TextMap(vec![(
+                    kotva_depot::CAVEAT_COORDINATOR.to_string(),
+                    Cv::Bytes(ik.to_vec()),
+                )])),
+            }],
+            0,
+            u64::MAX / 2,
+            vec![9, 9],
+            None,
+        );
+        let path = std::env::temp_dir().join(format!(
+            "pier-cli-test-{ability}-{}.cbor",
+            std::process::id()
+        ));
+        std::fs::write(&path, t.det_cbor()).unwrap();
+        path
+    }
+
     fn inv(key: &str) -> Invocation {
         Invocation {
             key: key.to_string(),
@@ -429,10 +466,68 @@ mod tests {
     }
 
     #[test]
+    fn an_authorised_scaffold_gets_past_the_gate_and_still_refuses() {
+        // The path no other test reaches: token valid, coordinator bound, scope covered — and the
+        // command STILL must not exit 0, because it did not do anything.
+        let ik = vec![0x5Au8; 32];
+        let path = authorised_token(&ik, "depot:box/*", "destroy");
+        let mut i = inv("box destroy");
+        i.token = Some(path.clone());
+        i.coordinator = Some(hex::encode(&ik));
+        i.id = Some("7f3a".into());
+
+        let (code, text) = run_capturing(&i);
+        assert!(
+            text.contains("authorised: destroy on depot:box/7f3a"),
+            "{text}"
+        );
+        assert_eq!(
+            code,
+            exit::NOT_IMPLEMENTED,
+            "an authorised scaffold must report NOT IMPLEMENTED, never success:\n{text}"
+        );
+        assert!(text.contains("NOT IMPLEMENTED"), "{text}");
+
+        // Same token, wrong verb: the gate still bites once we are past the "no token" case.
+        let mut j = inv("box console");
+        j.token = Some(path.clone());
+        j.coordinator = Some(hex::encode(&ik));
+        let (code, text) = run_capturing(&j);
+        assert_eq!(code, exit::UNAUTHORISED, "{text}");
+
+        // ...and a token that DOES carry the cliff verb gets the §5.2 warning with it.
+        let cpath = authorised_token(&ik, "depot:box/*", "console");
+        j.token = Some(cpath.clone());
+        let (code, text) = run_capturing(&j);
+        assert_eq!(code, exit::NOT_IMPLEMENTED, "{text}");
+        assert!(text.contains("privilege cliff"), "{text}");
+
+        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_file(&cpath);
+    }
+
+    #[test]
     fn whoami_refuses_when_there_is_no_token() {
         std::env::remove_var(crate::auth::ENV_TOKEN);
         let (code, text) = run_capturing(&inv("auth whoami"));
         assert_eq!(code, exit::UNAUTHORISED);
         assert!(text.contains("no CapabilityToken"), "{text}");
+    }
+
+    #[test]
+    fn whoami_is_the_one_command_that_finishes_and_it_states_its_own_limits() {
+        let ik = vec![0x77u8; 32];
+        let path = authorised_token(&ik, "depot:bucket/photos", "read");
+        let mut i = inv("auth whoami");
+        i.token = Some(path.clone());
+        let (code, text) = run_capturing(&i);
+        assert_eq!(code, exit::OK, "{text}");
+        assert!(text.contains("signature VERIFIED"), "{text}");
+        assert!(text.contains("read depot:bucket/photos"), "{text}");
+        assert!(text.contains(&hex::encode(&ik)), "{text}");
+        // It must not let the reader believe more was checked than was: no chain walk, no
+        // revocation check.
+        assert!(text.contains("did NOT walk the delegation chain"), "{text}");
+        let _ = std::fs::remove_file(&path);
     }
 }
