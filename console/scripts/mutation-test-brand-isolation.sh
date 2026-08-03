@@ -95,10 +95,18 @@ expect_red 'D — "Ephor" (the pre-rename name) in a shared component'
 restore
 
 # ── E: the default favicon made identical to the Vulos one ──────────────────
-# Both brands pointed at the same mark AND the same accent, so the emitted
-# favicons are byte-identical while no brand NAME leaks — this isolates the
-# favicon comparison from the string scan.
-perl -0pi -e "s{markPath: 'src/brands/assets/vulos-mark.svg'}{markPath: '../brand/pier.svg'}" src/brands/vulos.meta.ts
+# Both brands pointed at the same favicon SOURCE and the same accent, so the
+# emitted favicons are byte-identical while no brand NAME leaks — this isolates
+# the favicon comparison from the string scan.
+#
+# The path here MUST be whatever pier's favicon actually derives from. It used
+# to be '../brand/pier.svg' (pier's markPath), and when pier gained a dedicated
+# `faviconPath: '../brand/favicon.svg'` this arm silently stopped planting its
+# defect: it was still pointing vulos at a file pier no longer used for the
+# favicon, so the two builds legitimately differed and the gate legitimately
+# passed. The mutation SURVIVED and the arm reported it — which is exactly what
+# an arm is for. Keep this in sync with pier.meta.ts's faviconPath.
+perl -0pi -e "s{markPath: 'src/brands/assets/vulos-mark.svg'}{markPath: '../brand/favicon.svg'}" src/brands/vulos.meta.ts
 perl -0pi -e "s/accent: '#0f6a6c'/accent: '#c89a56'/" src/brands/vulos.meta.ts
 expect_red 'E — default favicon byte-identical to the Vulos build''s'
 restore
