@@ -1,5 +1,5 @@
 ==============================================================================
-THIRD-PARTY NOTICES -- @vulos/relay-client (browser bundle)
+THIRD-PARTY NOTICES -- pier-client (browser bundle)
 ==============================================================================
 
 This software's production dependency graph contains the third-party

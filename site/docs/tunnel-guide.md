@@ -321,7 +321,7 @@ SSE. It is deliberately not the transport for workloads with a better path:
 | App HTTP/API, SSE, WebSocket | relay tunnel (or verified direct endpoint) | full reverse proxy |
 | **Real-time media (calls/meetings)** | WebRTC over **ICE/TURN**, mesh or a self-hosted SFU/TURN node | **none on the RTP** — media never rides the tunnel |
 | Cross-instance notifications | relay `POST /api/s2s/notify` → target box's existing tunnel | forwarder (fixed target path, same-account only) |
-| Browser P2P collaboration (`@vulos/relay-client` SDK) | WebRTC data channels + the host app's HTTP relay-circuit | not this subsystem at all |
+| Browser P2P collaboration (`pier-client` SDK) | WebRTC data channels + the host app's HTTP relay-circuit | not this subsystem at all |
 
 **The real-time media exception, precisely.** Latency-sensitive RTP does not tolerate a
 TCP-based, HTTP-shaped tunnel: one lost packet stalls every multiplexed stream behind it

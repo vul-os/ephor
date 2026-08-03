@@ -1,4 +1,4 @@
-# Security Policy — @vulos/relay-client
+# Security Policy — pier-client
 
 ## Scope
 

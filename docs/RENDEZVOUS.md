@@ -318,8 +318,8 @@ peer drains it on next connect. The relay only ever moves opaque bytes.
   **Observability**: the role exports its own `/metrics` counters
   (announce/resolve/signal/mailbox/auth/rate-limit plus a live-presence gauge) —
   see `docs/TROUBLESHOOTING.md` for the table and how to read it when P2P misbehaves.
-- **Client**: `@vulos/relay-client` exposes `RendezvousClient` + `RendezvousIdentity`
-  (`import { RendezvousClient } from '@vulos/relay-client/rendezvous'`), and
+- **Client**: `pier-client` exposes `RendezvousClient` + `RendezvousIdentity`
+  (`import { RendezvousClient } from 'pier-client/rendezvous'`), and
   `FabricClient` accepts a `rendezvousBaseUrl` option to use any relayd's rendezvous
   surface instead of a host box's `/api/peering/*`.
 
@@ -335,7 +335,7 @@ Leave the option unset and the host-box WebSocket path is used exactly as before
 the two paths are both fully supported and chosen per config.
 
 ```js
-import { FabricClient } from '@vulos/relay-client/fabric'
+import { FabricClient } from 'pier-client/fabric'
 
 const fabric = new FabricClient({
   sessionId: 'doc-42',

@@ -17,7 +17,7 @@ name is not final — see Open decisions.)
 - This repo lives at `git@github.com:vul-os/pier.git`. GitHub description/topics
   may still read "relay" — update them.
 - Existing code is **Go** (a reverse-tunnel server, frp/ngrok replacement, wss + yamux,
-  SSRF-guarded) + a **JS client SDK** (`@vulos/relay-client`, WebRTC peer-fabric). Clean tree,
+  SSRF-guarded) + a **JS client SDK** (`pier-client`, WebRTC peer-fabric). Clean tree,
   157 commits, all preserved.
 - The relay is currently **content-visible at L7** — a known honesty gap. This MUST change to
   conform to spec (see guardrail 2).

@@ -2,7 +2,7 @@
 
 This guide takes you from zero to a publicly reachable Vulos box: you will run (or point at) a relay server, authorize an agent, expose a local service, and verify the tunnel end to end. The reverse tunnel lets a loopback-bound box publish itself on the public internet with **no inbound ports, no static IP, and no third-party tunnel service** — the box's agent dials one outbound `wss://` connection to a relay, and the relay reverse-proxies public HTTP + WebSocket traffic back down it. There are two paths through this guide: **self-hosted** (you run the relay server too — fully sovereign, no account with anyone required) and **operator-hosted** (someone else runs the relay and its control plane; you run only the agent and link it to an account on their control plane). This project neither runs nor sells that second path — it's just what "someone else's already-running relay" looks like from the agent's side.
 
-> Looking for the JS/TS peer-fabric SDK (`@vulos/relay-client` — WebRTC data channels, presence, live cursors)? That is the repo's other deliverable; see the [README quick start](../README.md#quick-start-standalone), [CONFIGURATION.md](CONFIGURATION.md), and [`client/README.md`](../client/README.md). This chapter covers the Go reverse tunnel.
+> Looking for the JS/TS peer-fabric SDK (`pier-client` — WebRTC data channels, presence, live cursors)? That is the repo's other deliverable; see the [README quick start](../README.md#quick-start-standalone), [CONFIGURATION.md](CONFIGURATION.md), and [`client/README.md`](../client/README.md). This chapter covers the Go reverse tunnel.
 
 ---
 

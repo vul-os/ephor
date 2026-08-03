@@ -1,10 +1,10 @@
 /**
- * src/index.js — @vulos/relay-client root barrel.
+ * src/index.js — pier-client root barrel.
  *
  * Re-exports every subpath so consumers can choose between:
  *
- *   import { selectEndpoint } from '@vulos/relay-client'
- *   import { selectEndpoint } from '@vulos/relay-client/endpoints'   // tree-shake
+ *   import { selectEndpoint } from 'pier-client'
+ *   import { selectEndpoint } from 'pier-client/endpoints'   // tree-shake
  *
  * Subpaths are also published individually via the `exports` map in
  * package.json so a consumer that only needs one module (e.g. mail just wants
@@ -13,7 +13,7 @@
  * NOTE: `roundTripCheck` (which imports `xlsx`) is intentionally NOT re-exported
  * here. It is available as a dedicated subpath:
  *
- *   import { runRoundTripChecks } from '@vulos/relay-client/roundTripCheck'
+ *   import { runRoundTripChecks } from 'pier-client/roundTripCheck'
  *
  * This prevents xlsx from being pulled into the bundle of consumers that only
  * import from the root barrel.

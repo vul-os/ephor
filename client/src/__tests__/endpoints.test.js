@@ -6,7 +6,7 @@
  *   • vulos/src/__tests__/endpoints.test.js        (13 cases)
  *
  * Deduped — every distinct behaviour from both is covered exactly once.
- * Adds three new cases for the @vulos/relay-client migration seams:
+ * Adds three new cases for the pier-client migration seams:
  *   • configure() lsKeyPrefix overrides the localStorage namespace
  *   • configure() healthPath overrides the probe URL
  *   • default lsKeyPrefix is 'vulos.relay-client.endpoints.v1'

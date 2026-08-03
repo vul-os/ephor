@@ -1,5 +1,5 @@
 /**
- * e2e/harness/main.jsx — a CONSUMER of the BUILT @vulos/relay-client.
+ * e2e/harness/main.jsx — a CONSUMER of the BUILT pier-client.
  *
  * WHY A HARNESS AND NOT A "BOOT GUARD": this package is a library. It has no UI
  * and no root element to render, so "does the app boot" is not a question that
@@ -38,7 +38,7 @@
  *     SignalingClient and PresenceManager in real chromium proves the classes
  *     actually stand up against the browser's real platform objects.
  *
- * NOT IMPORTED HERE: `@vulos/relay-client/roundTripCheck`. It statically imports
+ * NOT IMPORTED HERE: `pier-client/roundTripCheck`. It statically imports
  * `xlsx`, an OPTIONAL peerDependency that is intentionally not installed (only
  * consumers who use the spreadsheet round-trip checks add it). Importing it here
  * would fail to resolve — which is the package working as designed, not a defect.
@@ -51,19 +51,19 @@ import * as React from 'react'
 import { createRoot } from 'react-dom/client'
 
 // The root barrel.
-import * as index from '@vulos/relay-client'
+import * as index from 'pier-client'
 
 // Every published subpath, as a consumer would import it.
-import * as errors from '@vulos/relay-client/errors'
-import * as endpoints from '@vulos/relay-client/endpoints'
-import * as health from '@vulos/relay-client/health'
-import * as offlineBootstrap from '@vulos/relay-client/offlineBootstrap'
-import * as signaling from '@vulos/relay-client/signaling'
-import * as fabric from '@vulos/relay-client/fabric'
-import * as presence from '@vulos/relay-client/presence'
-import * as call from '@vulos/relay-client/call'
-import * as regionPop from '@vulos/relay-client/regionPop'
-import { useLiveCursors } from '@vulos/relay-client/useLiveCursors'
+import * as errors from 'pier-client/errors'
+import * as endpoints from 'pier-client/endpoints'
+import * as health from 'pier-client/health'
+import * as offlineBootstrap from 'pier-client/offlineBootstrap'
+import * as signaling from 'pier-client/signaling'
+import * as fabric from 'pier-client/fabric'
+import * as presence from 'pier-client/presence'
+import * as call from 'pier-client/call'
+import * as regionPop from 'pier-client/regionPop'
+import { useLiveCursors } from 'pier-client/useLiveCursors'
 
 const record = { imported: {}, constructed: {}, pure: {}, hook: null, reactVersion: React.version, errors: [] }
 

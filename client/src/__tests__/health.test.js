@@ -34,7 +34,7 @@ describe('createHealthReport()', () => {
 
   it('returns the correct component name', () => {
     const r = createHealthReport()
-    expect(r.component).toBe('@vulos/relay-client')
+    expect(r.component).toBe('pier-client')
   })
 
   it('returns the package version', () => {
@@ -138,7 +138,7 @@ describe('createHealthHandler()', () => {
 
     const body = JSON.parse(res._body())
     expect(body.status).toBe('ok')
-    expect(body.component).toBe('@vulos/relay-client')
+    expect(body.component).toBe('pier-client')
     expect(body.version).toBe(RELAY_CLIENT_VERSION)
     expect(typeof body.ts).toBe('string')
   })

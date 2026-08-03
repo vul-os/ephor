@@ -84,7 +84,7 @@ fi
 
 # ── 5. npm packages must declare a posture, not drift into one ──────────────────────────────
 # The crates rule above is about crates.io. This repo ALSO carries npm packages, and the gate
-# was blind to them: `client/package.json` (@vulos/relay-client) sits `private: false` with
+# was blind to them: `client/package.json` (pier-client) sits `private: false` with
 # `publishConfig` aimed at the public registry, which nothing here had ever checked.
 #
 # This does NOT extend the crates rule to npm by fiat. That rule's stated rationale is about
@@ -94,7 +94,7 @@ fi
 # OR appear in NPM_PUBLISHABLE below with a reason a reader can weigh.
 declare -a NPM_PUBLISHABLE=(
   # path                     reason it is deliberately publishable
-  "client/package.json:@vulos/relay-client is the JS SDK a browser installs to talk to a relay; README.md and the landing both describe it as part of the CURRENT working implementation. UNRESOLVED, flagged not decided: the @vulos/ scope on a package shipped by a repo whose positioning is 'not a Vulos product'. Not yet on npm (404), so the scope is still free to change."
+  "client/package.json:pier-client is the JS SDK a browser installs to talk to a relay; README.md and the landing both describe it as part of the CURRENT working implementation. The scope question this entry previously carried as UNRESOLVED is now DECIDED: the package was '@vulos/relay-client', claiming a Vulos org scope from a repo whose stated positioning is 'not a Vulos product' and which runs console/scripts/check-brand-isolation.sh precisely to keep the two apart. It is now UNSCOPED 'pier-client', following the convention of kotva's carved-out 'kotva-client' (unscoped, prefix matching its crates) rather than inventing a scope; 'pier-' also matches this repo's own crate prefix. Renamed while still unpublished (npm 404 for both names at the time of the rename), because an npm name cannot be released once taken."
 )
 mapfile -t pkgs < <(find . -name package.json -not -path '*/node_modules/*' -not -path '*/dist*/*' | sort)
 (( ${#pkgs[@]} >= 3 )) || bad "found ${#pkgs[@]} package.json files, expected at least 3 — the find is broken, not the repo clean"

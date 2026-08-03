@@ -232,7 +232,7 @@ same verifier:
 ```js
 import {
   verifyChunkResponse, decodeChunkProof, verifyChunkProof, hashBytes, manifestRoot,
-} from '@vulos/relay-client/chunkProof'
+} from 'pier-client/chunkProof'
 
 // The one-call path: bytes and proof body exactly as served, root and nChunks
 // from what you already trust.

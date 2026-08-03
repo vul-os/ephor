@@ -1,5 +1,5 @@
 /**
- * vite.config.lib.js — library build for @vulos/relay-client.
+ * vite.config.lib.js — library build for pier-client.
  *
  * Produces dist-lib/ with ESM + CJS bundles, one entry per subpath.
  * Externalizes react / xlsx so consumers can dedupe

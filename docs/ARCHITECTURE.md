@@ -1,8 +1,8 @@
-# Architecture — @vulos/relay-client
+# Architecture — pier-client
 
 ## Overview
 
-`@vulos/relay-client` is a pure-browser JS SDK that handles all peer-fabric and
+`pier-client` is a pure-browser JS SDK that handles all peer-fabric and
 connectivity concerns for every Vulos web surface. It does **not** bundle a
 server: it talks to the host application's own peering backend over HTTP and
 WebSocket.
@@ -10,7 +10,7 @@ WebSocket.
 ```mermaid
 flowchart TD
     subgraph Host["Host Application (browser)"]
-        subgraph SDK["@vulos/relay-client SDK"]
+        subgraph SDK["pier-client SDK"]
             Endpoints["endpoints (failover)"]
             Offline["offlineBootstrap (IndexedDB Q)"]
             subgraph Fabric["FabricClient"]

@@ -1,4 +1,4 @@
-# Roadmap — @vulos/relay-client
+# Roadmap — pier-client
 
 This file tracks planned directions for the SDK. It is a living document;
 priorities shift with Vulos OS milestones.
@@ -13,7 +13,7 @@ priorities shift with Vulos OS milestones.
 - Fabric sessions — P2P data channels + relay-circuit fallback
 - Presence and live cursors (React hooks)
 - Call — mesh WebRTC (`createCall`); LiveKit SFU was removed before 1.0
-- Round-trip check fixture runner (subpath `@vulos/relay-client/roundTripCheck`)
+- Round-trip check fixture runner (subpath `pier-client/roundTripCheck`)
 - Dual ESM + CJS build; optional React / xlsx peer deps
 - Release pipeline with npm provenance and GitHub Releases
 - **Sovereign relay tunnel (Go)** — self-hostable `vulos-relayd` + `vulos-relay-agent`

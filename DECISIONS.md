@@ -12,6 +12,7 @@ build loop appends here whenever it makes a non-obvious call.
 - `[2026-07-23 econ]` **No protocol token.** Billing settles in an existing stablecoin; coordinator stake is in existing assets, verified on-rail.
 - `[2026-07-23 vis]` Per-kind content-visibility: relay=`blind` · media-relay=`blind-routing` · reachability-adapter=`blind-routing` (SNI-passthrough; `structural` only for own-domain, `declared` for adapter vanities) · gateway=`terminating`.
 - `[2026-07-23 sfu]` Large-scale SFU is **orchestrated externally** (coturn/LiveKit sidecar), not embedded — per bind-don't-reinvent.
+- `[2026-08-03 npm]` **npm packages are unscoped `pier-*`.** `@vulos/relay-client` → **`pier-client`**, `@vulos/relay-client-scripts` → **`pier-scripts`**. The `@vulos/` scope asserted the exact affiliation this repo's brand-isolation gate exists to deny, and an npm name is permanent from first publish; both were still unpublished (404) when renamed. Convention follows kotva's `kotva-client` — unscoped, prefix matching the crates — not a new scope. The `vulos.relay-client.endpoints.v1` localStorage default is **not** renamed: it is persisted consumer data, and rotating it would discard every cached endpoint pair.
 
 ## Loop decisions
 <!-- the build loop appends below -->

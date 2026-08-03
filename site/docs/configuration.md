@@ -1,4 +1,4 @@
-# Configuration — @vulos/relay-client
+# Configuration — pier-client
 
 All configuration is done at runtime via function calls or constructor options.
 There are no build-time-only options (the Vite env vars are read at runtime via
@@ -13,7 +13,7 @@ There are no build-time-only options (the Vite env vars are read at runtime via
 Call once at app entry, before `selectEndpoint()` or `bootstrapOffline()`.
 
 ```js
-import { configure } from '@vulos/relay-client/endpoints'
+import { configure } from 'pier-client/endpoints'
 
 configure({
   lsKeyPrefix: 'vulos.os.endpoints.v1',  // default: 'vulos.relay-client.endpoints.v1'
@@ -61,7 +61,7 @@ Takes priority over Vite env vars and `localStorage` cache.
 ### `bootstrapOffline(opts)`
 
 ```js
-import { bootstrapOffline } from '@vulos/relay-client/offlineBootstrap'
+import { bootstrapOffline } from 'pier-client/offlineBootstrap'
 
 const state = await bootstrapOffline({
   tierHint: () => currentUserTier(),  // optional
@@ -79,7 +79,7 @@ const state = await bootstrapOffline({
 ### `new SignalingClient(opts)`
 
 ```js
-import { SignalingClient } from '@vulos/relay-client/signaling'
+import { SignalingClient } from 'pier-client/signaling'
 
 const sc = new SignalingClient({
   signalingUrl:     'wss://box.vulos.org/api/peering/stream',
@@ -136,7 +136,7 @@ Each `SignalingClient` maintains an in-memory `(fromPeerId, nonce)` cache bounde
 ### `new FabricClient(opts)`
 
 ```js
-import { FabricClient } from '@vulos/relay-client/fabric'
+import { FabricClient } from 'pier-client/fabric'
 
 const fabric = new FabricClient({
   sessionId:            'doc-abc123',
@@ -207,7 +207,7 @@ Relay blobs received during the poll loop are verified client-side before dispat
 ### `new PresenceManager(opts)`
 
 ```js
-import { PresenceManager } from '@vulos/relay-client/presence'
+import { PresenceManager } from 'pier-client/presence'
 
 const pm = new PresenceManager({
   fabric,

@@ -255,7 +255,7 @@ Disclosed residuals, not silently fixed:
   not merely absent.
 - **`indexer` / `labeler` / `matcher` / `arbiter` / `oracle` / `infra-service` are scaffolds** — a real
   signed descriptor and conformance posture exist; the kind's own function does not yet.
-- **The Go reverse-tunnel relay + the `@vulos/relay-client` JS SDK remain the working
+- **The Go reverse-tunnel relay + the `pier-client` JS SDK remain the working
   implementation** until the Rust `relay` port is proven in production and this note is removed
   — see [Status](#status-honest-as-of-this-writing) and
   [Preserved Go implementation](#preserved-go-implementation-relay-kind) below.
@@ -273,7 +273,7 @@ Disclosed residuals, not silently fixed:
 Pier is **mid-rewrite**. Read this before relying on any of it in production.
 
 - **The Rust workspace is in progress, not the shipping implementation yet.** The
-  **Go reverse-tunnel relay** (`tunnel/`, `cmd/`) and the **`@vulos/relay-client` JS
+  **Go reverse-tunnel relay** (`tunnel/`, `cmd/`) and the **`pier-client` JS
   SDK** (`client/`) are the **preserved, working implementation** — keep using them
   until the Rust port is proven and this note is removed. See
   [Preserved Go implementation](#preserved-go-implementation-relay-kind) below.
@@ -290,7 +290,7 @@ Until the Rust `relay` crate is proven in production, this repo's **working rela
 original Go reverse-tunnel + the JS peer-fabric SDK. Both are frozen-but-maintained, not
 deprecated — see [Status](#status-honest-as-of-this-writing).
 
-### `@vulos/relay-client` (JS/TS SDK)
+### `pier-client` (JS/TS SDK)
 
 Wires browser peers together with **WebRTC peer-to-peer data channels**, falling back
 to a relay circuit when a direct connection can't be established. It's a **client
@@ -298,13 +298,13 @@ only** — it talks to its host app's `/api/peering/*` endpoints for signaling a
 credentials, and only ever speaks `https`/`wss`.
 
 ```bash
-npm install @vulos/relay-client
+npm install pier-client
 ```
 
 ```js
-import { selectEndpoint }  from '@vulos/relay-client/endpoints'
-import { FabricClient }    from '@vulos/relay-client/fabric'
-import { PresenceManager } from '@vulos/relay-client/presence'
+import { selectEndpoint }  from 'pier-client/endpoints'
+import { FabricClient }    from 'pier-client/fabric'
+import { PresenceManager } from 'pier-client/presence'
 
 const base = await selectEndpoint()               // LAN-direct → cloud → same-origin
 

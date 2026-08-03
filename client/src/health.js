@@ -1,7 +1,7 @@
 /**
- * health.js — @vulos/relay-client health-check export.
+ * health.js — pier-client health-check export.
  *
- * @vulos/relay-client is a pure JavaScript client SDK — there is no bundled Go
+ * pier-client is a pure JavaScript client SDK — there is no bundled Go
  * signaling/PoP server in this repo.  The health interface is therefore
  * provided as a set of composable helpers that the host backend (Node.js
  * HTTP server, Express, Fastify, Hono, etc.) can wire up as it sees fit.
@@ -9,8 +9,8 @@
  * Quick-start (Node.js http module):
  *
  *   import http from 'node:http'
- *   import { createHealthHandler } from '@vulos/relay-client/health'
- *   import { FabricClient } from '@vulos/relay-client/fabric'
+ *   import { createHealthHandler } from 'pier-client/health'
+ *   import { FabricClient } from 'pier-client/fabric'
  *
  *   const fc = new FabricClient({ ... })
  *   const server = http.createServer(createHealthHandler({
@@ -19,7 +19,7 @@
  *
  * Quick-start (Express):
  *
- *   import { createHealthHandler } from '@vulos/relay-client/health'
+ *   import { createHealthHandler } from 'pier-client/health'
  *   app.get('/healthz', createHealthHandler({ getRelayByteCount: () => fc.relayByteCount }))
  *
  * The handler responds with HTTP 200 and a JSON body conforming to the
@@ -64,8 +64,8 @@ export const RELAY_CLIENT_VERSION = '1.0.0'
  *
  * @typedef {object} HealthReport
  * @property {'ok'} status         - always 'ok' (unhealthy deployments should not serve 200)
- * @property {string} version      - semver version of @vulos/relay-client
- * @property {string} component    - fixed string '@vulos/relay-client'
+ * @property {string} version      - semver version of pier-client
+ * @property {string} component    - fixed string 'pier-client'
  * @property {string} ts           - ISO-8601 timestamp of report generation
  * @property {{ out: number, in: number, total: number } | null} relay
  *   Current relay byte meter snapshot, or null when not wired up.
@@ -77,7 +77,7 @@ export function createHealthReport(opts = {}) {
   return {
     status: 'ok',
     version: RELAY_CLIENT_VERSION,
-    component: '@vulos/relay-client',
+    component: 'pier-client',
     ts: new Date().toISOString(),
     relay,
   }

@@ -1,5 +1,5 @@
 /**
- * call/index.js — @vulos/relay-client `./call` subpath barrel.
+ * call/index.js — pier-client `./call` subpath barrel.
  *
  * Re-exports the call modules for the P2P/WebRTC mesh path. Consumers
  * import `createCall` (mesh) from this barrel; `joinSignalingSession` is

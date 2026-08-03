@@ -9,6 +9,29 @@ The repo-root `CHANGELOG.md` now tracks **Pier the project** and starts at the r
 
 ## [Unreleased]
 
+### Changed — the npm package is now `pier-client` (was `@vulos/relay-client`)
+
+The SDK claimed the `@vulos/` org scope from a repository whose stated positioning
+is that it is **not a Vulos product** — the same claim `console/scripts/check-brand-isolation.sh`
+exists to prevent a deployment making. An npm name can be deprecated but never
+released, so a scope is permanent from first publish; this one was renamed while
+still unpublished (both `@vulos/relay-client` and `pier-client` returned 404 at
+the time of the rename).
+
+- **`@vulos/relay-client` → `pier-client`**, unscoped, following the convention of
+  kotva's carved-out `kotva-client` — prefix matching its crates, no org scope —
+  rather than inventing a new one. `pier-` is also this repo's own crate prefix.
+- **Every subpath moves with it**: `pier-client/endpoints`, `/fabric`, `/presence`,
+  `/chunkProof`, and the rest. The `exports` map is unchanged apart from the name.
+- **`createHealthHandler` now reports `component: 'pier-client'`** in its response
+  body. A consumer asserting on the old string will need to update it.
+- The dev-scripts package `@vulos/relay-client-scripts` → `pier-scripts` (private,
+  never published).
+- **Not renamed, deliberately**: the default `localStorage` key
+  `vulos.relay-client.endpoints.v1`. It is persisted consumer data, not a package
+  reference — changing it would silently discard every cached endpoint pair and
+  force a re-probe on first load. It remains overridable via `configure({ lsKeyPrefix })`.
+
 ### Changed — Go module path is now `github.com/vul-os/pier` (BREAKING for importers)
 
 `go.mod` declared `module github.com/vul-os/vulos-relay`, a path that has never
@@ -211,7 +234,7 @@ relayd and get P2P"* — **did not work from a browser**. Four defects, all fixe
     matches vidmesh's odd-node **promotion** rule in shape and § 3.2's DS-tagged
     hashes in value; the two are asserted equal to the § 3.2 RFC 6962 split rule
     for every `n` up to 300, and a 5-chunk interop vector is pinned byte-for-byte.
-  - **BROWSER VERIFIER — `@vulos/relay-client/chunkProof` (new subpath).** The
+  - **BROWSER VERIFIER — `pier-client/chunkProof` (new subpath).** The
     Go verifier only removed trust from the PUB server for *server-to-server*
     readers; the clients that most need partial fetch run in a **browser**, and
     without a verifier there they still had to take the PUB server's word for the
@@ -277,8 +300,8 @@ relayd and get P2P"* — **did not work from a browser**. Four defects, all fixe
     `-rendezvous-prefix`, `-rendezvous-no-public-resolve`, `-rendezvous-stun`,
     `-rendezvous-turn`, `-rendezvous-turn-secret`, `-rendezvous-turn-ttl`,
     `-rendezvous-disable-public-stun`.
-- **`@vulos/relay-client`**: new `RendezvousClient` + `RendezvousIdentity`
-  (`@vulos/relay-client/rendezvous`) — the reference JS client for the protocol,
+- **`pier-client`**: new `RendezvousClient` + `RendezvousIdentity`
+  (`pier-client/rendezvous`) — the reference JS client for the protocol,
   Ed25519-signing over the identical canonical message the Go node verifies
   (locked by a cross-language test vector). `FabricClient` gains opt-in
   `rendezvousBaseUrl` / `rendezvousIdentity` / `rendezvousPrefix` options that point
@@ -290,7 +313,7 @@ relayd and get P2P"* — **did not work from a browser**. Four defects, all fixe
   polite-peer negotiation) over the relay's open `announce`/`resolve`/`signal`
   surface — **no host box, no `/api/peering/*` backend**. Without the option it
   uses the host-box WebSocket exactly as before (no behavior change; choose per
-  config). New `RendezvousSignalingClient` (`@vulos/relay-client/rendezvousSignaling`)
+  config). New `RendezvousSignalingClient` (`pier-client/rendezvousSignaling`)
   is a drop-in transport with the same events/methods as `SignalingClient`.
   - **Identity bridging (two distinct identities).** An **Ed25519** rendezvous
     identity signs the outer rendezvous envelope (accountability + replay at the

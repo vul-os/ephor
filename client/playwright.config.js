@@ -1,5 +1,5 @@
 /**
- * Playwright config — @vulos/relay-client.
+ * Playwright config — pier-client.
  *
  * This package is a LIBRARY (no UI), so a conventional "boot guard" — load the
  * app, assert the root isn't empty — is meaningless for it. The honest
@@ -10,7 +10,7 @@
  *     them, without anything throwing?
  *
  * So there is exactly one server here: a tiny consumer harness (e2e/harness/)
- * that imports `@vulos/relay-client` and every published subpath as BARE
+ * that imports `pier-client` and every published subpath as BARE
  * specifiers through the package `exports` map — i.e. what Office, Meet and Talk
  * actually get — and exercises them in chromium. See e2e/harness/main.jsx.
  *

@@ -2,7 +2,7 @@
  * vite.config.js — build config for the built-library CONSUMER harness.
  *
  * Deliberately behaves like a downstream app (Office/Meet/Talk), not like this
- * package: `@vulos/relay-client` and its subpaths are left to resolve as BARE
+ * package: `pier-client` and its subpaths are left to resolve as BARE
  * specifiers through the package's own `exports` map (self-reference). If the
  * exports map and the library build ever drift apart, THIS BUILD FAILS — which
  * is exactly the red test we want, instead of an unresolvable import surfacing

@@ -1,5 +1,5 @@
 /**
- * endpoints.js — @vulos/relay-client multi-endpoint failover.
+ * endpoints.js — pier-client multi-endpoint failover.
  *
  * Shared cloud↔LAN endpoint failover for every Vulos web surface (the OS shell,
  * the office suite). This is the single shared implementation the web

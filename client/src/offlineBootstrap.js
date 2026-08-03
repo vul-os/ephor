@@ -1,5 +1,5 @@
 /**
- * offlineBootstrap.js — @vulos/relay-client offline-first shell bootstrap.
+ * offlineBootstrap.js — pier-client offline-first shell bootstrap.
  *
  * Merged from the pre-existing copies:
  *   • vulos/src/lib/offlineBootstrap.js        (127 LOC — most complete:

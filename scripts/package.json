@@ -1,5 +1,5 @@
 {
-  "name": "@vulos/relay-client-scripts",
+  "name": "pier-scripts",
   "version": "1.0.0",
   "private": true,
   "description": "Dev scripts for Pier (screenshot generation)",

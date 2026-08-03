@@ -1,5 +1,5 @@
 /**
- * regionPop.js — @vulos/relay-client region-aware PoP/endpoint selection.
+ * regionPop.js — pier-client region-aware PoP/endpoint selection.
  *
  * Phase-0 hook for multi-region relay infrastructure.  The live cell is `eu`;
  * Johannesburg (`jhb`) is the finalized second PoP per the relay infra topology
@@ -17,7 +17,7 @@
  *     it at build time or via environment injection without touching this file.
  *
  * Usage:
- *   import { selectPop } from '@vulos/relay-client/regionPop'
+ *   import { selectPop } from 'pier-client/regionPop'
  *
  *   // Prefer the session region's PoP; fall back to the configured default.
  *   const pop = selectPop(sessionRegion, currentDefaultPop)

@@ -1,5 +1,5 @@
 /**
- * vitest.config.js — test runner config for @vulos/relay-client.
+ * vitest.config.js — test runner config for pier-client.
  *
  * Split from vite.config.lib.js so the library build (`npm run build`) and the
  * test runner (`npm test`) don't share each other's transform pipeline — the

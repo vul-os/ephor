@@ -2,7 +2,7 @@
 
 This repo ships **two deliverables in two languages**:
 
-- **`client/`** — `@vulos/relay-client`, the browser JS/TS SDK (WebRTC
+- **`client/`** — `pier-client`, the browser JS/TS SDK (WebRTC
   peer-to-peer data channels, signaling, presence, offline queue).
 - **`cmd/vulos-relayd`, `cmd/vulos-relay-agent`, `tunnel/`** — the self-hosted
   Go reverse-tunnel service (the sovereign `frp`/ngrok/Cloudflare Tunnel
@@ -121,5 +121,5 @@ handling, session isolation, SSRF guards) require explicit test coverage.
 
 ## Licensing
 
-Pier — both the `@vulos/relay-client` SDK and the Go tunnel service —
+Pier — both the `pier-client` SDK and the Go tunnel service —
 is MIT-licensed. Contributions inherit MIT. No CLA required.

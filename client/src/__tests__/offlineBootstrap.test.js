@@ -3,7 +3,7 @@
  *
  * Ported from vulos/src/__tests__/offlineBootstrap.test.js (the most complete
  * of the three pre-existing copies — it owned the SW update detection path).
- * Adds two new cases for the @vulos/relay-client injection seams:
+ * Adds two new cases for the pier-client injection seams:
  *   • onBoot callback fires once after bootstrap (replaces the consumer-
  *     specific startOfflineQueueFlushLoop / startOutboxFlushLoop calls).
  *   • tierHint callback is captured and surfaced via currentTierHint().

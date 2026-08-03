@@ -1,4 +1,4 @@
-# @vulos/relay-client
+# pier-client
 
 > <img src="../docs/assets/vulos-logo.png" height="14" alt="VulOS"> Part of **[VulOS](https://vulos.org)** — the open, self-hostable web OS &amp; app suite. This is the client SDK for **Pier**, the suite's connectivity fabric. Runs standalone, or as an app hosted by the Vulos OS.
 
@@ -24,30 +24,30 @@ backend that implements the peering contract, **and** slots into the OS-hosted s
 Published to npm:
 
 ```bash
-npm install @vulos/relay-client
+npm install pier-client
 ```
 
 Or, for local development against a checkout, as a `file:` dependency pointing
 at this package's directory:
 
 ```jsonc
-"@vulos/relay-client": "file:../pier/client"
+"pier-client": "file:../pier/client"
 ```
 
 ## Subpath exports
 
 | Subpath                          | Module                                                  |
 | -------------------------------- | ------------------------------------------------------- |
-| `@vulos/relay-client`            | root barrel — re-exports everything                     |
-| `@vulos/relay-client/endpoints`  | cloud↔LAN endpoint failover (`selectEndpoint`, etc.)    |
-| `@vulos/relay-client/offlineBootstrap` | one-call offline-first shell bootstrap            |
-| `@vulos/relay-client/signaling`  | `SignalingClient` over `/api/peering/stream` WebSocket  |
-| `@vulos/relay-client/fabric`     | `FabricClient` — WebRTC mesh + relay-circuit fallback (opt-in `rendezvousBaseUrl`) |
-| `@vulos/relay-client/rendezvous` | `RendezvousClient` — open announce/resolve/signal/mailbox + ICE against any relayd |
-| `@vulos/relay-client/presence`   | `PresenceManager` + `usePresence` React hook            |
-| `@vulos/relay-client/call`       | `createCall` — P2P mesh audio/video call                |
-| `@vulos/relay-client/useLiveCursors` | live-cursors React hook (`peerColor`)               |
-| `@vulos/relay-client/roundTripCheck` | round-trip fixture runner (`runRoundTripChecks`)    |
+| `pier-client`            | root barrel — re-exports everything                     |
+| `pier-client/endpoints`  | cloud↔LAN endpoint failover (`selectEndpoint`, etc.)    |
+| `pier-client/offlineBootstrap` | one-call offline-first shell bootstrap            |
+| `pier-client/signaling`  | `SignalingClient` over `/api/peering/stream` WebSocket  |
+| `pier-client/fabric`     | `FabricClient` — WebRTC mesh + relay-circuit fallback (opt-in `rendezvousBaseUrl`) |
+| `pier-client/rendezvous` | `RendezvousClient` — open announce/resolve/signal/mailbox + ICE against any relayd |
+| `pier-client/presence`   | `PresenceManager` + `usePresence` React hook            |
+| `pier-client/call`       | `createCall` — P2P mesh audio/video call                |
+| `pier-client/useLiveCursors` | live-cursors React hook (`peerColor`)               |
+| `pier-client/roundTripCheck` | round-trip fixture runner (`runRoundTripChecks`)    |
 
 Both ESM (`.js`) and CJS (`.cjs`) bundles are emitted into `dist-lib/` by the
 vite-lib build (`npm run build`). `react` and `xlsx` are declared as optional
@@ -95,7 +95,7 @@ defaults to `vulos.relay-client.endpoints.v1` but exposes a `configure()`
 seam so consumers can preserve their existing user state during migration:
 
 ```js
-import { configure } from '@vulos/relay-client/endpoints'
+import { configure } from 'pier-client/endpoints'
 
 // vulos OS:
 configure({ lsKeyPrefix: 'vulos.os.endpoints.v1' })

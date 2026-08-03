@@ -3,7 +3,7 @@
  * library: can a consumer IMPORT the built package in a real browser and USE it
  * without anything throwing?
  *
- * @vulos/relay-client has no UI, so there is no root element to render and no
+ * pier-client has no UI, so there is no root element to render and no
  * "blank screen" of its own. But it is imported by Office, Meet and Talk — and
  * a library whose built entry point throws on load takes THEIR app blank. That
  * is precisely how one of the two shipped blank screens happened: an unresolved
