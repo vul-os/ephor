@@ -1574,6 +1574,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "kotva-cbor"
+version = "0.1.0"
+source = "git+https://github.com/vul-os/kotva?tag=depot-v0.1.0#4b8eb5856844c73350646e551f0f88570d6ac7f4"
+
+[[package]]
 name = "kotva-core"
 version = "0.2.0"
 source = "git+https://github.com/vul-os/kotva?tag=core-v0.2.0#a4a6ca5afed1d21daf8e3e6b3b63d1dac7c90fe7"
@@ -1594,11 +1599,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "kotva-core"
+version = "0.2.0"
+source = "git+https://github.com/vul-os/kotva?tag=depot-v0.1.0#4b8eb5856844c73350646e551f0f88570d6ac7f4"
+dependencies = [
+ "blake3",
+ "chacha20poly1305",
+ "ciborium",
+ "ed25519-dalek",
+ "hkdf",
+ "hpke",
+ "kotva-cbor",
+ "ml-dsa",
+ "rand_core 0.6.4",
+ "serde",
+ "sha2",
+ "thiserror 1.0.69",
+ "unicode-normalization",
+ "x-wing",
+ "x25519-dalek 2.0.1",
+]
+
+[[package]]
+name = "kotva-depot"
+version = "0.1.0"
+source = "git+https://github.com/vul-os/kotva?tag=depot-v0.1.0#4b8eb5856844c73350646e551f0f88570d6ac7f4"
+dependencies = [
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=depot-v0.1.0)",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "kotva-mail"
 version = "0.2.0"
 source = "git+https://github.com/vul-os/kotva?tag=core-v0.2.0#a4a6ca5afed1d21daf8e3e6b3b63d1dac7c90fe7"
 dependencies = [
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -2390,7 +2426,7 @@ dependencies = [
  "axum",
  "hex",
  "http-body-util",
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "pier-billing",
  "pier-conformance",
  "pier-economics",
@@ -2416,7 +2452,7 @@ dependencies = [
 name = "pier-billing"
 version = "0.0.0"
 dependencies = [
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "pier-economics",
  "thiserror 1.0.69",
 ]
@@ -2432,7 +2468,7 @@ dependencies = [
 name = "pier-economics"
 version = "0.0.0"
 dependencies = [
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "thiserror 1.0.69",
 ]
 
@@ -2443,7 +2479,7 @@ dependencies = [
  "ed25519-dalek",
  "getrandom 0.2.17",
  "idna",
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "kotva-mail",
  "libc",
  "pier-conformance",
@@ -2469,6 +2505,7 @@ dependencies = [
 name = "pier-infra-service"
 version = "0.0.0"
 dependencies = [
+ "kotva-depot",
  "pier-conformance",
  "pier-economics",
 ]
@@ -2493,7 +2530,7 @@ dependencies = [
 name = "pier-media-relay"
 version = "0.0.0"
 dependencies = [
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "pier-conformance",
  "pier-economics",
  "serde",
@@ -2513,7 +2550,7 @@ name = "pier-reachability-adapter"
 version = "0.0.0"
 dependencies = [
  "getrandom 0.2.17",
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "pier-conformance",
  "pier-economics",
  "thiserror 1.0.69",
@@ -2527,7 +2564,7 @@ dependencies = [
 name = "pier-relay"
 version = "0.0.0"
 dependencies = [
- "kotva-core",
+ "kotva-core 0.2.0 (git+https://github.com/vul-os/kotva?tag=core-v0.2.0)",
  "libp2p",
  "pier-conformance",
  "pier-economics",
@@ -3705,6 +3742,15 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
+
+[[package]]
+name = "unicode-normalization"
+version = "0.1.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5fd4f6878c9cb28d874b009da9e8d183b5abc80117c40bbd187a1fde336be6e8"
+dependencies = [
+ "tinyvec",
+]
 
 [[package]]
 name = "universal-hash"

@@ -14,3 +14,15 @@ workspace = true
 [dependencies]
 pier-economics = { path = "../pier-economics" }
 pier-conformance = { path = "../pier-conformance" }
+
+# TEST-ONLY, and tag-pinned like every other kotva dependency in this repo (the isango guardrail,
+# HANDOVER §Guardrails-1 — never tracked at HEAD, never a sibling path dep, which would break a
+# checkout without kotva next to it and this crate is a workspace member).
+#
+# `kotva-depot` is the reference implementation of `profiles/cloud.md`, and what this crate borrows
+# from it is exactly one thing: the §7 `ability-conformance` PROBE. It is deliberately NOT a normal
+# dependency — `src/control.rs` transcribes the §5.2 ability registry from the profile document
+# independently, because a probe pointed at a re-export of the reference registry proves nothing.
+# See `tests/ability_conformance.rs`.
+[dev-dependencies]
+kotva-depot = { git = "https://github.com/vul-os/kotva", tag = "depot-v0.1.0" }

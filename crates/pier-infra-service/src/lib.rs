@@ -42,8 +42,20 @@
 //! integration are all future work; nothing here runs a real workload yet. In particular it does
 //! **not** yet build a `kotva_depot::DepotServicePolicy` policy blob — the `policy` field is an
 //! opaque [`Cbor`] the caller supplies.
+//!
+//! ## The one thing here that *is* implemented: the §5.2 control vocabulary
+//!
+//! [`control`] is pier's own transcription of `profiles/cloud.md` §5.2 — the closed ability registry
+//! — and its fail-closed gate. It is written out longhand rather than re-exported from `kotva-depot`
+//! **on purpose**: §5.2 is closed so that one open-source client can drive any conformant gateway,
+//! and that guarantee is only worth something once two implementations of the table exist and are
+//! checked against each other. `tests/ability_conformance.rs` runs kotva's `ability-conformance`
+//! probe (§7) against this table, in both directions — every registry verb accepted, every near-miss
+//! coinage refused.
 
 #![forbid(unsafe_code)]
+
+pub mod control;
 
 use pier_conformance::{Coordinator, Gate, LockIn, Metering, SelfHost, Settlement};
 use pier_economics::descriptor::{Descriptor, SignedDescriptor, Tariff};
@@ -122,6 +134,15 @@ impl InfraServiceCoordinator {
         };
         let signed = descriptor.sign(ik);
         (Self::new(descriptor, metered), signed)
+    }
+
+    /// Whether this coordinator recognises `ability` as a §5.2 verb for the `service` elemental.
+    ///
+    /// The vocabulary gate every control request passes first — see [`control`]. Unknown verbs are
+    /// refused, never mapped onto a near-match, and a verb is scoped to its elemental. This is the
+    /// coordinator-level entry point the `ability-conformance` probe (§7) drives.
+    pub fn accepts_ability(&self, service: &str, ability: &str) -> bool {
+        control::accepts_ability(service, ability)
     }
 }
 
