@@ -279,6 +279,7 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
       <ul class="navlist">
         <li><a class="navitem" data-sec="kinds" href="#kinds">Kinds</a></li>
         <li><a class="navitem" data-sec="economics" href="#economics">Economics</a></li>
+        <li><a class="navitem" data-sec="limits" href="#limits">Honest limits</a></li>
       </ul>
       <p class="nav-heading">Start</p>
       <ul class="navlist">
@@ -336,24 +337,36 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
       <section class="page" id="overview">
         <header class="page-head">
           <span class="panel-kicker">Overview</span>
-          <h1>A broker that can prove it isn't reading your traffic.</h1>
+          <h1>The broker reference implementation of the KOTVA standard.</h1>
           <p class="lede">
-            Pier is the reference implementation of KOTVA's coordinator contract — the spec's
-            answer to the parts of a peer-to-peer system that genuinely need one party in the
-            middle: routing packets past a NAT, bridging to legacy mail, giving two strangers a
-            place to rendezvous. Every kind it houses is <strong style="color:var(--text-primary)">accountable</strong>,
-            <strong style="color:var(--text-primary)">swappable</strong>, and <strong style="color:var(--text-primary)">self-hostable</strong>, and what it can see of
-            your traffic is declared in a signed descriptor and checked against real behaviour —
-            not just promised in a README.
+            KOTVA's <a href="https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md" target="_blank" rel="noopener" style="color:var(--accent)">coordinator contract</a>
+            names the parts of a peer-to-peer system that genuinely need one party in the middle:
+            routing packets past a NAT, bridging to legacy mail, giving two strangers a place to
+            rendezvous. Pier is the reference implementation of that contract — the code you read
+            to find out what the prose actually means, and the code you fork when you decide to
+            run one yourself. Every kind it houses is
+            <strong style="color:var(--text-primary)">accountable</strong>,
+            <strong style="color:var(--text-primary)">swappable</strong> and
+            <strong style="color:var(--text-primary)">self-hostable</strong>, and what it can see
+            of your traffic is declared in a signed descriptor rather than promised in a README.
+          </p>
+          <p class="body" style="max-width:66ch;margin-top:14px">
+            <strong style="color:var(--text-primary)">Nobody runs Pier for you.</strong> There is
+            no default instance, no hosted tier, no directory to register in and no operator behind
+            it. Every pier that exists is somebody's own — stood up under their own name, on their
+            own terms, answerable to their own users. A client uses whichever one it can reach and
+            leaves when it likes. That is the entire point of the name: a pier is infrastructure
+            that serves vessels it does not own, and the berth belongs to whoever ties up there.
           </p>
         </header>
 
         <div class="note note-caution" style="margin-bottom:22px">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01M10.3 3.9L2.8 17a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>
           <span><strong>Status: mid-rewrite.</strong> This Rust broker workspace is real and tested
-            (556 tests, clippy-clean) but is not yet the shipping default — the Go reverse-tunnel
+            (556 tests) but is not yet the shipping default — the Go reverse-tunnel
             relay and <code>@vulos/relay-client</code> JS SDK remain the working implementation in
-            production today.
+            production today. Four of the eleven coordinator kinds are built; the rest are
+            declared scaffolds, itemised below.
             <a href="https://github.com/vul-os/pier#status-honest-as-of-this-writing" target="_blank" rel="noopener" style="color:var(--accent)">Read the full status &rarr;</a></span>
         </div>
 
@@ -365,9 +378,21 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
 
         <div class="stat-grid">
           <div class="stat panel"><span class="label">License</span><div class="value-row"><span class="value" style="font-size:1.2rem">MIT / Apache-2.0</span></div><span class="hint">dual-licensed, your choice</span></div>
-          <div class="stat panel"><span class="label">Crates</span><div class="value-row"><span class="value bronze">14</span></div><span class="hint">the Rust broker workspace</span></div>
-          <div class="stat panel"><span class="label">Tests</span><div class="value-row"><span class="value bronze">556</span></div><span class="hint">clippy-clean, all passing</span></div>
-          <div class="stat panel"><span class="label">Token</span><div class="value-row"><span class="value">0</span></div><span class="hint">no token, ever — existing rails</span></div>
+          <div class="stat panel"><span class="label">Workspace crates</span><div class="value-row"><span class="value bronze">14</span></div><span class="hint">plus one excluded Stellar adapter</span></div>
+          <div class="stat panel"><span class="label">Tests</span><div class="value-row"><span class="value bronze">556</span></div><span class="hint">CI gates on them and on clippy <code>-D warnings</code></span></div>
+          <div class="stat panel"><span class="label">Published to crates.io</span><div class="value-row"><span class="value">0</span></div><span class="hint">by design, and enforced — see below</span></div>
+        </div>
+
+        <div class="note" style="margin-top:20px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:var(--text-muted)"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 22V12"/></svg>
+          <span><strong>Pier publishes nothing to crates.io.</strong> A spec-defined wire object
+            must have exactly one published home, or two implementations encode it differently and
+            both believe they conform. The published, semver-stable artefacts are the
+            <code>kotva-*</code> crates in the KOTVA repo, which this workspace <em>consumes</em>.
+            Every manifest here sets <code>publish = false</code>, the workspace default does too
+            so a new crate inherits the rule, and <code>scripts/check-no-publish.sh</code> fails
+            the build on any <code>cargo publish</code> — with a crate-count floor, so an empty
+            glob cannot report a vacuous pass.</span>
         </div>
 
         <figure style="margin:28px 0 0">
@@ -398,9 +423,11 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
             leave. The same shape survives
             in the software: a coordinator is <strong style="color:var(--text-primary)">hired for a function, not depended on
             for identity</strong>. It sits on the wire between two peers only because one of
-            KOTVA's ten coordinator kinds needs to — routing around a NAT, bridging to legacy
+            KOTVA's eleven coordinator kinds needs to — routing around a NAT, bridging to legacy
             mail, brokering a rendezvous — and it leaves no residue when you stop hiring it: no
-            migration, no re-keying, no lock-in.</p>
+            migration, no re-keying, no lock-in. The one kind that genuinely holds your data at
+            rest rather than in flight, <code>infra-service</code>, is the exception the spec
+            calls out by name, and it is not part of Core v1.</p>
         </header>
 
         <figure class="diagram">
@@ -466,20 +493,25 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
                 <table class="ledger">
                   <thead><tr><th>Kind</th><th>Class</th><th>Assurance</th></tr></thead>
                   <tbody>
-                    <tr><td>relay</td><td>blind</td><td><span class="pill pill-verifiable">structural</span></td></tr>
+                    <tr><td>relay</td><td>blind</td><td><span class="pill pill-verifiable">structural</span> unconditional</td></tr>
                     <tr><td>reachability-adapter</td><td>blind-routing</td><td><span class="pill pill-verifiable">structural</span> own domain &middot; <span class="pill pill-declared">declared</span> shared vanity</td></tr>
-                    <tr><td>media-relay</td><td>blind-routing</td><td><span class="pill pill-verifiable">structural</span> SFrame-sealed</td></tr>
+                    <tr><td>media-relay</td><td>blind-routing <em>only if</em> <code>sframe_required</code></td><td><span class="pill pill-verifiable">structural</span> when sealed &middot; otherwise the <em>class</em> itself is terminating</td></tr>
                     <tr><td>gateway</td><td>terminating</td><td>disclosed exception, not blind by design</td></tr>
                   </tbody>
                 </table>
               </div>
               <div class="note note-caution" style="margin-top:16px">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
-                <span><strong>Declared, not verified.</strong> A shared vanity-subdomain
-                  <code>reachability-adapter</code> only <em>promises</em> it is blind — nothing
-                  structural stops it lying. A relying party cannot check a <code>declared</code>
-                  claim independently (CONTRACT §3.4); Pier's own console says so on-screen
-                  rather than implying otherwise.</span>
+                <span><strong>Declared, not verified — and blindness is the minority case.</strong>
+                  A shared vanity-subdomain <code>reachability-adapter</code> only
+                  <em>promises</em> it is blind; nothing structural stops it lying, and a relying
+                  party cannot check a <code>declared</code> claim independently (CONTRACT §3.4).
+                  Across the eleven kinds only <code>relay</code> and
+                  <code>reachability-adapter</code> are unconditionally blind — an SFU that will
+                  accept unprotected media if offered can read it, so <code>media-relay</code>
+                  earns <code>blind-routing</code> only where the operator published
+                  <code>sframe_required</code>. Disclosed trust is this family's majority position,
+                  not its exception.</span>
               </div>
             </div>
           </section>
@@ -548,8 +580,8 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
                   </g>
 
                   <line x1="12" y1="278" x2="808" y2="278" class="d-hatch-line" stroke-dasharray="2 3"/>
-                  <text x="20" y="298" class="d-text-dim" font-size="12">In Pier today: <tspan fill="var(--text-secondary)">relay</tspan> = blind &middot; <tspan fill="var(--text-secondary)">reachability-adapter</tspan> / <tspan fill="var(--text-secondary)">media-relay</tspan> = blind-routing</text>
-                  <text x="20" y="316" class="d-text-dim" font-size="12"><tspan fill="var(--text-secondary)">gateway</tspan> = terminating (the one disclosed exception)</text>
+                  <text x="20" y="298" class="d-text-dim" font-size="12">In Pier today: <tspan fill="var(--text-secondary)">relay</tspan> = blind &middot; <tspan fill="var(--text-secondary)">reachability-adapter</tspan> = blind-routing &middot; <tspan fill="var(--text-secondary)">media-relay</tspan> = blind-routing only if sframe_required</text>
+                  <text x="20" y="316" class="d-text-dim" font-size="12"><tspan fill="var(--text-secondary)">gateway</tspan> = terminating, disclosed &mdash; and so are matcher, arbiter, oracle and infra-service</text>
                 </svg>
               </div>
               <figcaption>Every coordinator declares exactly one class at one assurance level in a
@@ -564,34 +596,94 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
       <!-- ═══ KINDS ══════════════════════════════════════════════════ -->
       <section class="page" id="kinds">
         <header class="page-head">
-          <span class="panel-kicker">Contract &middot; one contract, ten kinds</span>
+          <span class="panel-kicker">Contract &middot; one contract, eleven kinds</span>
           <h2>Every coordinator function lives behind the same contract.</h2>
           <p class="lede">A coordinator is any party providing a function the peer-to-peer
             substrate can't provide reciprocally: a global view, a scarce resource, a legal
-            anchor. Pier houses every kind KOTVA defines behind
-            <a href="https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md" target="_blank" rel="noopener" style="color:var(--accent)">one contract</a> —
-            four are running implementations today, six are signed, conformance-tested scaffolds
-            whose own function (ranking, arbitration, attestation…) is disclosed future work, not
-            a silent stub.</p>
+            anchor. <a href="https://github.com/vul-os/kotva/blob/main/coordinator/CONTRACT.md" target="_blank" rel="noopener" style="color:var(--accent)">CONTRACT §5</a>
+            is the canonical, exhaustive list at <strong style="color:var(--text-primary)">eleven</strong> — no other
+            document may enumerate a different count. Four are running implementations here today;
+            five are signed, conformance-tested scaffolds whose own function (ranking, arbitration,
+            attestation…) is disclosed future work rather than a silent stub; and two have no crate
+            in this workspace at all. The <em>Status</em> column below says which is which, per kind,
+            with the test counts it is drawn from.</p>
         </header>
 
         <div class="scroll-x">
           <table class="ledger">
-            <thead><tr><th>Kind</th><th>Provides</th><th>Visibility</th><th>Status</th></tr></thead>
+            <thead><tr><th>Kind</th><th>Provides</th><th>Visibility</th><th>Status in this workspace</th></tr></thead>
             <tbody>
-              <tr><td>gateway</td><td>Legacy mail bridge — MX, DKIM, SMTP/IMAP/POP3</td><td>terminating (the one disclosed exception)</td><td><span class="pill pill-built">built &middot; 320 tests</span></td></tr>
-              <tr><td>relay</td><td>Mesh reachability for NAT'd peers — real libp2p Circuit Relay v2</td><td>blind / structural</td><td><span class="pill pill-built">built &middot; 12 tests</span></td></tr>
-              <tr><td>reachability-adapter</td><td>ngrok-style public subdomains, SNI-passthrough</td><td>blind-routing</td><td><span class="pill pill-built">built &middot; 32 tests</span></td></tr>
-              <tr><td>media-relay</td><td>Scales calls via an external SFU, SFrame-sealed</td><td>blind-routing / structural</td><td><span class="pill pill-built">built &middot; 24 tests</span></td></tr>
-              <tr><td>indexer</td><td>Search/discovery over an opt-in public corpus</td><td>terminating / declared</td><td><span class="pill pill-scaffold">scaffold</span></td></tr>
-              <tr><td>labeler</td><td>Opt-in, subscribable moderation labels</td><td>terminating / declared</td><td><span class="pill pill-scaffold">scaffold</span></td></tr>
-              <tr><td>matcher</td><td>Real-time supply/demand matching</td><td>terminating / declared</td><td><span class="pill pill-scaffold">scaffold</span></td></tr>
-              <tr><td>arbiter</td><td>Dispute resolution over disclosed evidence</td><td>terminating / declared</td><td><span class="pill pill-scaffold">scaffold</span></td></tr>
-              <tr><td>oracle</td><td>Physical-world/real-fact attestation</td><td>terminating / declared</td><td><span class="pill pill-scaffold">scaffold</span></td></tr>
-              <tr><td>compute</td><td>Outsourced computation</td><td>terminating / declared</td><td><span class="pill pill-scaffold">scaffold</span></td></tr>
+              <tr><td>gateway</td><td>Legacy mail bridge — MX, SPF, DKIM, DMARC, MTA-STS, SMTP/IMAP/POP3</td><td>terminating (legacy leg is plaintext)</td><td><span class="pill pill-built">built &middot; 320 tests</span></td></tr>
+              <tr><td>relay</td><td>Mesh reachability for NAT'd peers — a real libp2p Circuit Relay v2 server</td><td>blind / structural</td><td><span class="pill pill-built">built &middot; 12 tests</span></td></tr>
+              <tr><td>reachability-adapter</td><td>ngrok-style public subdomains for box services, SNI-passthrough</td><td>blind-routing</td><td><span class="pill pill-built">built &middot; 32 tests</span> — control channel not yet Noise-encrypted; <code>zone</code> and <code>descriptor</code> modules not started</td></tr>
+              <tr><td>media-relay</td><td>Orchestrates an <em>external</em> SFU (coturn / livekit-server) — it does not embed one</td><td>blind-routing only where <code>sframe_required</code>; else terminating</td><td><span class="pill pill-declared">orchestration only &middot; 24 tests</span> — no media plane, no RTP and no SFrame code lives here</td></tr>
+              <tr><td>indexer</td><td>Search / discovery over an opt-in public corpus</td><td>corpus public; query channel terminating unless attested</td><td><span class="pill pill-scaffold">scaffold &middot; 8 tests</span></td></tr>
+              <tr><td>labeler</td><td>Moderation labels, opt-in and subscribable</td><td>n/a — labels public objects</td><td><span class="pill pill-scaffold">scaffold &middot; 7 tests</span></td></tr>
+              <tr><td>matcher</td><td>Real-time supply&harr;demand matching</td><td>terminating always; optionally attested via TEE</td><td><span class="pill pill-scaffold">scaffold &middot; 8 tests</span></td></tr>
+              <tr><td>arbiter</td><td>Dispute resolution over disclosed evidence (staked jury)</td><td>terminating for evidence, disclosed</td><td><span class="pill pill-scaffold">scaffold &middot; 7 tests</span></td></tr>
+              <tr><td>oracle</td><td>Physical-world / real-fact attestation</td><td>terminating, disclosed</td><td><span class="pill pill-scaffold">scaffold &middot; 7 tests</span></td></tr>
+              <tr><td>infra-service</td><td>Managed infrastructure — the four DEPOT elementals <code>bucket</code>, <code>volume</code>, <code>edge-fn</code>, <code>box</code>, plus a control plane</td><td>per service — <code>bucket</code>/<code>volume</code> blind only for what the client encrypted; <code>edge-fn</code>/<code>box</code> terminating</td><td><span class="pill pill-scaffold">no crate</span> — spec is DRAFT and deferred, not Core v1</td></tr>
+              <tr><td>custodial-escrow</td><td>Holds the trade float for a trade window</td><td>terminating for evidence, disclosed</td><td><span class="pill pill-scaffold">no crate</span> — commerce extension, not Core v1</td></tr>
             </tbody>
           </table>
         </div>
+
+        <div class="note note-caution" style="margin-top:20px">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
+          <span><strong>One of these eleven is stale in the code, and we would rather say so.</strong>
+            CONTRACT §5 retired the provisional <code>compute</code> kind and folded it into
+            <code>infra-service</code>: renting a GPU to run a model is running code you did not
+            write on hardware you do not hold, which is an <code>edge-fn</code> whose class declares
+            <code>gpu-count</code> — an attribute wearing a kind's clothes. This workspace has not
+            caught up. <code>pier-economics</code>'s <code>CoordinatorKind</code> enum still carries
+            <code>Compute</code> and has no <code>InfraService</code> variant, and a
+            <code>pier-compute</code> scaffold crate still sits in the workspace. Both counts read
+            "eleven"; they are not yet the same eleven. The rename is outstanding work, not a
+            position.</span>
+        </div>
+
+        <section class="panel" style="margin-top:24px">
+          <div class="panel-header"><div><span class="panel-kicker">DEPOT profile &middot; draft, deferred</span><h3>What <code>infra-service</code> will mean</h3></div></div>
+          <div class="panel-body">
+            <p class="lede">The <code>infra-service</code> kind is specified by
+              <strong style="color:var(--text-primary)">DEPOT</strong>, the KOTVA family's
+              managed-infrastructure profile. DEPOT names <em>the elementals of a cloud and the
+              control plane that provisions them</em> — and stops there. It defines no runtime, no
+              storage format, no query language, no economics and no cloud. Four irreducible
+              resources, split bytes-versus-code against cold-versus-hot:</p>
+            <div class="scroll-x" style="margin-top:16px;border:1px solid var(--border-strong)">
+              <table class="ledger">
+                <thead><tr><th>Elemental</th><th>Is</th><th>Adopts, rather than invents</th></tr></thead>
+                <tbody>
+                  <tr><td>bucket</td><td>bytes, cold</td><td>S3 API + content-addressing + HTTP caching</td></tr>
+                  <tr><td>volume</td><td>bytes, hot</td><td>virtio-blk / NVMe-oF / iSCSI</td></tr>
+                  <tr><td>edge-fn</td><td>code, cold</td><td>WASI / OCI</td></tr>
+                  <tr><td>box</td><td>code, hot</td><td>cloud-init, and any OS</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="body" style="margin-top:16px">Everything a platform sells beyond those four —
+              a database, a queue, a CDN, an image registry, a static site, hosted inference —
+              <strong style="color:var(--text-primary)">composes</strong> from them and is a
+              product, never a spec change. An operator brings its own implementation: back
+              <code>bucket</code> with Tigris, MinIO or Ceph, back <code>box</code> with a rack in
+              a basement. DEPOT deliberately cannot tell, and does not care. What it requires is
+              that the operator declare honestly what it can see, speak the adopted standard,
+              accept the same control verbs, and let the user leave with their bytes in a format
+              someone else can read.</p>
+            <div class="note note-caution" style="margin-top:16px">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
+              <span><strong>DEPOT is a DRAFT and a deferred extension — explicitly NOT part of
+                Core v1</strong>, normative only once ratified, and even the codename is
+                provisional. Nothing in this workspace implements it. It is on this page because
+                it is what the eleventh kind <em>means</em>, not because it ships. What separates
+                it from every other kind is worth stating plainly: the others see your data in
+                flight, DEPOT holds it <em>at rest</em>. Leaving a <code>matcher</code> costs
+                nothing; leaving a <code>box</code> or a <code>volume</code> costs a migration —
+                which is why swappability, not cryptography, does the work in that profile.</span>
+            </div>
+          </div>
+        </section>
 
         <section class="panel" style="margin-top:24px">
           <div class="panel-header"><div><span class="panel-kicker">COORD-2 &middot; zero lock-in</span><h3>Swapping a coordinator is a config change</h3></div></div>
@@ -659,14 +751,45 @@ visibility = <span class="c">"blind"</span></pre>
           </div>
           <div class="note note-caution">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
-            <span><strong>Settlement and stake are seams, not rails.</strong> Each ships one
-              mock reference adapter; the real Stellar/Hyperswitch adapter is untested against a
-              live network.</span>
+            <span><strong>Settlement and stake are seams, not rails.</strong>
+              <code>SettlementRail</code> and <code>StakeVerifier</code> each ship exactly one
+              mock reference adapter (an in-memory ledger; a fail-closed no-stake rail). The real
+              Stellar adapter is excluded from the workspace and from CI, and its own manifest
+              says so in capitals: <em>UNVERIFIED AGAINST LIVE STELLAR</em>. Disclosed in-crate,
+              not merely absent.</span>
           </div>
           <div class="note note-caution">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
-            <span><strong>Six of the ten coordinator kinds are scaffolds.</strong> A real signed
-              descriptor and conformance posture exist; the kind's own function does not yet.</span>
+            <span><strong>Indexer, labeler, matcher, arbiter, oracle and the retired
+              <code>compute</code> crate are scaffolds.</strong> A real signed descriptor and
+              conformance posture exist; the kind's own function does not yet. Their tests assert
+              the <em>declaration</em> — that it signs, that it declares the right visibility, that
+              <code>check()</code> passes — never a behaviour.</span>
+          </div>
+          <div class="note note-caution">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
+            <span><strong><code>media-relay</code> orchestrates an external SFU; it does not embed
+              one.</strong> It writes config and supervises a <code>coturn</code> /
+              <code>livekit-server</code> binary. There is no media plane, no RTP and no SFrame
+              implementation in this crate — bind-don't-reinvent, by design, and large-scale SFU
+              capacity is out of scope for it.</span>
+          </div>
+          <div class="note note-caution">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
+            <span><strong>"Conformant" is a narrower word than it looks.</strong>
+              <code>pier-conformance</code> is a trait plus a checklist, not a replayed wire-vector
+              suite — there are no vectors in this repo. COORD-5 (does observed behaviour match the
+              declaration?) is decidable only against real traffic, so the harness returns it as
+              <em>Behavioral</em>; a Behavioral finding does not block
+              <code>is_conformant()</code>. For a scaffold, conformance therefore means only that
+              the descriptor is well-shaped and its declared posture is self-consistent.</span>
+          </div>
+          <div class="note note-caution">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
+            <span><strong>The wire layout is this implementation's proposal, not yet normative.</strong>
+              The chosen encoding for <code>Descriptor</code> / <code>Tariff</code> /
+              <code>UsageReceipt</code> (canonical §18.1.1 CBOR, Ed25519, DS-tagged) is logged for
+              the spec session but not yet ratified into <code>coordinator/CONTRACT.md</code>.</span>
           </div>
           <div class="note note-caution">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.2 21 19.5H3L12 4.2z"/><path d="M12 10.4v4.1M12 17.3h.01"/></svg>
@@ -682,7 +805,11 @@ visibility = <span class="c">"blind"</span></pre>
         <header class="page-head">
           <span class="panel-kicker">Start</span>
           <h2>Run the console, or build the workspace.</h2>
-          <p>Pier is <strong>MIT OR Apache-2.0</strong> licensed, with no token, ever — the reference implementation of the <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener">KOTVA</a> coordinator contract.</p>
+          <p class="lede">Pier is <strong style="color:var(--text-primary)">MIT OR Apache-2.0</strong>
+            licensed, with no token, ever — the broker reference implementation of the
+            <a href="https://github.com/vul-os/kotva" target="_blank" rel="noopener" style="color:var(--accent)">KOTVA</a>
+            standard. Nothing here is published to crates.io, so there is nothing to
+            <code>cargo add</code>: you clone it, read it, and run your own.</p>
         </header>
         <div class="code-grid">
           <div class="code-card">
