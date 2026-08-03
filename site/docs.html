@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Pier — docs</title>
-<meta name="description" content="Pier technical docs: the self-hostable coordinator that implements the KOTVA contract — content-blind by construction, swappable, no token. Go relay, JS SDK, and the Rust broker workspace.">
+<meta name="description" content="Pier technical docs: the broker (coordinator) reference implementation of the KOTVA standard — self-hostable, swappable, no token. Go relay, JS SDK, and the Rust broker workspace.">
 
 <link rel="canonical" href="https://vulos.org/projects/pier/docs.html">
 <meta name="color-scheme" content="dark light">
@@ -17,12 +17,14 @@
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Pier — the reference broker implementation of the KOTVA coordinator contract">
+<meta property="og:image:alt" content="Pier — the broker reference implementation of the KOTVA standard: a bronze deck on three pilings standing over open water.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Pier — docs">
 <meta name="twitter:description" content="Technical docs for the open, self-hostable Pier coordinator — content-blind, swappable, no token.">
 <meta name="twitter:image" content="https://vulos.org/projects/pier/assets/og-card.png">
 <link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="./assets/site-theme.css">
 <script>
   (function () {
@@ -36,9 +38,16 @@
 <style>
 /* docs-page-only styling; shared chrome/tokens live in assets/site-theme.css */
 
-/* docs shell */
-.docs-shell{display:grid;grid-template-columns:236px 1fr;gap:36px;align-items:start;padding:30px 0 80px}
-@media(max-width:860px){.docs-shell{grid-template-columns:1fr;padding-top:18px}}
+/* docs shell — sidebar pinned, shell packs LEFT.
+   `justify-content:start` plus an explicit measure on the reading column is
+   what "packs left" means here: the sidebar sits against the left gutter and
+   the prose column takes its own max measure beside it, instead of the pair
+   being stretched to fill (and so drifting apart) on a wide monitor.
+   minmax(0,…) on the content track, never a bare 1fr — a bare 1fr refuses to
+   shrink below its content and pushes a wide <pre> out of the viewport. */
+.docs-shell{display:grid;grid-template-columns:236px minmax(0,58rem);justify-content:start;gap:36px;align-items:start;padding:30px 0 80px}
+@media(max-width:1100px){.docs-shell{grid-template-columns:236px minmax(0,1fr)}}
+@media(max-width:860px){.docs-shell{grid-template-columns:minmax(0,1fr);padding-top:18px}}
 
 .nav-toggle{
   display:none;width:100%;align-items:center;gap:10px;min-height:44px;padding:0 14px;margin-bottom:14px;
@@ -49,13 +58,17 @@
 .nav-toggle .cur{margin-left:auto;color:var(--accent);font-weight:500;font-size:12px;text-transform:none;letter-spacing:0}
 @media(max-width:860px){.nav-toggle{display:flex}}
 
-.docs-nav{position:sticky;top:78px;border:1px solid var(--border-default);border-radius:var(--radius-lg);background:var(--bg-surface);padding:14px;transition:background-color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+/* Pinned: sticky under the header AND bounded, so a nav longer than the
+   viewport scrolls inside itself rather than running its last entries off the
+   bottom of a short screen where they can never be reached. overscroll-behavior
+   keeps that inner scroll from chaining into the page once it bottoms out. */
+.docs-nav{position:sticky;top:78px;max-height:calc(100vh - 98px);overflow-y:auto;overscroll-behavior:contain;border:1px solid var(--border-default);border-radius:var(--radius-lg);background:var(--bg-surface);padding:14px;transition:background-color var(--dur) var(--ease),border-color var(--dur) var(--ease)}
 .docs-nav .label{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted);padding:6px 10px 10px}
 .docs-nav a{display:block;padding:11px;border-radius:8px;color:var(--text-tertiary);font-size:13.5px;font-weight:500;transition:.15s;border-left:2px solid transparent;min-height:44px;line-height:1.3;display:flex;align-items:center}
 .docs-nav a:hover{background:var(--bg-hover);color:var(--text-primary)}
 .docs-nav a.active{background:var(--accent-soft);color:var(--text-primary);border-left-color:var(--accent)}
 @media(max-width:860px){
-  .docs-nav{position:static}
+  .docs-nav{position:static;max-height:none;overflow:visible}
   .docs-nav.collapsed{display:none}
 }
 .docs-main{min-width:0}
@@ -106,22 +119,15 @@
 <header class="site-header"><div class="wrap nav">
   <a class="vulos-home" href="https://vulos.org" target="_blank" rel="noopener" title="Vulos — open, self-hostable software" aria-label="Vulos — open, self-hostable software"><img src="./assets/vulos-logo.png" alt="" width="22" height="22"></a>
   <a class="brand" href="./index.html">
-    <!-- The Pier mark (brand/pier.svg): a comma whose notch opens it into
-         a lowercase "e" — currentColor so the header sets the bronze accent. -->
-    <svg viewBox="14 5 72 92" role="img" aria-label="Pier">
-      <defs>
-        <mask id="pier-cut-nav">
-          <rect x="-40" y="-40" width="200" height="200" fill="#fff"/>
-          <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000"
-                transform="translate(16 5) rotate(200 47.5 36)"/>
-        </mask>
-      </defs>
-      <g mask="url(#pier-cut-nav)" fill="currentColor">
-        <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
-          <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
-                   C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
-                   C 20,23 32,10 50,10 Z"/>
-        </g>
+    <!-- The Pier mark (brand/pier.svg, copied verbatim): a deck on three
+         pilings over open water. currentColor, so the header sets the bronze. -->
+    <svg viewBox="0 0 88 66" role="img" aria-label="Pier">
+      <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+        <path d="M4 4 H72"/>
+        <path d="M12 4 V40"/>
+        <path d="M38 4 V40"/>
+        <path d="M64 4 V40"/>
+        <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
       </g>
     </svg>
     <b>PIER</b>

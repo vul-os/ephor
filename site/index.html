@@ -3,25 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Pier — the coordinator reference implementation of KOTVA</title>
-<meta name="description" content="Pier is the reference broker for KOTVA's coordinator contract: content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
+<title>Pier — the broker reference implementation of the KOTVA standard</title>
+<meta name="description" content="Pier is the broker (coordinator) reference implementation of the KOTVA standard. Content-visibility is a checkable type, not a policy promise. Anyone may run one, under their own name; there is no default instance and no operator.">
 <link rel="canonical" href="https://vulos.org/projects/pier/">
 <meta name="color-scheme" content="dark light">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Pier">
-<meta property="og:title" content="Pier — the coordinator reference implementation of KOTVA">
-<meta property="og:description" content="Content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
+<meta property="og:title" content="Pier — the broker reference implementation of the KOTVA standard">
+<meta property="og:description" content="Content-visibility is a checkable type, not a policy promise. Anyone may run one, under their own name — no default instance, no operator, no token.">
 <meta property="og:url" content="https://vulos.org/projects/pier/">
 <meta property="og:image" content="https://vulos.org/projects/pier/assets/og-card.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Pier — the reference broker implementation of the KOTVA coordinator contract">
+<meta property="og:image:alt" content="Pier — the broker reference implementation of the KOTVA standard: a bronze deck on three pilings standing over open water.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Pier — the coordinator reference implementation of KOTVA">
-<meta name="twitter:description" content="Content-visibility is a checkable type, not a policy promise. Self-hostable, swappable, no token.">
+<meta name="twitter:title" content="Pier — the broker reference implementation of the KOTVA standard">
+<meta name="twitter:description" content="Content-visibility is a checkable type, not a policy promise. Anyone may run one, under their own name — no default instance, no operator, no token.">
 <meta name="twitter:image" content="https://vulos.org/projects/pier/assets/og-card.png">
 <link rel="icon" type="image/svg+xml" href="assets/brand/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/brand/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/brand/apple-touch-icon.png">
 <link rel="stylesheet" href="./assets/site-theme.css">
 <script>
   (function () {
@@ -250,23 +252,20 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
   <aside class="side-nav" id="sideNav" tabindex="-1">
     <div class="side-brand">
       <div class="side-mark" aria-hidden="true">
-        <svg viewBox="14 5 72 92" role="presentation">
-          <defs>
-            <mask id="side-mark-cut">
-              <rect x="-40" y="-40" width="200" height="200" fill="#fff"/>
-              <rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000" transform="translate(16 5) rotate(200 47.5 36)"/>
-            </mask>
-          </defs>
-          <g mask="url(#side-mark-cut)" fill="currentColor">
-            <g transform="rotate(350 50 50) translate(100 0) scale(-1 1)">
-              <path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81
-                       C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39
-                       C 20,23 32,10 50,10 Z"/>
-            </g>
+        <!-- The Pier mark (brand/pier.svg, copied verbatim): a deck on three
+             pilings standing over open water. The water runs PAST the deck and
+             no vessel is drawn — a pier serves vessels it does not own. -->
+        <svg viewBox="0 0 88 66" role="presentation">
+          <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+            <path d="M4 4 H72"/>
+            <path d="M12 4 V40"/>
+            <path d="M38 4 V40"/>
+            <path d="M64 4 V40"/>
+            <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
           </g>
         </svg>
       </div>
-      <div class="side-word"><span class="w">Pier</span><span class="s">Pre-alpha reference</span></div>
+      <div class="side-word"><span class="w">Pier</span><span class="s">Reference impl · pre-alpha</span></div>
     </div>
 
     <nav aria-label="Page sections">
@@ -289,13 +288,11 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
 
     <div class="nav-foot">
       <div class="foot-mark" aria-hidden="true">
-        <svg viewBox="14 5 130 92" role="presentation">
-          <defs>
-            <mask id="ftmark-a"><rect x="-40" y="-40" width="240" height="240" fill="#fff"/><rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000" transform="translate(16 5) rotate(200 47.5 36)"/></mask>
-            <mask id="ftmark-b"><rect x="-40" y="-40" width="240" height="240" fill="#fff"/><rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000" transform="translate(16 5) rotate(200 47.5 36)"/></mask>
-          </defs>
-          <g mask="url(#ftmark-a)" fill="currentColor"><g transform="rotate(350 50 50) translate(100 0) scale(-1 1)"><path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81 C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39 C 20,23 32,10 50,10 Z"/></g></g>
-          <g transform="translate(158 0) scale(-1 1)"><g mask="url(#ftmark-b)" fill="currentColor" opacity="0.5"><g transform="rotate(350 50 50) translate(100 0) scale(-1 1)"><path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81 C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39 C 20,23 32,10 50,10 Z"/></g></g></g>
+        <svg viewBox="0 0 88 66" role="presentation">
+          <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+            <path d="M4 4 H72"/><path d="M12 4 V40"/><path d="M38 4 V40"/><path d="M64 4 V40"/>
+            <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
+          </g>
         </svg>
       </div>
       <span class="mode-badge"><span class="light-dot" aria-hidden="true"></span> Pre-alpha</span>
@@ -310,13 +307,11 @@ table.ledger tbody tr:hover{background:color-mix(in srgb,var(--accent) 5%,transp
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
         </button>
         <a class="vulos-home" href="https://vulos.org" target="_blank" rel="noopener" title="Vulos — open, self-hostable software" aria-label="Vulos — open, self-hostable software"><img src="./assets/vulos-logo.png" alt="" width="22" height="22"></a>
-        <svg class="tb-mark" viewBox="14 5 130 92" role="presentation" aria-hidden="true">
-          <defs>
-            <mask id="tbmark-a"><rect x="-40" y="-40" width="240" height="240" fill="#fff"/><rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000" transform="translate(16 5) rotate(200 47.5 36)"/></mask>
-            <mask id="tbmark-b"><rect x="-40" y="-40" width="240" height="240" fill="#fff"/><rect x="31.5" y="29" width="32" height="14" rx="3" fill="#000" transform="translate(16 5) rotate(200 47.5 36)"/></mask>
-          </defs>
-          <g mask="url(#tbmark-a)" fill="currentColor"><g transform="rotate(350 50 50) translate(100 0) scale(-1 1)"><path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81 C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39 C 20,23 32,10 50,10 Z"/></g></g>
-          <g transform="translate(158 0) scale(-1 1)"><g mask="url(#tbmark-b)" fill="currentColor" opacity="0.5"><g transform="rotate(350 50 50) translate(100 0) scale(-1 1)"><path d="M 50,10 C 68,10 80,23 80,41 C 80,64 64,82 46,90 C 40,93 35,85 40,81 C 51,73 57,65 60,56 C 55,61 48,63 41,62 C 28,60 20,51 20,39 C 20,23 32,10 50,10 Z"/></g></g></g>
+        <svg class="tb-mark" viewBox="0 0 88 66" role="presentation" aria-hidden="true">
+          <g stroke="currentColor" stroke-width="8" stroke-linecap="round" fill="none">
+            <path d="M4 4 H72"/><path d="M12 4 V40"/><path d="M38 4 V40"/><path d="M64 4 V40"/>
+            <path d="M4 58 Q14 52 24 58 Q34 64 44 58 Q54 52 64 58 Q74 64 84 58"/>
+          </g>
         </svg>
         <span class="crumb-kicker" id="crumbKicker">Coordinator reference &middot; pre-alpha</span>
       </div>
