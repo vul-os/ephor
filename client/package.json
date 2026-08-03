@@ -11,7 +11,9 @@
     "build:lib": "vite build --config vite.config.lib.js",
     "build:types": "tsc -p tsconfig.dts.json",
     "build:harness": "vite build --config e2e/harness/vite.config.js",
-    "test": "vitest run",
+    "test": "npm run kotva:check && vitest run",
+    "kotva:check": "node scripts/check-kotva-parity.mjs",
+    "kotva:pin": "node scripts/check-kotva-parity.mjs --repin",
     "pretest:e2e": "npm run build && npm run build:harness",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"

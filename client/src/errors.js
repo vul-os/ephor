@@ -1,9 +1,9 @@
 /**
- * errors.js — @vulos/relay-client structured error types.
+ * errors.js — kotva-client structured error types.
  *
  * Exported from the root barrel so consumers can instanceof-check:
  *
- *   import { SignalingError, RelayDepositError, EndpointError } from '@vulos/relay-client'
+ *   import { SignalingError, RelayDepositError, EndpointError } from 'kotva-client'
  *   try { ... } catch (err) {
  *     if (err instanceof SignalingError) { ... }
  *   }

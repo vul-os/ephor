@@ -112,6 +112,60 @@ tier hint) can be wired in without OS-specific logic leaking into the shared
 package. Consumers that don't supply one get `undefined` from
 `currentTierHint()` — the shared package is a no-op for them.
 
+## Consuming `kotva-client` — the substrate modules in `src/`
+
+Eight modules in `src/` are **not this package's code**. They are the KOTVA
+substrate protocols, and their source of truth is
+[`kotva/bindings/js`](https://github.com/vul-os/kotva/tree/main/bindings/js),
+published as `kotva-client`:
+
+`chunkProof` · `relayBox` · `prekeys` · `signaling` · `rendezvous` ·
+`rendezvousSignaling` · `secureTransport` · `errors`
+
+They moved because `chunkProof.js` was a second implementation of a kotva spec
+section — `substrate/FEEDS.md § 5.3`, whose Go half is Pier's own
+`tunnel/pubcache` — sitting in a product repo with no shared owner. Products
+consume the substrate; they do not re-implement it.
+
+**Do not edit these files here.** `npm test` runs
+`scripts/check-kotva-parity.mjs` first, which fails if any of them drifts by a
+byte from the pinned tag in `kotva-client.pin.json`. Fix upstream in kotva, cut
+a new `bindings/js` tag, then re-sync:
+
+```
+npm run kotva:pin -- ../../kotva     # re-copy + re-hash, then update tag/commit/version by hand
+```
+
+What stayed here is `FabricClient` (`fabric.js`) and the transport/UX glue
+around it — `endpoints`, `health`, `presence`, `offlineBootstrap`, `regionPop`,
+`roundTripCheck`, `useLiveCursors`, `call/*`. `FabricClient` orchestrates the
+substrate but is not substrate: it hardcodes `/api/peering/*` paths, carries a
+billing meter, and labels its data channel `diwan-fabric`.
+
+### Why a hash pin and not a dependency
+
+The end state is an ordinary pinned dependency,
+`"kotva-client": "0.1.0"`, and the switch is one line in `package.json` plus
+deleting the eight files and this gate. It is not that today for one verified
+reason: **npm has no subdirectory support for git dependencies.** npm 11.6.2
+clones the repo and reads `package.json` at the *clone root*, which kotva does
+not have — so the Cargo convention this repo uses for the `kotva-*` crates
+(`{ git = "…/kotva", tag = "core-v0.2.0" }`, which works because Cargo scans the
+repo for the crate) has no npm equivalent. The tag exists —
+`bindings/js/v0.1.0` — but a tag alone is not consumable by npm.
+
+**What unblocks it:** publishing `kotva-client` from `kotva/bindings/js`, either
+to the npm registry (`npm publish`, then pin `"kotva-client": "0.1.0"`) or as a
+GitHub Release asset (`npm pack`, attach the `.tgz` to the `bindings/js/v0.1.0`
+release, then pin the immutable release-asset URL). Both are release actions on
+the kotva repo, not code changes here.
+
+A `file:../../kotva/bindings/js` path dependency was deliberately not used. This
+repo already records what that pattern costs, in `crates/pier-cli/Cargo.toml`:
+the `kotva-depot` path dep makes `cargo build` at the root require a sibling
+kotva checkout. The hash pin needs no checkout and no network, so the gate runs
+identically in CI, offline, and on a fresh clone.
+
 ## License
 
 MIT — see [LICENSE](./LICENSE).

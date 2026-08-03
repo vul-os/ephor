@@ -1,7 +1,7 @@
 /**
- * signaling.js — Pier signaling client for the office suite.
+ * signaling.js — authenticated signaling client.
  *
- * Opens a WebSocket to the Vulos OS signaling stream
+ * Opens a WebSocket to a host signaling stream
  * (GET /api/peering/stream) and multiplexes offer/answer/ICE frames
  * over the "signal" channel defined by the OS ws.go Hub.
  *
