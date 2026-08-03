@@ -150,10 +150,23 @@ jobs:
             echo "::error::workspace member list silently shrank and this job stopped covering it."
             exit 1
           fi
-          echo "NOT VERIFIED BY THIS JOB: crates/broker-billing-patala (the optional patala-backed"
+          # The honest-exclusion notice. It names a path, so it must be a path that
+          # EXISTS: it said "crates/broker-billing-patala" from before the ephor->pier
+          # rename, and no crate has been called broker-* since. A reader following
+          # "See .../Cargo.toml" landed on nothing, which quietly turns a disclosure of
+          # a coverage gap into a dead reference. Assert the path rather than print it,
+          # so the next rename fails the job instead of rotting the message.
+          EXCLUDED_CRATE=crates/pier-billing-patala
+          if [ ! -f "$EXCLUDED_CRATE/Cargo.toml" ]; then
+            echo "::error::This job's coverage notice names ${EXCLUDED_CRATE}, which does not exist."
+            echo "::error::Either the crate moved/was renamed (update EXCLUDED_CRATE here) or it was"
+            echo "::error::deleted (drop this notice). A disclosure that points at nothing discloses nothing."
+            exit 1
+          fi
+          echo "NOT VERIFIED BY THIS JOB: ${EXCLUDED_CRATE} (the optional patala-backed"
           echo "SettlementRail adapter, 11 tests). It is 'exclude'd from this workspace because it"
           echo "path-depends on the sibling ../../../patala repo, which is NOT checked out here."
-          echo "Its build, tests, clippy and fmt are UNVERIFIED in CI. See crates/broker-billing-patala/Cargo.toml."
+          echo "Its build, tests, clippy and fmt are UNVERIFIED in CI. See ${EXCLUDED_CRATE}/Cargo.toml."
 
       # --locked everywhere: a CI run that silently rewrites Cargo.lock is not
       # testing what the repo pins.
