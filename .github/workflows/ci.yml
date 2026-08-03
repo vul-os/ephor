@@ -96,16 +96,50 @@ jobs:
           cargo clippy --version
           cargo fmt --version
 
+      # The workspace now path-depends on the SIBLING kotva checkout: `crates/pier-cli`
+      # depends on `kotva-depot` (the closed §5.2 ability registry it is a client for),
+      # and `crates/pier-infra-service` dev-depends on it. Neither can use the
+      # `git = ".../kotva", tag = "core-v0.2.0"` convention the other crates use, because
+      # that tag PREDATES the crate — `git ls-tree core-v0.2.0 crates/` lists only
+      # kotva-core and kotva-mail. So kotva must exist next to this checkout or `cargo
+      # metadata` itself fails, before any build step runs.
+      #
+      # Pinned to an immutable SHA, not a branch: the isango guardrail (HANDOVER
+      # §Guardrails-1) is "never track HEAD", and a SHA satisfies it exactly as a tag
+      # does. DELETE THIS STEP the moment kotva cuts a tag containing kotva-depot; the
+      # path deps become `{ git = ..., tag = ... }` and the sibling stops being needed.
+      - name: Fetch the kotva sibling (pinned)
+        run: |
+          set -euo pipefail
+          KOTVA_SHA=17b7edd1ba63e86d5a98b80cf426c9c89be83424
+          DEST="$(dirname "$GITHUB_WORKSPACE")/kotva"
+          mkdir -p "$DEST"
+          git -C "$DEST" init -q
+          git -C "$DEST" remote add origin https://github.com/vul-os/kotva.git
+          git -C "$DEST" fetch -q --depth 1 origin "$KOTVA_SHA"
+          git -C "$DEST" checkout -q FETCH_HEAD
+          # Assert the thing we came for is actually there. A clone that succeeded but
+          # produced the wrong tree would otherwise surface as an inscrutable cargo error
+          # three steps later.
+          for c in kotva-depot kotva-core kotva-cbor; do
+            test -f "$DEST/crates/$c/Cargo.toml" || {
+              echo "::error::kotva sibling is missing crates/$c — the pin is wrong or the crate moved"
+              exit 1
+            }
+          done
+          echo "kotva pinned at ${KOTVA_SHA} in ${DEST}"
+
       # THE COVERAGE ASSERTION. This job would otherwise be trivially satisfiable
       # by a workspace that resolved to zero crates: `cargo build` over an empty
       # member list exits 0 and reports nothing. Pin the crate count, print the
       # names, and name out loud the one crate this job does NOT cover.
       #
       # Bump EXPECTED_CRATES deliberately when a coordinator kind is added.
+      # 14 -> 15: crates/pier-cli (the DEPOT control-plane CLI).
       - name: Coverage guard (crate count)
         run: |
           set -euo pipefail
-          EXPECTED_CRATES=14
+          EXPECTED_CRATES=15
           cargo metadata --no-deps --format-version 1 --locked > /tmp/meta.json
           ACTUAL=$(jq '.packages | length' /tmp/meta.json)
           echo "Workspace crates this job builds/tests/lints (${ACTUAL}):"
@@ -131,7 +165,8 @@ jobs:
           set -euo pipefail
           # Floor, not an exact match — this fails when tests DISAPPEAR, which is the
           # failure mode a green-by-doing-nothing gate hides. Raise it when the suite grows.
-          MIN_TESTS=561
+          # 561 -> 600: crates/pier-cli contributes 39 (31 unit + 8 ability-mapping).
+          MIN_TESTS=600
           cargo test --locked --no-fail-fast 2>&1 | tee /tmp/cargo-test.log
           PASSED=$(grep -E '^test result: ok\.' /tmp/cargo-test.log | awk '{ n += $4 } END { print n+0 }')
           echo "Rust tests passed: ${PASSED} (floor ${MIN_TESTS})"
