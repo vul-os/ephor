@@ -84,6 +84,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4.2.2
 
+      # This repo publishes NOTHING to crates.io (see the PUBLISH RULE in the root
+      # Cargo.toml). scripts/check-no-publish.sh enforces that — and until now it was
+      # enforced only by whoever remembered to run it by hand, which is not enforcement.
+      # It is pure bash (grep only, no toolchain), so it runs before the rustup install
+      # and fails fast.
+      - name: No-publish rule
+        run: ./scripts/check-no-publish.sh
+
       # rust-version in [workspace.package] is 1.85; build on stable and let the
       # rust-version floor be what it is — a MSRV job is a separate concern.
       - name: Set up Rust
@@ -195,6 +203,72 @@ jobs:
       - name: Rustfmt
         run: cargo fmt --all --check
 
+  # The operator console had NO CI job at all. `check-brand-isolation.sh` and its
+  # mutation suite were reachable only as `pnpm check:brand` / `check:brand:mutate`,
+  # i.e. only when a human remembered — so the console could ship a Vulos string, or
+  # a stale "Ephor" one, on any push and nothing would say so. A gate nothing invokes
+  # is documentation, not a gate.
+  #
+  # This mirrors the verify-script job's principle one level up: run the gate AND run
+  # the mutation suite that proves the gate can still fail.
+  console:
+    name: Operator Console — Types, Build & Brand Isolation
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: console
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.2
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4.1.0
+        with:
+          version: 11
+
+      # Node 22, not the 20 the client job uses: vite 8 declares
+      # engines.node "^20.19.0 || >=22.12.0". Do not lower this without checking that.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: console/pnpm-lock.yaml
+
+      # --frozen-lockfile: an install that silently resolves different versions is not
+      # testing what the repo pins (same reason the Rust job passes --locked).
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm check
+
+      - name: Build
+        run: pnpm build
+
+      # The gate itself: builds the DEFAULT target (VITE_BRAND unset) and asserts no
+      # file in dist/ names another brand, with its own coverage assertions.
+      - name: Brand isolation gate
+        run: pnpm check:brand
+
+      # The evidence the gate can fail. Six defect classes, each planted then reverted.
+      - name: Brand isolation — mutation suite
+        run: pnpm check:brand:mutate
+
+      # The mutation suite edits tracked files and restores them from a trap. If that
+      # restore ever half-works, every later run of the gate would be scoring a tree
+      # nobody intended. Assert the working tree came back exactly as checked out.
+      - name: Working tree must be restored after mutation
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if ! git diff --quiet; then
+            echo "::error::the mutation suite did not restore the working tree:"
+            git --no-pager diff --stat
+            exit 1
+          fi
+          echo "working tree clean — the mutation suite restored every file it touched"
+
   # The release verifier is only worth having if its REFUSALS are exercised.
   # A checksum guard that has quietly stopped failing looks identical, from a
   # green CI run, to one that works. This runs the full synthetic-origin matrix
@@ -225,7 +299,7 @@ jobs:
   security:
     name: Security Scan
     runs-on: ubuntu-24.04
-    needs: [client, go, rust, verify-script]
+    needs: [client, go, rust, console, verify-script]
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.2
