@@ -14,7 +14,7 @@
   <a href="Cargo.toml"><img alt="Rust" src="https://img.shields.io/badge/rust-1.85%2B-C2410C?logo=rust&logoColor=white"></a>
   <img alt="Status" src="https://img.shields.io/badge/status-pre--alpha%20reference-FFC24B">
   <a href="https://github.com/vul-os/kotva"><img alt="Spec: KOTVA" src="https://img.shields.io/badge/spec-KOTVA-FF8A3D"></a>
-  <img alt="Tests" src="https://img.shields.io/badge/tests-556%20green-14B8A6">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-561%20green-14B8A6">
 </p>
 
 <p align="center">
@@ -224,7 +224,7 @@ Full crate map, per-crate detail, and the `kotva-core` pin mechanics:
 
 ```sh
 cargo build
-cargo test                    # 556 tests, clippy clean
+cargo test                    # 561 tests, clippy clean
 cargo clippy --all-targets -- -D warnings
 cargo fmt --all --check
 ```
@@ -447,7 +447,7 @@ CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and tests the
 client on Node 20 (including a real-chromium boot guard on the BUILT library), the Go
 relay (`build`/`vet`/`test -race`) and the Rust workspace
 (`build`/`test`/`clippy -D warnings`/`fmt --check`, all `--locked`, with a 14-crate
-count guard and a ≥556-test floor), then runs a Trivy filesystem scan
+count guard and a ≥561-test floor), then runs a Trivy filesystem scan
 (HIGH/CRITICAL gating). The
 publishable JS package lives in `client/`; the repository root holds dev tooling
 (screenshot capture, etc.) under `scripts/`.

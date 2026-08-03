@@ -131,7 +131,7 @@ jobs:
           set -euo pipefail
           # Floor, not an exact match — this fails when tests DISAPPEAR, which is the
           # failure mode a green-by-doing-nothing gate hides. Raise it when the suite grows.
-          MIN_TESTS=556
+          MIN_TESTS=561
           cargo test --locked --no-fail-fast 2>&1 | tee /tmp/cargo-test.log
           PASSED=$(grep -E '^test result: ok\.' /tmp/cargo-test.log | awk '{ n += $4 } END { print n+0 }')
           echo "Rust tests passed: ${PASSED} (floor ${MIN_TESTS})"

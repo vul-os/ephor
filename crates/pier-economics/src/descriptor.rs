@@ -954,4 +954,119 @@ mod tests {
         forged.identity = other.public();
         assert!(forged.verify().is_err());
     }
+
+    // ── Cross-implementation conformance: kotva-coordinator's frozen §18.8a.1 vectors ──────────
+    //
+    // These are the SAME BYTES that `kotva/crates/kotva-coordinator/tests/vectors.rs` freezes, in
+    // the same order, copied verbatim. They exist because the `compute`->`infra-service` fold was
+    // once landed in kotva only: pier's decoder rejected kotva's own canonical DESCRIPTOR_V0 and
+    // simultaneously accepted `kind = "compute"`, which §18.8a.1 says a decoder MUST reject. Two
+    // implementations of one wire format that had never been fed each other's bytes agreed on
+    // nothing, and every test on both sides was green. A round-trip test inside one crate cannot
+    // catch that; only foreign bytes can.
+
+    /// Hex -> bytes for the frozen vectors below.
+    fn hex(s: &str) -> Vec<u8> {
+        assert!(s.len() % 2 == 0, "hex vector must have even length");
+        (0..s.len())
+            .step_by(2)
+            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).expect("vector must be valid hex"))
+            .collect()
+    }
+
+    /// Decode a full §18.8a.1 wire descriptor WITHOUT checking its signature — the frozen vectors
+    /// carry a placeholder `0xd5…` signature, not one from a real key, so the wire-shape agreement
+    /// is what is under test here. Signature verification has its own tests above.
+    fn decode_body_unverified(bytes: &[u8]) -> Result<Descriptor, DescriptorError> {
+        let mut f = Fields::from_cv(cbor::decode(bytes)?)?;
+        let _sig = as_bytes(f.req(7)?)?;
+        Descriptor::from_cv(Cv::Map(f.into_pairs()))
+    }
+
+    /// `kotva-coordinator::tests::vectors::DESCRIPTOR_V0`, verbatim.
+    /// `{ suite: 1, kind: "infra-service", identity: 32xd1, visibility: {"blind","structural"},
+    ///    policy: <kotva-depot's frozen POLICY_MINIMAL>, sig: 64xd5 }` — no tariff.
+    const KOTVA_DESCRIPTOR_V0: &str = concat!(
+        "a6",
+        "0101",
+        "026d696e6672612d73657276696365",
+        "035820",
+        "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "04",
+        "a20165626c696e64026a7374727563747572616c",
+        "0553",
+        "a201666275636b657402686f70657261746f72",
+        "075840",
+        "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+        "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+    );
+
+    /// `kotva-coordinator::tests::vectors::DESCRIPTOR_KIND_COMPUTE`, verbatim — `DESCRIPTOR_V0`
+    /// with `kind` = `"compute"` (`02 67 63 6f 6d 70 75 74 65`). A decoder that accepts this keeps
+    /// a retired concept alive on the wire.
+    const KOTVA_DESCRIPTOR_KIND_COMPUTE: &str = concat!(
+        "a6",
+        "0101",
+        "0267636f6d70757465",
+        "035820",
+        "d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1d1",
+        "04",
+        "a20165626c696e64026a7374727563747572616c",
+        "0553",
+        "a201666275636b657402686f70657261746f72",
+        "075840",
+        "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+        "d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5d5",
+    );
+
+    #[test]
+    fn pier_decodes_kotvas_frozen_infra_service_descriptor() {
+        let d = decode_body_unverified(&hex(KOTVA_DESCRIPTOR_V0))
+            .expect("pier MUST decode kotva-coordinator's own canonical §18.8a.1 descriptor");
+        assert_eq!(d.kind, CoordinatorKind::InfraService);
+        assert_eq!(d.kind.as_str(), "infra-service");
+        assert_eq!(d.identity, vec![0xd1; 32]);
+        assert_eq!(d.visibility.class, VisibilityClass::Blind);
+        assert_eq!(d.visibility.level, AssuranceLevel::Structural);
+        assert!(d.tariff.is_none(), "DESCRIPTOR_V0 omits key 6 (a free coordinator)");
+        // The opaque policy blob is kotva-depot's own frozen POLICY_MINIMAL, byte for byte:
+        // `a2 01 66 "bucket" 02 68 "operator"` = 19 bytes.
+        assert_eq!(
+            d.policy.0,
+            hex("a201666275636b657402686f70657261746f72"),
+            "the policy blob must survive as opaque bytes, unaltered"
+        );
+        assert_eq!(d.policy.0.len(), 19);
+    }
+
+    #[test]
+    fn pier_re_encodes_kotvas_frozen_descriptor_byte_for_byte() {
+        let d = decode_body_unverified(&hex(KOTVA_DESCRIPTOR_V0)).unwrap();
+        let signed = SignedDescriptor {
+            descriptor: d,
+            sig: vec![0xd5; 64],
+        };
+        assert_eq!(
+            signed.det_cbor(),
+            hex(KOTVA_DESCRIPTOR_V0),
+            "pier's encoder must reproduce kotva's frozen bytes exactly — canonical CBOR admits \
+             exactly one encoding, so any difference is a real wire divergence"
+        );
+    }
+
+    #[test]
+    fn pier_rejects_the_retired_compute_kind_on_the_wire() {
+        // The control: same descriptor, only the `kind` string differs, so a rejection here can
+        // only be about the kind — not about some unrelated malformity.
+        assert!(
+            decode_body_unverified(&hex(KOTVA_DESCRIPTOR_V0)).is_ok(),
+            "false-positive control: the uncorrupted vector must decode"
+        );
+        let err = decode_body_unverified(&hex(KOTVA_DESCRIPTOR_KIND_COMPUTE))
+            .expect_err("`kind = \"compute\"` is retired and MUST be rejected (§18.8a.1)");
+        assert!(
+            matches!(err, DescriptorError::Malformed("unknown coordinator kind")),
+            "expected an unknown-kind rejection, got {err:?}"
+        );
+    }
 }
