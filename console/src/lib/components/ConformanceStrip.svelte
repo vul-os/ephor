@@ -61,10 +61,22 @@
 </div>
 
 <style>
+  /* position:relative here — NOT on .light — is what stops the tooltips from
+     widening the document. Each tooltip is 15rem wide and used to be centred on
+     its own tile, so the tooltip belonging to the rightmost light hung ~120px
+     past the panel and pushed documentElement.scrollWidth to 1474 on a 1440
+     viewport: a horizontal scrollbar on every page, caused by an element that is
+     opacity:0 and never seen. (Invisible is not "not laid out".) Anchoring every
+     tooltip to the STRIP instead means the position no longer depends on which
+     light is hovered, so it cannot overflow at any column count — which the
+     per-tile alternative could only achieve with one nth-child rule set per
+     breakpoint. Deliberately NOT fixed with overflow-x:clip: that would have
+     hidden the overflow from scrollWidth while still clipping the tooltip. */
   .strip {
     display: grid;
     grid-template-columns: repeat(8, minmax(0, 1fr));
     gap: 0.5rem;
+    position: relative;
   }
 
   @media (max-width: 760px) {
@@ -80,7 +92,6 @@
   }
 
   .light {
-    position: relative;
     border-radius: var(--radius-md);
     background: var(--bg-elevated);
     border: 1px solid var(--border-default);
@@ -161,13 +172,17 @@
     color: var(--text-tertiary);
   }
 
+  /* Anchored to .strip (see above), so all eight resolve to the same spot —
+     centred above the strip, never wider than it. Only one is ever visible at a
+     time, and aria-describedby keeps each tile bound to its own text, so the
+     shared position costs nothing in meaning. */
   .tooltip {
     position: absolute;
     bottom: calc(100% + 0.5rem);
     left: 50%;
     transform: translateX(-50%) translateY(4px);
     width: 15rem;
-    max-width: 70vw;
+    max-width: 100%;
     background: var(--text-primary);
     color: var(--bg-base);
     border-radius: var(--radius-sm);
