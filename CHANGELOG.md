@@ -50,7 +50,10 @@ standard. Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); vers
 - **Stale branding shipped in raster assets**: the console screenshot on the landing page still
   showed *Ephor*, invisible to every text grep of the rename.
 - **The docs site published another repo's screenshots** — a demo harness branded
-  `github.com/vul-os/vulos-relay`, at a version this package has never had.
+  `github.com/vul-os/vulos-relay`, at a version this package has never had. The harness itself
+  (`demo/index.html`), its captures (`docs/screenshots/`) and the page documenting them
+  (`docs/SCREENSHOTS.md`) are now deleted; `docs/SCREENSHOTS.md` is the console screenshots page,
+  byte-identical to the site copy.
 
 ### Security
 

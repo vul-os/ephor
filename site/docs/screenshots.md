@@ -14,11 +14,11 @@ here.
 The posture page: the declared content-visibility class (COORD-4), the
 COORD-1..8 conformance strip, and the figures an operator checks first.
 
-![Operator console — Overview, light theme](screenshots/overview-light.png)
+![Operator console — Overview, light theme](../site/screenshots/overview-light.png)
 
 The console follows the system theme and has its own toggle.
 
-![Operator console — Overview, dark theme](screenshots/overview-dark.png)
+![Operator console — Overview, dark theme](../site/screenshots/overview-dark.png)
 
 ## Conformance
 
@@ -26,21 +26,21 @@ The COORD-1..8 checklist in full, one row per clause. Amber rows are
 **behavioral** — decidable only against real traffic, and never reported as a
 pass or as a violation.
 
-![Operator console — COORD-1..8 conformance checklist](screenshots/conformance.png)
+![Operator console — COORD-1..8 conformance checklist](../site/screenshots/conformance.png)
 
 ## Prepaid ledger
 
 Per-payer credit balance, current-period metered usage, and the signed usage
 receipts on file.
 
-![Operator console — prepaid ledger and signed usage receipts](screenshots/billing.png)
+![Operator console — prepaid ledger and signed usage receipts](../site/screenshots/billing.png)
 
 ## Narrow viewports
 
 Below 900px the sidebar collapses to a drawer and the metric grid drops to one
 column, so no figure is ellipsised.
 
-![Operator console — Overview on a 390px viewport](screenshots/overview-mobile.png)
+![Operator console — Overview on a 390px viewport](../site/screenshots/overview-mobile.png)
 
 ## Regenerate
 

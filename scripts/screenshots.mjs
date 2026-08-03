@@ -12,7 +12,7 @@
  * Prerequisites: Node.js 20+, `npm ci` in scripts/ (installs Playwright +
  * downloads a headless Chromium binary ~170 MB on first run).
  *
- * ── What this used to capture ───────────────────────────────────────────────
+ * ── What this used to capture (harness now deleted) ─────────────────────────
  * This script previously served `demo/index.html` — an interactive demo harness
  * for `@vulos/relay-client`, a DIFFERENT project, inherited wholesale when this
  * repository was carved out of its predecessor. Its two outputs were published
@@ -26,6 +26,10 @@
  * to stop a Pier deployment being mistaken for a Vulos-operated service. That
  * gate scans built text and cannot see inside a PNG, so two images carrying
  * another brand's name sat on the site untouched by it.
+ *
+ * The site copies were removed first; `demo/index.html`, `docs/SCREENSHOTS.md`
+ * and `docs/screenshots/` (hero.png, architecture.png, README.md) have since
+ * been deleted outright, so none of the above exists in the tree any more.
  *
  * So this now captures Pier: the operator console, on the routes a reader of
  * the docs would want to see.

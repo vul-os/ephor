@@ -1,55 +1,72 @@
-# Screenshots — @vulos/relay-client
+# Screenshots
 
-Because `@vulos/relay-client` is a headless JS SDK (a library with no app UI),
-the visual documentation uses an **interactive demo harness** (`demo/index.html`)
-that exercises the SDK in a real browser:
+Pier ships an **operator console** — a small web UI over the `pier-admin`
+coordinator control plane. These are captures of it, regenerated from the real
+build rather than drawn.
 
-- **Endpoint failover panel** — live status of the cloud ↔ LAN probe cycle,
-  current selected endpoint, and a manual "force re-probe" button.
-- **Fabric/presence panel** — a simulated two-peer fabric session using
-  in-process stub peers (no real backend required); displays the full roster,
-  peer connection states, and a broadcast message log.
-- **Architecture diagram** — an embedded SVG sequence diagram of the signaling
-  + relay-fallback flow, rendered to a standalone PNG (`docs/screenshots/architecture.png`).
+Every image below is reading **fixture data** (`VITE_MOCK=1`), not a live
+coordinator. The console says so itself, in the strip along the top of each
+capture; that is the console's own permanent disclosure, not a caption added
+here.
 
-## Captured screenshots
+## Overview
 
-| File | What it shows |
-|------|---------------|
-| `docs/screenshots/hero.png` | Demo harness overview (endpoint + presence panels) |
-| `docs/screenshots/architecture.png` | Architecture / sequence diagram |
+The posture page: the declared content-visibility class (COORD-4), the
+COORD-1..8 conformance strip, and the figures an operator checks first.
 
-## Prerequisites
+![Operator console — Overview, light theme](../site/screenshots/overview-light.png)
 
-```bash
-cd scripts
-npm ci
-```
+The console follows the system theme and has its own toggle.
 
-Playwright downloads a headless Chromium binary on first install (~170 MB).
+![Operator console — Overview, dark theme](../site/screenshots/overview-dark.png)
+
+## Conformance
+
+The COORD-1..8 checklist in full, one row per clause. Amber rows are
+**behavioral** — decidable only against real traffic, and never reported as a
+pass or as a violation.
+
+![Operator console — COORD-1..8 conformance checklist](../site/screenshots/conformance.png)
+
+## Prepaid ledger
+
+Per-payer credit balance, current-period metered usage, and the signed usage
+receipts on file.
+
+![Operator console — prepaid ledger and signed usage receipts](../site/screenshots/billing.png)
+
+## Narrow viewports
+
+Below 900px the sidebar collapses to a drawer and the metric grid drops to one
+column, so no figure is ellipsised.
+
+![Operator console — Overview on a 390px viewport](../site/screenshots/overview-mobile.png)
 
 ## Regenerate
 
 From the repo root:
 
 ```bash
+pnpm --dir console build     # console/dist must exist first
 npm run screenshots
 ```
 
-This runs `scripts/screenshots.mjs`, which:
+Prerequisites: Node.js 20+, and `npm ci` in `scripts/` — Playwright downloads a
+headless Chromium binary (~170 MB) on first install.
 
-1. Launches a local static file server serving `demo/index.html`.
-2. Opens a headless Chromium page and waits for the demo to initialise.
-3. Captures `hero.png` (full-page, 1280 × 900).
-4. Captures `architecture.png` (the architecture diagram section).
-5. Writes both PNGs to `docs/screenshots/`.
+`scripts/screenshots.mjs` serves `console/dist` on a local static server, drives
+it with headless Chromium, and writes every file above to `site/screenshots/`.
 
-## Demo source
+Captures are a **framed 1440 × 900 viewport** (390 × 844 for the narrow one) at
+`deviceScaleFactor: 2`, so each PNG is twice those dimensions and is meant to be
+presented at its CSS size. They are deliberately not full-page: a console
+screenshot is meant to show the fold, and a full-page capture shows the fold
+plus everything the layout was designed to push below it.
 
-`demo/index.html` is self-contained (no build step). It imports the SDK's
-pre-built ESM bundle directly from `client/dist-lib/` via a relative path,
-then uses in-process stub peers (via `BroadcastChannel` simulation) to drive
-the fabric and presence layers without a real backend.
+If ImageMagick is on `PATH` the captures are squeezed to a 256-colour palette
+(roughly a 55% saving, no visible difference on flat UI); without it they are
+written as plain PNGs and the script says so.
 
-The demo intentionally does **not** fake a screenshot of a non-existent app UI;
-everything shown is real SDK behaviour running in the browser.
+The script refuses to run against a console built for any brand other than the
+default — these images are published, and no text-scanning gate can see inside
+a PNG.

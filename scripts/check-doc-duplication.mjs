@@ -33,20 +33,12 @@ const DECLARED_DIVERGENCE = {
   "getting-started.md":
     "The docs/ copy links to CLOUD-SETUP.md, which is not published to site/docs/. " +
     "Carrying the paragraph onto the site would ship a dead link.",
-  "screenshots.md":
-    "The two copies now document DIFFERENT PRODUCTS, and only one of them is right. " +
-    "site/docs/screenshots.md documents the Pier operator console and embeds captures " +
-    "of it, taken by scripts/screenshots.mjs from console/dist. docs/SCREENSHOTS.md " +
-    "still documents demo/index.html, an interactive demo harness for " +
-    "@vulos/relay-client — a DIFFERENT project, inherited when this repo was carved " +
-    "out of its predecessor. Its premise (\"a headless JS SDK with no app UI\") is " +
-    "false for Pier, which ships a console. The site copy was fixed because it is " +
-    "PUBLISHED: it was putting another product's UI, title and box.vulos.org " +
-    "endpoints on the Pier documentation site, entirely outside the reach of " +
-    "console/scripts/check-brand-isolation.sh, which scans built text and cannot see " +
-    "inside a PNG. UNRESOLVED on the docs/ side: docs/SCREENSHOTS.md and the two " +
-    "foreign-brand PNGs under docs/screenshots/ should very likely be deleted along " +
-    "with demo/index.html, but that is the docs owner's call, not a formatting fix.",
+  // screenshots.md was the second entry here and is deliberately GONE: the two
+  // copies documented different products, and the docs/ side has now been
+  // deleted and replaced by the site copy verbatim. See the CHANGELOG entry —
+  // demo/index.html and the two foreign-brand PNGs under docs/screenshots/ were
+  // removed outright. The pair is byte-identical again, so this checker's own
+  // stale-exception rule (below) would fail the run if the entry were left here.
 };
 
 // A pair count floor, so an empty or broken glob cannot read as "all clean".
