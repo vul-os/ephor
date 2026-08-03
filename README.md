@@ -443,13 +443,27 @@ cd client && npm ci && npm run build && npm test
 cd console && pnpm install && pnpm build && pnpm check
 ```
 
-CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) builds and tests the JS
-client on Node 20 (including a real-chromium boot guard on the BUILT library), the Go
-relay (`build`/`vet`/`test -race`) and the Rust workspace
-(`build`/`test`/`clippy -D warnings`/`fmt --check`, all `--locked`, with a 14-crate
-count guard and a ≥561-test floor), then runs a Trivy filesystem scan
-(HIGH/CRITICAL gating). The
-publishable JS package lives in `client/`; the repository root holds dev tooling
+CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs five jobs:
+
+- **client** — the JS client on Node 20, including a real-chromium boot guard on the
+  BUILT library (the jsdom unit suite imports `client/src` and so cannot see a broken
+  build output).
+- **go** — the relay: `build` / `vet` / `test -race`.
+- **rust** — the workspace: `build` / `test` / `clippy -D warnings` / `fmt --check`, all
+  `--locked`, behind a **15-crate count guard** and a **≥600-test floor**, and preceded
+  by `scripts/check-no-publish.sh` (this repo publishes nothing to crates.io).
+- **console** — the operator console on Node 22 (vite 8 requires `^20.19.0 || >=22.12.0`):
+  `svelte-check`, build, `check-brand-isolation.sh`, and the six-arm mutation suite that
+  proves that gate can still fail, then an assertion that the suite restored the tree.
+- **verify-script** — `scripts/verify.sh` against a synthetic origin broken in 24
+  distinct ways, asserting each exit code *and* that a diagnostic was printed.
+
+Then a Trivy filesystem scan (HIGH/CRITICAL), which is `continue-on-error`.
+
+The counts above are the values enforced in `ci.yml`; they are floors and exact-match
+guards respectively, and are meant to be raised deliberately when the suite grows.
+
+The publishable JS package lives in `client/`; the repository root holds dev tooling
 (screenshot capture, etc.) under `scripts/`.
 
 ### Release (JS SDK)
