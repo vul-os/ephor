@@ -1028,7 +1028,10 @@ mod tests {
         assert_eq!(d.identity, vec![0xd1; 32]);
         assert_eq!(d.visibility.class, VisibilityClass::Blind);
         assert_eq!(d.visibility.level, AssuranceLevel::Structural);
-        assert!(d.tariff.is_none(), "DESCRIPTOR_V0 omits key 6 (a free coordinator)");
+        assert!(
+            d.tariff.is_none(),
+            "DESCRIPTOR_V0 omits key 6 (a free coordinator)"
+        );
         // The opaque policy blob is kotva-depot's own frozen POLICY_MINIMAL, byte for byte:
         // `a2 01 66 "bucket" 02 68 "operator"` = 19 bytes.
         assert_eq!(
