@@ -159,8 +159,8 @@ jobs:
             exit 1
           fi
           # The honest-exclusion notice. It names a path, so it must be a path that
-          # EXISTS: it said "crates/broker-billing-patala" from before the ephor->pier
-          # rename, and no crate has been called broker-* since. A reader following
+          # EXISTS: it said "crates/broker-billing-patala", from before the rename to
+          # pier, and no crate has been called broker-* since. A reader following
           # "See .../Cargo.toml" landed on nothing, which quietly turns a disclosure of
           # a coverage gap into a dead reference. Assert the path rather than print it,
           # so the next rename fails the job instead of rotting the message.
@@ -206,7 +206,7 @@ jobs:
   # The operator console had NO CI job at all. `check-brand-isolation.sh` and its
   # mutation suite were reachable only as `pnpm check:brand` / `check:brand:mutate`,
   # i.e. only when a human remembered — so the console could ship a Vulos string, or
-  # a stale "Ephor" one, on any push and nothing would say so. A gate nothing invokes
+  # a stale pre-rename one, on any push and nothing would say so. A gate nothing invokes
   # is documentation, not a gate.
   #
   # This mirrors the verify-script job's principle one level up: run the gate AND run
