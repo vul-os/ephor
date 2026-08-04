@@ -14,27 +14,61 @@ import {
   RendezvousClient,
   RendezvousIdentity,
   b64urlDecode,
+  type RendezvousFetchResponse,
+  type RendezvousFetch,
 } from '../rendezvous.js'
 import {
   RendezvousSignalingClient,
   deriveRoomIdentity,
+  type RendezvousSignalingClientOptions,
 } from '../rendezvousSignaling.js'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricMessageDetail } from '../fabric.js'
+import type { SignalPayload } from '../signaling.js'
+
+interface SignalDetail {
+  from: string
+  payload: SignalPayload
+}
 
 // ── In-memory relay modelling the rendezvous wire (peek-on-poll, delete-on-ack) ─
 
-function jsonResponse(status, obj) {
+function jsonResponse(status: number, obj: unknown): RendezvousFetchResponse {
   return { ok: status >= 200 && status < 300, status, statusText: '', json: async () => obj }
 }
 
+interface RelayBlobRecord {
+  id: string
+  from: string
+  payload: string
+  ts: number
+  exp: number
+}
+
+interface RequestBody {
+  key?: string
+  endpoints?: string[]
+  meta?: string
+  from?: string
+  payload?: string
+  ids?: string[]
+  sig?: string
+}
+
+interface CapturedCall {
+  url: string
+  path: string
+  method: string
+  body: RequestBody | null
+}
+
 function makeMockRelay() {
-  const presence = new Map() // key → record
-  const signal = new Map()   // recipient key → [blob]
-  const mailbox = new Map()  // recipient key → [blob]
-  const calls = []
+  const presence = new Map<string, { endpoints: string[], meta: string, expires_at: number }>()
+  const signal = new Map<string, RelayBlobRecord[]>()   // recipient key → [blob]
+  const mailbox = new Map<string, RelayBlobRecord[]>()  // recipient key → [blob]
+  const calls: CapturedCall[] = []
   let seq = 0
 
-  const push = (store, to, from, payloadB64) => {
+  const push = (store: Map<string, RelayBlobRecord[]>, to: string, from: string, payloadB64: string) => {
     const id = 'blob' + (++seq)
     const arr = store.get(to) || []
     arr.push({ id, from, payload: payloadB64, ts: 1, exp: 9 })
@@ -42,39 +76,39 @@ function makeMockRelay() {
     return id
   }
 
-  const fetchImpl = vi.fn(async (url, opts = {}) => {
+  const fetchImpl = vi.fn(async (url: string, opts: RequestInit = {}): Promise<RendezvousFetchResponse> => {
     const u = new URL(url)
     const path = u.pathname
     const method = opts.method || 'GET'
-    const body = opts.body ? JSON.parse(opts.body) : null
+    const body: RequestBody | null = opts.body ? (JSON.parse(String(opts.body)) as RequestBody) : null
     calls.push({ url, path, method, body })
 
     if (path.endsWith('/announce')) {
-      presence.set(body.key, { endpoints: body.endpoints || [], meta: body.meta || '', expires_at: 9 })
-      return jsonResponse(200, { ok: true, key: body.key, ttl: 300, expires_at: 9 })
+      presence.set(body!.key!, { endpoints: body!.endpoints || [], meta: body!.meta || '', expires_at: 9 })
+      return jsonResponse(200, { ok: true, key: body!.key, ttl: 300, expires_at: 9 })
     }
-    if (path.endsWith('/withdraw')) { presence.delete(body.key); return jsonResponse(200, { ok: true }) }
+    if (path.endsWith('/withdraw')) { presence.delete(body!.key!); return jsonResponse(200, { ok: true }) }
     if (path.endsWith('/ice')) return jsonResponse(200, { ice_servers: [] })
 
     const seg = path.replace(/^.*\/rendezvous\//, '').split('/')
     if (seg[0] === 'resolve') {
-      const k = decodeURIComponent(seg[1])
+      const k = decodeURIComponent(seg[1]!)
       const r = presence.get(k)
       return r ? jsonResponse(200, { key: k, online: true, ...r }) : jsonResponse(404, { key: k, online: false })
     }
     const store = seg[0] === 'signal' ? signal : seg[0] === 'mailbox' ? mailbox : null
     if (store) {
       if (seg.length === 2) {
-        const to = decodeURIComponent(seg[1])
-        const id = push(store, to, body.from, body.payload)
+        const to = decodeURIComponent(seg[1]!)
+        const id = push(store, to, body!.from!, body!.payload!)
         return jsonResponse(201, { ok: true, id, expires_at: 9 })
       }
-      const k = decodeURIComponent(seg[1])
+      const k = decodeURIComponent(seg[1]!)
       if (seg[2] === 'poll') return jsonResponse(200, { key: k, blobs: (store.get(k) || []).slice() })
       if (seg[2] === 'ack') {
-        const del = new Set(body.ids)
+        const del = new Set(body!.ids)
         store.set(k, (store.get(k) || []).filter((b) => !del.has(b.id)))
-        return jsonResponse(200, { deleted: body.ids.length })
+        return jsonResponse(200, { deleted: body!.ids!.length })
       }
     }
     return jsonResponse(404, { error: 'not found' })
@@ -85,17 +119,25 @@ function makeMockRelay() {
 
 // Real ECDSA-P256 identity (the per-session peer-auth key, unchanged end to end).
 async function makeEcdsa() {
-  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify'])
+  const kp = await crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign', 'verify']) as CryptoKeyPair
   const raw = await crypto.subtle.exportKey('raw', kp.publicKey)
   const pubB64 = btoa(String.fromCharCode(...new Uint8Array(raw)))
-  const sign = async (msg) => {
+  const sign = async (msg: string) => {
     const s = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, new TextEncoder().encode(msg))
     return btoa(String.fromCharCode(...new Uint8Array(s)))
   }
   return { pubB64, sign }
 }
 
-function makeSignaling({ peerId, sessionId, fetchImpl, ecdsa, extra = {} }) {
+interface MakeSignalingArgs {
+  peerId: string
+  sessionId: string
+  fetchImpl: RendezvousFetch
+  ecdsa: { pubB64: string, sign: (msg: string) => Promise<string> }
+  extra?: Partial<RendezvousSignalingClientOptions>
+}
+
+function makeSignaling({ peerId, sessionId, fetchImpl, ecdsa, extra = {} }: MakeSignalingArgs) {
   const selfClient = new RendezvousClient({
     baseUrl: 'https://relay.test',
     identity: RendezvousIdentity.generate(),
@@ -113,9 +155,9 @@ function makeSignaling({ peerId, sessionId, fetchImpl, ecdsa, extra = {} }) {
   })
 }
 
-function collect(target, type) {
-  const out = []
-  target.addEventListener(type, (e) => out.push(e.detail))
+function collect<T>(target: EventTarget, type: string): T[] {
+  const out: T[] = []
+  target.addEventListener(type, (e) => out.push((e as CustomEvent<T>).detail))
   return out
 }
 
@@ -132,7 +174,11 @@ describe('deriveRoomIdentity', () => {
 // ── Identity bridging + presence discovery + full offer/answer/ice ──────────────
 
 describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', () => {
-  let relay, A, B, ecdsaA, ecdsaB
+  let relay: ReturnType<typeof makeMockRelay>
+  let A: RendezvousSignalingClient
+  let B: RendezvousSignalingClient
+  let ecdsaA: Awaited<ReturnType<typeof makeEcdsa>>
+  let ecdsaB: Awaited<ReturnType<typeof makeEcdsa>>
 
   beforeEach(async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -153,7 +199,7 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
   })
 
   it('dispatches signaling-open after connect() announces + deposits its join', async () => {
-    const opens = collect(A, 'signaling-open')
+    const opens = collect<unknown>(A, 'signaling-open')
     await A.connect()
     expect(opens.length).toBe(1)
     // Presence announced, and the signed join was deposited onto the room board.
@@ -165,11 +211,12 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
     await A.connect()
     const deposit = relay.calls.find((c) => c.method === 'POST' && c.path.endsWith('/signal/' + encodeURIComponent(A.roomKey)))
     expect(deposit).toBeTruthy()
+    const depositBody = deposit!.body!
     // Outer rendezvous envelope: signed by the Ed25519 address.
-    expect(deposit.body.from).toBe(A.key)
-    expect(typeof deposit.body.sig).toBe('string')
+    expect(depositBody.from).toBe(A.key)
+    expect(typeof depositBody.sig).toBe('string')
     // Inner opaque payload: routing identity + the WS-identical signed join.
-    const wrapper = JSON.parse(new TextDecoder().decode(b64urlDecode(deposit.body.payload)))
+    const wrapper = JSON.parse(new TextDecoder().decode(b64urlDecode(depositBody.payload!)))
     expect(wrapper.from).toBe('peerA')
     expect(wrapper.rdvKey).toBe(A.key)
     expect(wrapper.payload.type).toBe('join')
@@ -178,7 +225,7 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
   })
 
   it('discovers a peer from the room board and learns its rendezvous address', async () => {
-    const aSignals = collect(A, 'signal')
+    const aSignals = collect<SignalDetail>(A, 'signal')
     await A.connect()
     await B.connect()
     await A._pollBoardOnce()
@@ -193,21 +240,21 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
     await A._pollBoardOnce()   // A learns B (key + rdvKey)
     await B._pollBoardOnce()   // B learns A
 
-    const bSignals = collect(B, 'signal')
-    const aSignals = collect(A, 'signal')
+    const bSignals = collect<SignalDetail>(B, 'signal')
+    const aSignals = collect<SignalDetail>(A, 'signal')
 
     // A (impolite) → offer to B, signed with A's ECDSA key, verified by B.
     await A.signal('offer', 'peerB', { sdp: 'v=0 offer-sdp', pubKey: ecdsaA.pubB64 })
     await B._pollInboxOnce()
     const offer = bSignals.find((s) => s.from === 'peerA' && s.payload.type === 'offer')
     expect(offer).toBeTruthy()
-    expect(offer.payload.sdp).toBe('v=0 offer-sdp')
+    expect(offer!.payload.sdp).toBe('v=0 offer-sdp')
 
     // B → answer back to A.
     await B.signal('answer', 'peerA', { sdp: 'v=0 answer-sdp', pubKey: ecdsaB.pubB64 })
     await A._pollInboxOnce()
     const answer = aSignals.find((s) => s.from === 'peerB' && s.payload.type === 'answer')
-    expect(answer.payload.sdp).toBe('v=0 answer-sdp')
+    expect(answer!.payload.sdp).toBe('v=0 answer-sdp')
 
     // Trickle ICE A → B.
     await A.signal('ice', 'peerB', { candidate: { candidate: 'a=x', sdpMid: '0' } })
@@ -219,7 +266,7 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
 
   it('drops an unsigned offer from an unknown peer when requirePeerAuth is on', async () => {
     await B.connect()
-    const bSignals = collect(B, 'signal')
+    const bSignals = collect<SignalDetail>(B, 'signal')
     // Attacker deposits a wrapped offer claiming peerId 'peerC' with no ECDSA key/sig.
     const attacker = new RendezvousClient({
       baseUrl: 'https://relay.test', identity: RendezvousIdentity.generate(), fetch: relay.fetchImpl,
@@ -236,7 +283,7 @@ describe('RendezvousSignalingClient — signaling lifecycle over rendezvous', ()
   it('propagates a leave tombstone and inbox acks consume signals', async () => {
     await A.connect(); await B.connect()
     await A._pollBoardOnce(); await B._pollBoardOnce()
-    const aSignals = collect(A, 'signal')
+    const aSignals = collect<SignalDetail>(A, 'signal')
 
     B.close() // deposits a leave tombstone + acks own board blob + withdraws
     await A._pollBoardOnce()
@@ -265,7 +312,7 @@ describe('FabricClient — rendezvous transport selection', () => {
       rendezvousBaseUrl: 'https://relay.test',
     })
     expect(fc._signaling).toBeInstanceOf(RendezvousSignalingClient)
-    expect(typeof fc._signaling.rdvKeyFor).toBe('function')
+    expect(typeof (fc._signaling as RendezvousSignalingClient).rdvKeyFor).toBe('function')
   })
 
   it('uses the host-box SignalingClient (WebSocket) when rendezvousBaseUrl is absent', async () => {
@@ -280,7 +327,7 @@ describe('FabricClient — rendezvous transport selection', () => {
 })
 
 describe('FabricClient — relay fallback over the rendezvous mailbox', () => {
-  let relay
+  let relay: ReturnType<typeof makeMockRelay>
   beforeEach(() => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     relay = makeMockRelay()
@@ -289,7 +336,7 @@ describe('FabricClient — relay fallback over the rendezvous mailbox', () => {
   afterEach(() => vi.restoreAllMocks())
 
   it('delivers a forward-secret, content-blind message A→B through the mailbox', async () => {
-    const mk = (peerId) => new FabricClient({
+    const mk = (peerId: string) => new FabricClient({
       sessionId: 'sess', peerId,
       signalingUrl: 'wss://host/api/peering/stream',
       rendezvousBaseUrl: 'https://relay.test',
@@ -305,15 +352,17 @@ describe('FabricClient — relay fallback over the rendezvous mailbox', () => {
 
     // Publish joins onto the shared board, then cross-discover (imports box key +
     // signed prekey + rendezvous address for each peer).
-    await A._signaling._announceAndJoin()
-    await B._signaling._announceAndJoin()
-    await A._signaling._pollBoardOnce()
-    await B._signaling._pollBoardOnce()
+    const aSig = A._signaling as RendezvousSignalingClient
+    const bSig = B._signaling as RendezvousSignalingClient
+    await aSig._announceAndJoin()
+    await bSig._announceAndJoin()
+    await aSig._pollBoardOnce()
+    await bSig._pollBoardOnce()
 
-    expect(A._signaling.rdvKeyFor('peerB')).toBe(B._rendezvous.key)
-    expect(A._signaling.getPeerBoxKey('peerB')).toBeTruthy()
+    expect(aSig.rdvKeyFor('peerB')).toBe(B._rendezvous!.key)
+    expect(aSig.getPeerBoxKey('peerB')).toBeTruthy()
 
-    const bMsgs = collect(B, 'message')
+    const bMsgs = collect<FabricMessageDetail>(B, 'message')
 
     // A deposits into B's content-blind rendezvous mailbox (relay never sees plaintext).
     await A._relayDeposit('peerB', { hello: 'world' })
