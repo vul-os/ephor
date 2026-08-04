@@ -1,5 +1,5 @@
 /**
- * offlineBootstrap.test.js — offline-first SW bootstrap (frozen contract).
+ * offlineBootstrap.test.ts — offline-first SW bootstrap (frozen contract).
  *
  * Ported from vulos/src/__tests__/offlineBootstrap.test.js (the most complete
  * of the three pre-existing copies — it owned the SW update detection path).
@@ -27,16 +27,45 @@ async function freshModule() {
   return import('../offlineBootstrap.js')
 }
 
-function makeRegistration() {
-  const listeners = {}
-  let installing = null
-  const reg = {
+interface FakeWorker {
+  state: string
+  postMessage: ReturnType<typeof vi.fn>
+  addEventListener: ReturnType<typeof vi.fn>
+  _setState(state: string): void
+}
+
+interface FakeRegistration {
+  waiting: FakeWorker | null
+  installing: FakeWorker | null
+  addEventListener: ReturnType<typeof vi.fn>
+  _fireUpdateFound(newWorker: FakeWorker): void
+  _installing(): FakeWorker | null
+}
+
+interface FakeServiceWorkerContainer {
+  register: ReturnType<typeof vi.fn>
+  controller?: unknown
+  addEventListener: ReturnType<typeof vi.fn>
+}
+
+/** navigator.serviceWorker is a read-only DOM getter; jsdom doesn't define
+ * it at all, so tests replace it with a plain own property. Cast through
+ * `unknown` rather than the real (readonly) Navigator type. */
+type NavWithSW = { serviceWorker?: FakeServiceWorkerContainer }
+function nav(): NavWithSW {
+  return globalThis.navigator as unknown as NavWithSW
+}
+
+function makeRegistration(): FakeRegistration {
+  const listeners: Record<string, (() => void) | undefined> = {}
+  let installing: FakeWorker | null = null
+  const reg: FakeRegistration = {
     waiting: null,
     installing: null,
-    addEventListener: vi.fn((evt, fn) => {
+    addEventListener: vi.fn((evt: string, fn: () => void) => {
       listeners[evt] = fn
     }),
-    _fireUpdateFound(newWorker) {
+    _fireUpdateFound(newWorker: FakeWorker) {
       installing = newWorker
       reg.installing = newWorker
       listeners.updatefound && listeners.updatefound()
@@ -46,16 +75,16 @@ function makeRegistration() {
   return reg
 }
 
-function makeInstallingWorker() {
-  const listeners = {}
+function makeInstallingWorker(): FakeWorker {
+  const listeners: Record<string, Array<() => void>> = {}
   return {
     state: 'installing',
     postMessage: vi.fn(),
-    addEventListener: vi.fn((evt, fn) => {
+    addEventListener: vi.fn((evt: string, fn: () => void) => {
       if (!listeners[evt]) listeners[evt] = []
       listeners[evt].push(fn)
     }),
-    _setState(state) {
+    _setState(state: string) {
       this.state = state
       ;(listeners.statechange || []).forEach((fn) => fn())
     },
@@ -64,25 +93,25 @@ function makeInstallingWorker() {
 
 beforeEach(() => {
   try { localStorage.clear() } catch { /* ignore */ }
-  globalThis.window = globalThis.window || {}
-  globalThis.document = globalThis.document || {}
+  globalThis.window = globalThis.window || ({} as Window & typeof globalThis)
+  globalThis.document = globalThis.document || ({} as Document)
   // jsdom's document is read-only on readyState, so just shadow it for clarity.
   Object.defineProperty(globalThis.document, 'readyState', {
     value: 'complete', configurable: true, writable: true,
   })
-  globalThis.navigator = globalThis.navigator || {}
+  globalThis.navigator = globalThis.navigator || ({} as Navigator)
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
-  delete globalThis.navigator.serviceWorker
+  delete nav().serviceWorker
 })
 
 describe('bootstrapOffline', () => {
   it('registers the service worker exactly once across repeated calls', async () => {
     const reg = makeRegistration()
     const register = vi.fn(async () => reg)
-    globalThis.navigator.serviceWorker = {
+    nav().serviceWorker = {
       register,
       controller: {},
       addEventListener: vi.fn(),
@@ -102,7 +131,7 @@ describe('bootstrapOffline', () => {
   })
 
   it('does not throw if serviceWorker is unavailable', async () => {
-    delete globalThis.navigator.serviceWorker
+    delete nav().serviceWorker
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200 })))
     const m = await freshModule()
     m._resetForTests()
@@ -112,7 +141,7 @@ describe('bootstrapOffline', () => {
   it('onUpdateAvailable fires once a new SW installs while controlled', async () => {
     const reg = makeRegistration()
     const register = vi.fn(async () => reg)
-    globalThis.navigator.serviceWorker = {
+    nav().serviceWorker = {
       register,
       controller: {},                 // page IS controlled by an old SW
       addEventListener: vi.fn(),
@@ -147,7 +176,7 @@ describe('bootstrapOffline', () => {
   })
 
   it('onBoot opt-in seam: consumer flush-loop hook fires exactly once', async () => {
-    delete globalThis.navigator.serviceWorker
+    delete nav().serviceWorker
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200 })))
     const m = await freshModule()
     m._resetForTests()
@@ -158,7 +187,7 @@ describe('bootstrapOffline', () => {
   })
 
   it('tierHint opt-in seam: MEET-OS-01 Pro-tier hint is captured', async () => {
-    delete globalThis.navigator.serviceWorker
+    delete nav().serviceWorker
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200 })))
     const m = await freshModule()
     m._resetForTests()
@@ -167,7 +196,7 @@ describe('bootstrapOffline', () => {
   })
 
   it('tierHint is undefined when no callback is supplied (OSS self-host)', async () => {
-    delete globalThis.navigator.serviceWorker
+    delete nav().serviceWorker
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200 })))
     const m = await freshModule()
     m._resetForTests()
