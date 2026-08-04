@@ -10,12 +10,21 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricClientOptions, type FabricMessageDetail } from '../fabric.js'
+import { SignalingClient } from '../signaling.js'
 import { makeRelayBlob } from './_relayTestUtil.js'
+
+interface DepositForm {
+  to: string
+  from: string
+  nonce: string
+  blob_b64: string
+  epk: string
+}
 
 // Sign the relay-deposit form { to, from, nonce, blob_b64, epk } with an
 // ECDSA P-256 private key and return a base64 signature.
-async function signDepositForm(privateKey, { to, from, nonce, blob_b64, epk }) {
+async function signDepositForm(privateKey: CryptoKey, { to, from, nonce, blob_b64, epk }: DepositForm): Promise<string> {
   const sigMsg = JSON.stringify({ to, from, nonce, blob_b64, epk })
   const sigBuf = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
@@ -31,9 +40,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[]
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols || []
     this.readyState = FakeWebSocket.CONNECTING
@@ -43,17 +59,17 @@ class FakeWebSocket {
     FakeWebSocket.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
 
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
-  _message(frame) {
+  _message(frame: unknown) {
     this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) })
   }
 }
@@ -61,24 +77,40 @@ class FakeWebSocket {
 // ── Fake RTCPeerConnection with event-capable DataChannel ─────────────────────
 
 class FakeDataChannel {
+  readyState: string
+  binaryType: string
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
   constructor() {
     this.readyState = 'connecting'
     this.binaryType = 'arraybuffer'
     this.sent = []
     this._listeners = {}
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
-  send(d) { this.sent.push(d) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  send(d: string) { this.sent.push(d) }
   close() {}
 }
 
+interface FakeSessionDescription {
+  type: string
+  sdp: string
+}
+
 class FakePC {
-  static instances = []
-  static last = null
+  static instances: FakePC[] = []
+  static last: FakePC | null = null
+
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  connectionState: string
+  localDescription: FakeSessionDescription | null
+  remoteDescription: FakeSessionDescription | null
+  _dc: FakeDataChannel
 
   constructor() {
     this._listeners = {}
@@ -90,16 +122,16 @@ class FakePC {
     FakePC.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
 
   createOffer()  { return Promise.resolve({ type: 'offer',  sdp: 'v=0 fake' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0 fake' }) }
-  setLocalDescription(d)  { this.localDescription  = d; return Promise.resolve() }
-  setRemoteDescription(d) { this.remoteDescription = d; return Promise.resolve() }
+  setLocalDescription(d: FakeSessionDescription)  { this.localDescription  = d; return Promise.resolve() }
+  setRemoteDescription(d: FakeSessionDescription) { this.remoteDescription = d; return Promise.resolve() }
   addIceCandidate()       { return Promise.resolve() }
   close() { this.connectionState = 'closed' }
   createDataChannel() { return this._dc }
@@ -107,7 +139,7 @@ class FakePC {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeFabric(peerId = 'local', sessionId = 'sess-1', opts = {}) {
+function makeFabric(peerId = 'local', sessionId = 'sess-1', opts: Partial<FabricClientOptions> = {}) {
   return new FabricClient({
     sessionId,
     peerId,
@@ -118,7 +150,7 @@ function makeFabric(peerId = 'local', sessionId = 'sess-1', opts = {}) {
   })
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
 
 // ── Setup / teardown ──────────────────────────────────────────────────────────
 
@@ -148,23 +180,24 @@ describe('FabricClient relay — oversized blob dropped', () => {
     // Build an ENCRYPTED payload whose plaintext JSON is just over 256 KB.
     const bigData = 'x'.repeat(256 * 1024 + 1)
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local', from: 'remote',
       session: 'sess-1', data: bigData,
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b1', from: 'remote', blob_b64, epk }] }) }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -183,29 +216,30 @@ describe('FabricClient relay — oversized blob dropped', () => {
     const overhead = JSON.stringify({ session: 'sess-1', data: '' }).length
     const data = 'y'.repeat(256 * 1024 - overhead)
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local', from: 'remote',
       session: 'sess-1', data,
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b2', from: 'remote', blob_b64, epk }] }) }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
 
     expect(received).toHaveLength(1)
-    expect(received[0].data).toBe(data)
+    expect(received[0]!.data).toBe(data)
     fc.leave()
   })
 })
@@ -215,20 +249,20 @@ describe('FabricClient relay — oversized blob dropped', () => {
 describe('FabricClient relay — inbound blob signature check', () => {
   // Register `remote`'s ECDSA verify key directly in the signaling registry,
   // mirroring a prior keyed 'join', without the WS dance.
-  async function registerRemoteKey(fc, keyPair) {
+  async function registerRemoteKey(fc: FabricClient, keyPair: CryptoKeyPair) {
     const rawPub = await crypto.subtle.exportKey('raw', keyPair.publicKey)
     const pubKeyB64 = btoa(String.fromCharCode(...new Uint8Array(rawPub)))
     const verifyKey = await crypto.subtle.importKey(
       'raw', Uint8Array.from(atob(pubKeyB64), c => c.charCodeAt(0)),
       { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
     )
-    fc._signaling._peerKeys.set('remote', verifyKey)
+    ;(fc._signaling as SignalingClient)._peerKeys.set('remote', verifyKey)
   }
 
   it('drops an (encrypted) blob from a known-keyed sender that has no sig', async () => {
     const keyPair = await crypto.subtle.generateKey(
       { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
-    )
+    ) as CryptoKeyPair
 
     const fc = makeFabric()
     await fc._ensureDepositKey()
@@ -237,23 +271,24 @@ describe('FabricClient relay — inbound blob signature check', () => {
 
     // Encrypted blob (carries epk) but unsigned, from a known-keyed sender.
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local', from: 'remote',
       session: 'sess-1', data: 'should-be-dropped',
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b3', from: 'remote', blob_b64, epk }] }) }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -266,17 +301,17 @@ describe('FabricClient relay — inbound blob signature check', () => {
   it('drops a blob from a known-keyed sender with an invalid sig', async () => {
     const keyPair = await crypto.subtle.generateKey(
       { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
-    )
+    ) as CryptoKeyPair
     const wrongKeyPair = await crypto.subtle.generateKey(
       { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
-    )
+    ) as CryptoKeyPair
 
     const fc = makeFabric()
     await fc._ensureDepositKey()
     await registerRemoteKey(fc, keyPair)
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local', from: 'remote',
       session: 'sess-1', data: 'tampered',
     })
     const nonce = crypto.randomUUID()
@@ -285,19 +320,20 @@ describe('FabricClient relay — inbound blob signature check', () => {
       to: 'local', from: 'remote', nonce, blob_b64, epk,
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b4', from: 'remote', blob_b64, nonce, sig, epk }] }) }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -309,14 +345,14 @@ describe('FabricClient relay — inbound blob signature check', () => {
   it('accepts a blob from a known-keyed sender with a valid sig', async () => {
     const keyPair = await crypto.subtle.generateKey(
       { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
-    )
+    ) as CryptoKeyPair
 
     const fc = makeFabric()
     await fc._ensureDepositKey()
     await registerRemoteKey(fc, keyPair)
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local', from: 'remote',
       session: 'sess-1', data: 'valid-signed-payload',
     })
     const nonce = crypto.randomUUID()
@@ -325,25 +361,26 @@ describe('FabricClient relay — inbound blob signature check', () => {
       to: 'local', from: 'remote', nonce, blob_b64, epk,
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b5', from: 'remote', blob_b64, nonce, sig, epk }] }) }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
 
     expect(received).toHaveLength(1)
-    expect(received[0].data).toBe('valid-signed-payload')
+    expect(received[0]!.data).toBe('valid-signed-payload')
     fc.leave()
   })
 
@@ -354,30 +391,31 @@ describe('FabricClient relay — inbound blob signature check', () => {
     // Unknown sender (no ECDSA key stored): still encrypted (carries epk).
     // Confidentiality holds regardless of authenticity; the blob is accepted.
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local', from: 'stranger',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local', from: 'stranger',
       session: 'sess-1', data: 'unknown-sender-no-key',
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b6', from: 'stranger', blob_b64, epk }] }) }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('stranger', {
       id: 'stranger', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     // No key stored for 'stranger' → hasPeerKey('stranger') === false → allow through
     await fc._relayPoll()
 
     expect(received).toHaveLength(1)
-    expect(received[0].data).toBe('unknown-sender-no-key')
+    expect(received[0]!.data).toBe('unknown-sender-no-key')
     fc.leave()
   })
 })
@@ -390,7 +428,7 @@ describe('FabricClient — pendingCandidates buffer capped at 50', () => {
     // (this tests the DoS cap in isolation, independent of the auth path).
     const fc = makeFabric('bob', 'sess-1', { requirePeerAuth: false })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // alice's join — creates a PeerState but bob (polite: b > a) doesn't offer
@@ -417,7 +455,7 @@ describe('FabricClient — pendingCandidates buffer capped at 50', () => {
     const peerState = fc._peers.get('alice')
     expect(peerState).toBeTruthy()
     // Must be capped at MAX_PENDING_CANDIDATES (50) regardless of how many arrived
-    expect(peerState.pendingCandidates.length).toBeLessThanOrEqual(50)
+    expect(peerState!.pendingCandidates.length).toBeLessThanOrEqual(50)
 
     fc.leave()
   })
@@ -429,7 +467,7 @@ describe('FabricClient — _peers map capped at MAX_PEERS (50)', () => {
   it('stops accepting new peers once the cap is reached', async () => {
     const fc = makeFabric('z-local', 'sess-1', { requirePeerAuth: false })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Flood 60 join signals from different peers
@@ -456,19 +494,20 @@ describe('FabricClient — data-channel oversized payload dropped', () => {
   it('drops a data-channel message exceeding MAX_PAYLOAD_BYTES and does not dispatch it', async () => {
     const fc = makeFabric('bob', 'sess-1', { requirePeerAuth: false })
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     // Wire a fake data channel directly so we can fire message events
     const fdc = new FakeDataChannel()
     const fakePeerState = {
-      id: 'alice', state: 'connected', dc: fdc, pc: null,
-      relayTimer: null, pendingCandidates: [], reset() {},
+      id: 'alice', state: 'connected' as const, dc: fdc as unknown as RTCDataChannel, pc: null,
+      relayTimer: null, pendingCandidates: [] as RTCIceCandidateInit[], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     }
     fc._peers.set('alice', fakePeerState)
 
     // Patch _wireDataChannel to set up listeners on fdc
-    fc._wireDataChannel(fdc, 'alice', fakePeerState)
+    fc._wireDataChannel(fdc as unknown as RTCDataChannel, 'alice', fakePeerState)
 
     // Fire an oversized payload (> 256 KB)
     const oversized = 'x'.repeat(256 * 1024 + 1)
@@ -487,23 +526,24 @@ describe('FabricClient — data-channel oversized payload dropped', () => {
   it('dispatches a data-channel message that is within the size limit', async () => {
     const fc = makeFabric('bob', 'sess-1', { requirePeerAuth: false })
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     const fdc = new FakeDataChannel()
     const fakePeerState = {
-      id: 'alice', state: 'connected', dc: fdc, pc: null,
-      relayTimer: null, pendingCandidates: [], reset() {},
+      id: 'alice', state: 'connected' as const, dc: fdc as unknown as RTCDataChannel, pc: null,
+      relayTimer: null, pendingCandidates: [] as RTCIceCandidateInit[], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     }
     fc._peers.set('alice', fakePeerState)
-    fc._wireDataChannel(fdc, 'alice', fakePeerState)
+    fc._wireDataChannel(fdc as unknown as RTCDataChannel, 'alice', fakePeerState)
 
     const payload = 'hello from alice'
     fdc._fire('message', { data: payload })
 
     expect(received).toHaveLength(1)
-    expect(received[0].data).toBe(payload)
-    expect(received[0].from).toBe('alice')
+    expect(received[0]!.data).toBe(payload)
+    expect(received[0]!.from).toBe('alice')
 
     fc.leave()
   })
