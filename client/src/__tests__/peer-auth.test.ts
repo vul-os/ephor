@@ -42,13 +42,30 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { FabricClient } from '../fabric.js'
-import { SignalingClient } from '../signaling.js'
+import { SignalingClient, type SignalPayload } from '../signaling.js'
+
+interface SignalDetail {
+  from: string
+  payload: SignalPayload
+}
 
 // ── Canonical message helper (must match signaling.js _canonical exactly) ─────
 // Re-implemented here so the test can construct the exact string that was signed
 // by the sender, and then tamper with specific fields for negative test cases.
-function canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }) {
-  const msg = { type, session, to: to ?? null, from, nonce, ts }
+interface CanonicalArgs {
+  type: string
+  session: string
+  to?: string | null
+  from: string
+  nonce: string
+  ts?: number
+  sdp?: string
+  candidate?: RTCIceCandidateInit
+  pubKey?: string
+}
+
+function canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }: CanonicalArgs): string {
+  const msg: CanonicalArgs & { to: string | null } = { type, session, to: to ?? null, from, nonce, ts }
   if (sdp !== undefined) msg.sdp = sdp
   if (candidate !== undefined) msg.candidate = candidate
   if (pubKey !== undefined) msg.pubKey = pubKey
@@ -57,20 +74,20 @@ function canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey 
 
 // ── WebCrypto test helpers ─────────────────────────────────────────────────────
 
-async function generatePeerKey() {
+async function generatePeerKey(): Promise<CryptoKeyPair> {
   return crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' },
     true,
     ['sign', 'verify'],
-  )
+  ) as Promise<CryptoKeyPair>
 }
 
-async function exportPubKeyB64(kp) {
+async function exportPubKeyB64(kp: CryptoKeyPair): Promise<string> {
   const raw = await crypto.subtle.exportKey('raw', kp.publicKey)
   return btoa(String.fromCharCode(...new Uint8Array(raw)))
 }
 
-async function signMsg(privateKey, msg) {
+async function signMsg(privateKey: CryptoKey, msg: string): Promise<string> {
   const buf = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' },
     privateKey,
@@ -85,9 +102,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[]
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols || []
     this.readyState = FakeWebSocket.CONNECTING
@@ -97,30 +121,41 @@ class FakeWebSocket {
     FakeWebSocket.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
 
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
 
   _open() {
     this.readyState = FakeWebSocket.OPEN
     this._fire('open', {})
   }
 
-  _message(frame) {
+  _message(frame: unknown) {
     this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) })
   }
 }
 
 // ── Fake RTCPeerConnection ────────────────────────────────────────────────────
 
+interface FakeSessionDescription {
+  type: string
+  sdp: string
+}
+
 class FakePC {
-  static instances = []
+  static instances: FakePC[] = []
+  static last: FakePC | null = null
+
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  connectionState: string
+  localDescription: FakeSessionDescription | null
+  remoteDescription: FakeSessionDescription | null
 
   constructor() {
     this._listeners = {}
@@ -131,25 +166,25 @@ class FakePC {
     FakePC.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
 
   createOffer()  { return Promise.resolve({ type: 'offer',  sdp: 'v=0 fake-offer' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0 fake-answer' }) }
 
-  setLocalDescription(d)  { this.localDescription  = d; return Promise.resolve() }
-  setRemoteDescription(d) { this.remoteDescription = d; return Promise.resolve() }
+  setLocalDescription(d: FakeSessionDescription)  { this.localDescription  = d; return Promise.resolve() }
+  setRemoteDescription(d: FakeSessionDescription) { this.remoteDescription = d; return Promise.resolve() }
   addIceCandidate()       { return Promise.resolve() }
   close()                 { this.connectionState = 'closed' }
 
   createDataChannel() {
     return {
-      readyState: 'connecting', binaryType: 'arraybuffer', sent: [],
-      addEventListener() {}, send(d) { this.sent.push(d) }, close() {},
+      readyState: 'connecting', binaryType: 'arraybuffer', sent: [] as string[],
+      addEventListener() {}, send(d: string) { this.sent.push(d) }, close() {},
     }
   }
 }
@@ -162,7 +197,7 @@ class FakePC {
  * (a macrotask), not in the current microtask queue.  A single setTimeout(0)
  * may fire before crypto operations complete.
  */
-async function waitFor(condition, { timeout = 500, interval = 5 } = {}) {
+async function waitFor(condition: () => unknown, { timeout = 500, interval = 5 }: { timeout?: number, interval?: number } = {}): Promise<void> {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     if (condition()) return
@@ -175,7 +210,7 @@ async function waitFor(condition, { timeout = 500, interval = 5 } = {}) {
  * Fixed-duration sleep for negative tests — lets crypto ops complete, then
  * we confirm that the expected side-effect did NOT occur.
  */
-const sleep = ms => new Promise(r => setTimeout(r, ms))
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 // ── Setup / teardown ──────────────────────────────────────────────────────────
 
@@ -222,7 +257,7 @@ describe('Peer authentication — impersonation rejected', () => {
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Step 1: receive alice's join → her key is stored (TOFU via importKey).
@@ -234,7 +269,7 @@ describe('Peer authentication — impersonation rejected', () => {
       payload: { type: 'join', session: 'sess-1', depositPubKey: alicePubKeyB64 },
     })
     // Wait for the async importKey (libuv) to complete
-    await waitFor(() => fc._signaling._peerKeys.has('alice'))
+    await waitFor(() => (fc._signaling as SignalingClient)._peerKeys.has('alice'))
 
     // Step 2: malicious server sends an offer claiming `from: alice` with NO sig
     ws._message({
@@ -264,7 +299,7 @@ describe('Peer authentication — impersonation rejected', () => {
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Register alice's real key
@@ -273,7 +308,7 @@ describe('Peer authentication — impersonation rejected', () => {
       from: 'alice',
       payload: { type: 'join', session: 'sess-1', depositPubKey: alicePubKeyB64 },
     })
-    await waitFor(() => fc._signaling._peerKeys.has('alice'))
+    await waitFor(() => (fc._signaling as SignalingClient)._peerKeys.has('alice'))
 
     // Mallory signs the frame body with HER key but stamps `from: alice`
     const nonce = crypto.randomUUID()
@@ -306,7 +341,7 @@ describe('Peer authentication — impersonation rejected', () => {
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Register alice
@@ -315,7 +350,7 @@ describe('Peer authentication — impersonation rejected', () => {
       from: 'alice',
       payload: { type: 'join', session: 'sess-1', depositPubKey: alicePubKeyB64 },
     })
-    await waitFor(() => fc._signaling._peerKeys.has('alice'))
+    await waitFor(() => (fc._signaling as SignalingClient)._peerKeys.has('alice'))
 
     // Alice legitimately signs an offer with from:'alice' in the canonical msg
     const nonce = crypto.randomUUID()
@@ -358,7 +393,7 @@ describe('Peer authentication — DTLS fingerprint pinning', () => {
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Register alice
@@ -367,7 +402,7 @@ describe('Peer authentication — DTLS fingerprint pinning', () => {
       from: 'alice',
       payload: { type: 'join', session: 'sess-1', depositPubKey: alicePubKeyB64 },
     })
-    await waitFor(() => fc._signaling._peerKeys.has('alice'))
+    await waitFor(() => (fc._signaling as SignalingClient)._peerKeys.has('alice'))
 
     const nonce = crypto.randomUUID()
     const originalSdp = 'v=0\r\na=fingerprint:sha-256 AB:CD:EF:12:34:56:78:90:AB:CD:EF:12:34:56:78:90:AB:CD:EF:12:34:56:78:90:AB:CD:EF:12:34:56:78'
@@ -409,7 +444,7 @@ describe('Peer authentication — valid signed offer accepted', () => {
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Register alice via join → bob creates a PC (polite, no offer sent)
@@ -418,7 +453,7 @@ describe('Peer authentication — valid signed offer accepted', () => {
       from: 'alice',
       payload: { type: 'join', session: 'sess-1', depositPubKey: alicePubKeyB64 },
     })
-    await waitFor(() => fc._signaling._peerKeys.has('alice'))
+    await waitFor(() => (fc._signaling as SignalingClient)._peerKeys.has('alice'))
 
     // Alice sends a valid signed offer
     const nonce = crypto.randomUUID()
@@ -440,7 +475,7 @@ describe('Peer authentication — valid signed offer accepted', () => {
     // Wait for it to be set (verify + _onSignal are both async).
     await waitFor(() => FakePC.last?.remoteDescription?.type === 'offer')
 
-    expect(FakePC.last.remoteDescription.type).toBe('offer')
+    expect(FakePC.last!.remoteDescription!.type).toBe('offer')
     fc.leave()
   })
 
@@ -452,7 +487,7 @@ describe('Peer authentication — valid signed offer accepted', () => {
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // No prior join for alice — key will be imported from the offer's pubKey field
@@ -476,9 +511,9 @@ describe('Peer authentication — valid signed offer accepted', () => {
     // threadpool — wait until setRemoteDescription is actually called.
     await waitFor(() => FakePC.last?.remoteDescription?.type === 'offer')
 
-    expect(FakePC.last.remoteDescription.type).toBe('offer')
+    expect(FakePC.last!.remoteDescription!.type).toBe('offer')
     // Alice's key must have been stored during TOFU import
-    expect(fc._signaling._peerKeys.has('alice')).toBe(true)
+    expect((fc._signaling as SignalingClient)._peerKeys.has('alice')).toBe(true)
     fc.leave()
   })
 
@@ -490,11 +525,11 @@ describe('Peer authentication — valid signed offer accepted', () => {
       peerId: 'bob',
       // no signFrame, requirePeerAuth defaults to false
     })
-    const signals = []
-    sc.addEventListener('signal', ({ detail }) => signals.push(detail))
+    const signals: SignalDetail[] = []
+    sc.addEventListener('signal', (ev) => signals.push((ev as CustomEvent<SignalDetail>).detail))
     sc.connect()
 
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Unsigned offer (no sig, no nonce) — passes through:
@@ -508,18 +543,22 @@ describe('Peer authentication — valid signed offer accepted', () => {
     await new Promise(r => setTimeout(r, 0))
 
     expect(signals).toHaveLength(1)
-    expect(signals[0].payload.type).toBe('offer')
+    expect(signals[0]!.payload.type).toBe('offer')
     sc.close()
   })
 })
 
 // ── 4. UNSIGNED RELAY-AUTH FALLBACK OFF BY DEFAULT ────────────────────────────
 
+interface FetchOptsWithHeaders {
+  headers?: Record<string, string>
+}
+
 describe('FabricClient — unsigned relay-auth fallback disabled by default', () => {
   it('relay pickup sends NO Authorization header when authToken absent and allowUnsignedRelayAuth is false (default)', async () => {
-    let capturedAuthHeader = 'SENTINEL'
+    let capturedAuthHeader: string | undefined = 'SENTINEL'
 
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithHeaders) => {
       if (String(url).includes('pickup')) {
         capturedAuthHeader = opts?.headers?.['Authorization']
         return { ok: true, json: async () => ({ blobs: [] }) }
@@ -539,6 +578,7 @@ describe('FabricClient — unsigned relay-auth fallback disabled by default', ()
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -550,9 +590,9 @@ describe('FabricClient — unsigned relay-auth fallback disabled by default', ()
   })
 
   it('relay deposit sends NO Authorization header when authToken absent (default)', async () => {
-    let depositAuthHeader = 'SENTINEL'
+    let depositAuthHeader: string | undefined = 'SENTINEL'
 
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithHeaders) => {
       if (String(url).includes('deposit')) {
         depositAuthHeader = opts?.headers?.['Authorization']
       }
@@ -569,7 +609,7 @@ describe('FabricClient — unsigned relay-auth fallback disabled by default', ()
     await fc._ensureDepositKey()
     // Register a recipient box key so the deposit is not skipped (fail-closed
     // E2E path requires the peer's X25519 key to encrypt to).
-    fc._signaling._peerBoxKeys.set('remote', fc._boxPubKeyB64)
+    ;(fc._signaling as SignalingClient)._peerBoxKeys.set('remote', fc._boxPubKeyB64!)
     await fc._relayDeposit('remote', 'hello')
 
     // No JWT → no Authorization header on deposit either
@@ -578,9 +618,9 @@ describe('FabricClient — unsigned relay-auth fallback disabled by default', ()
   })
 
   it('the forgeable Vula-Relay header is only emitted when allowUnsignedRelayAuth=true (explicit opt-in)', async () => {
-    let capturedHeader
+    let capturedHeader: string | undefined
 
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithHeaders) => {
       if (String(url).includes('pickup')) {
         capturedHeader = opts?.headers?.['Authorization']
         return { ok: true, json: async () => ({ blobs: [] }) }
@@ -599,6 +639,7 @@ describe('FabricClient — unsigned relay-auth fallback disabled by default', ()
     fc._peers.set('remote', {
       id: 'remote', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -615,13 +656,13 @@ describe('FabricClient — outgoing signals carry signature and nonce', () => {
   it('join() sends the deposit pubkey in the join frame', async () => {
     const fc = makeFabric('local')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // The join is now SIGNED (signFrame wired by FabricClient), so its send is
     // deferred until the async ECDSA signature completes — poll for it.
     await waitFor(() => ws.sent.length > 0)
-    const join = JSON.parse(ws.sent[0])
+    const join = JSON.parse(ws.sent[0]!)
     expect(join.payload.type).toBe('join')
     expect(join.payload.depositPubKey).toBe(fc._depositPubKeyB64)
     fc.leave()
@@ -634,7 +675,7 @@ describe('FabricClient — outgoing signals carry signature and nonce', () => {
 
     const fc = makeFabric('a-local')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -672,7 +713,7 @@ describe('FabricClient — outgoing signals carry signature and nonce', () => {
     const aliceKP = await generatePeerKey()
     const alicePubKeyB64 = await exportPubKeyB64(aliceKP)
 
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -694,7 +735,7 @@ describe('FabricClient — outgoing signals carry signature and nonce', () => {
     const p = offerFrame.payload
 
     // Export and import the local pubkey in a form suitable for verify()
-    const localPubKeyRaw = await crypto.subtle.exportKey('raw', fc._depositKeyPair.publicKey)
+    const localPubKeyRaw = await crypto.subtle.exportKey('raw', fc._depositKeyPair!.publicKey)
     const localPubKey = await crypto.subtle.importKey(
       'raw', localPubKeyRaw, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
     )
@@ -710,7 +751,7 @@ describe('FabricClient — outgoing signals carry signature and nonce', () => {
       pubKey: p.pubKey,
     })
 
-    const sigBuf = Uint8Array.from(atob(p.sig), c => c.charCodeAt(0))
+    const sigBuf = Uint8Array.from(atob(p.sig), (c: string) => c.charCodeAt(0))
     const msgBuf = new TextEncoder().encode(reconstructed)
     const valid = await crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' },
@@ -732,7 +773,7 @@ describe('FabricClient — requirePeerAuth=true (default) rejects unknown peers'
     // so it defaults to true (changed from the previous hardcoded false).
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // alice sends an unsigned offer without a prior join (no pubKey stored, no sig)
@@ -764,7 +805,7 @@ describe('FabricClient — requirePeerAuth=true (default) rejects unknown peers'
 
     const fc = makeFabric('bob')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // alice sends a signed offer with her inline pubKey (no prior join needed)
@@ -787,22 +828,22 @@ describe('FabricClient — requirePeerAuth=true (default) rejects unknown peers'
 
     // TOFU import + verify + _onSignal + setRemoteDescription are all async
     await waitFor(() => FakePC.last?.remoteDescription?.type === 'offer')
-    expect(FakePC.last.remoteDescription.type).toBe('offer')
+    expect(FakePC.last!.remoteDescription!.type).toBe('offer')
     fc.leave()
   })
 
   it('FabricClient with explicit requirePeerAuth=false allows unsigned frames (legacy mode)', async () => {
     // Operators who need to interoperate with pre-auth SDK peers can opt out.
-    const signals = []
+    const signals: SignalDetail[] = []
     const sc = new SignalingClient({
       signalingUrl: 'ws://localhost/sig',
       sessionId: 'sess-1',
       peerId: 'bob',
       requirePeerAuth: false,
     })
-    sc.addEventListener('signal', ({ detail }) => signals.push(detail))
+    sc.addEventListener('signal', (ev) => signals.push((ev as CustomEvent<SignalDetail>).detail))
     sc.connect()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -814,7 +855,7 @@ describe('FabricClient — requirePeerAuth=true (default) rejects unknown peers'
     await new Promise(r => setTimeout(r, 0))
 
     expect(signals).toHaveLength(1)
-    expect(signals[0].payload.type).toBe('offer')
+    expect(signals[0]!.payload.type).toBe('offer')
     sc.close()
   })
 })
@@ -834,15 +875,16 @@ describe('SignalingClient — replay protection', () => {
     })
     // Track only offer/answer/ice signals — join frames are also dispatched as
     // 'signal' events and would inflate the count if not filtered out.
-    const offerSignals = []
-    sc.addEventListener('signal', ({ detail }) => {
+    const offerSignals: SignalDetail[] = []
+    sc.addEventListener('signal', (ev) => {
+      const { detail } = ev as CustomEvent<SignalDetail>
       if (detail.payload.type === 'offer' || detail.payload.type === 'answer') {
         offerSignals.push(detail)
       }
     })
     sc.connect()
 
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Register alice's key via join (this ALSO dispatches a 'signal' event, hence the filter)
@@ -894,15 +936,16 @@ describe('SignalingClient — replay protection', () => {
       peerId: 'bob',
       requirePeerAuth: false,
     })
-    const offerSignals = []
-    sc.addEventListener('signal', ({ detail }) => {
+    const offerSignals: SignalDetail[] = []
+    sc.addEventListener('signal', (ev) => {
+      const { detail } = ev as CustomEvent<SignalDetail>
       if (detail.payload.type === 'offer' || detail.payload.type === 'answer') {
         offerSignals.push(detail)
       }
     })
     sc.connect()
 
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
