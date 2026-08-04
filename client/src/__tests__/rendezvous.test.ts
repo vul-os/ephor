@@ -7,6 +7,7 @@ import {
   b64urlEncode,
   b64urlDecode,
   RENDEZVOUS_DOMAINS,
+  type RendezvousFetchResponse,
 } from '../rendezvous.js'
 import { FabricClient } from '../fabric.js'
 
@@ -18,7 +19,7 @@ const CANONICAL_VECTOR_HEX =
   '6e6f6e6365313233000000066d6574612d78000000077773733a2f2f6100000009' +
   '68747470733a2f2f62'
 
-function toHex(bytes) {
+function toHex(bytes: Uint8Array): string {
   return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('')
 }
 
@@ -59,17 +60,42 @@ describe('RendezvousIdentity', () => {
   })
 })
 
-function mockFetchCapture(responder) {
-  const calls = []
-  const fetchImpl = vi.fn(async (url, opts) => {
-    const body = opts && opts.body ? JSON.parse(opts.body) : null
+/** Loose union of every request-body shape captured across the tests below. */
+interface RendezvousRequestBody {
+  key?: string
+  ts?: number
+  ttl?: number
+  nonce?: string
+  meta?: string
+  endpoints?: string[]
+  sig?: string
+  from?: string
+  to?: string
+  payload?: string
+  wait?: number
+  ids?: string[]
+}
+
+interface CapturedCall {
+  url: string
+  method: string
+  body: RendezvousRequestBody | null
+  headers?: HeadersInit
+}
+
+type Responder = (ctx: { url: string, opts?: RequestInit, body: RendezvousRequestBody | null }) => RendezvousFetchResponse | undefined
+
+function mockFetchCapture(responder: Responder) {
+  const calls: CapturedCall[] = []
+  const fetchImpl = vi.fn(async (url: string, opts?: RequestInit): Promise<RendezvousFetchResponse> => {
+    const body: RendezvousRequestBody | null = opts && opts.body ? (JSON.parse(String(opts.body)) as RendezvousRequestBody) : null
     calls.push({ url, method: opts?.method || 'GET', body, headers: opts?.headers })
     return responder({ url, opts, body }) || jsonResponse(200, { ok: true })
   })
   return { fetchImpl, calls }
 }
 
-function jsonResponse(status, obj) {
+function jsonResponse(status: number, obj: unknown): RendezvousFetchResponse {
   return {
     ok: status >= 200 && status < 300,
     status,
@@ -88,15 +114,16 @@ describe('RendezvousClient.announce', () => {
     await rdv.announce({ endpoints: ['wss://box/tunnel'], meta: 'caps=x', ttl: 300 })
 
     expect(calls).toHaveLength(1)
-    const c = calls[0]
+    const c = calls[0]!
+    const body = c.body!
     expect(c.url).toBe('https://relay.test/rendezvous/announce')
     expect(c.method).toBe('POST')
-    expect(c.body.key).toBe(id.key)
+    expect(body.key).toBe(id.key)
 
     // The captured request signature verifies over the reconstructed canonical.
-    const fields = [c.body.key, String(c.body.ts), String(c.body.ttl), c.body.nonce, c.body.meta, ...c.body.endpoints]
+    const fields = [body.key!, String(body.ts), String(body.ttl), body.nonce!, body.meta!, ...body.endpoints!]
     const msg = canonicalMessage(RENDEZVOUS_DOMAINS.announce, fields)
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    expect(ed25519.verify(b64urlDecode(body.sig!), msg, id.publicKey)).toBe(true)
   })
 })
 
@@ -135,16 +162,17 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const payload = new Uint8Array([9, 8, 7])
     const res = await rdv.signalDeposit(peer, payload)
     expect(res.id).toBe('blob1')
-    const c = calls[0]
+    const c = calls[0]!
+    const body = c.body!
     expect(c.url).toBe('https://relay.test/rendezvous/signal/' + encodeURIComponent(peer))
-    expect(c.body.from).toBe(id.key)
-    expect(c.body.to).toBe(peer)
-    expect(b64urlDecode(c.body.payload)).toEqual(payload)
+    expect(body.from).toBe(id.key)
+    expect(body.to).toBe(peer)
+    expect(b64urlDecode(body.payload!)).toEqual(payload)
     // Signature verifies over the deposit canonical.
     const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalDeposit, [
-      c.body.from, c.body.to, String(c.body.ts), String(c.body.ttl), c.body.nonce, c.body.payload,
+      body.from!, body.to!, String(body.ts), String(body.ttl), body.nonce!, body.payload!,
     ])
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    expect(ed25519.verify(b64urlDecode(body.sig!), msg, id.publicKey)).toBe(true)
   })
 
   it('polls own inbox (recipient-signed) and decodes payloads', async () => {
@@ -157,11 +185,12 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const blobs = await rdv.signalPoll({ wait: 5 })
     expect(blobs).toHaveLength(1)
     expect(Array.from(blobs[0].payload)).toEqual([1, 2, 3])
-    const c = calls[0]
+    const c = calls[0]!
+    const body = c.body!
     expect(c.url).toBe('https://relay.test/rendezvous/signal/' + encodeURIComponent(id.key) + '/poll')
-    expect(c.body.wait).toBe(5)
-    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalPoll, [c.body.key, String(c.body.ts), c.body.nonce])
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    expect(body.wait).toBe(5)
+    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalPoll, [body.key!, String(body.ts), body.nonce!])
+    expect(ed25519.verify(b64urlDecode(body.sig!), msg, id.publicKey)).toBe(true)
   })
 
   it('acks consumed blob ids', async () => {
@@ -170,10 +199,11 @@ describe('RendezvousClient signal deposit/poll/ack', () => {
     const rdv = new RendezvousClient({ baseUrl: 'https://relay.test', identity: id, fetch: fetchImpl })
     const res = await rdv.signalAck(['a', 'b'])
     expect(res.deleted).toBe(2)
-    const c = calls[0]
-    expect(c.body.ids).toEqual(['a', 'b'])
-    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalAck, [c.body.key, String(c.body.ts), c.body.nonce, 'a', 'b'])
-    expect(ed25519.verify(b64urlDecode(c.body.sig), msg, id.publicKey)).toBe(true)
+    const c = calls[0]!
+    const body = c.body!
+    expect(body.ids).toEqual(['a', 'b'])
+    const msg = canonicalMessage(RENDEZVOUS_DOMAINS.signalAck, [body.key!, String(body.ts), body.nonce!, 'a', 'b'])
+    expect(ed25519.verify(b64urlDecode(body.sig!), msg, id.publicKey)).toBe(true)
   })
 })
 
@@ -211,7 +241,7 @@ describe('FabricClient rendezvous integration', () => {
       rendezvousBaseUrl: 'https://relay.test',
     })
     expect(fc.rendezvous).toBeInstanceOf(RendezvousClient)
-    expect(fc.rendezvous.baseUrl).toBe('https://relay.test')
+    expect(fc.rendezvous!.baseUrl).toBe('https://relay.test')
     // ICE was derived from the relay (not the /api/peering default).
     expect(fc._iceUrl).toBe('https://relay.test/rendezvous/ice')
   })
