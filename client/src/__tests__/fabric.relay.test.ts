@@ -16,24 +16,29 @@ import { FabricClient } from '../fabric.js'
 class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
+  static instances: FakeWebSocket[] = []
+
+  readyState: number
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  sent: string[]
+
   constructor() {
     this.readyState = FakeWebSocket.CONNECTING
     this._listeners = {}
     this.sent = []
     FakeWebSocket.instances.push(this)
   }
-  addEventListener(ev, fn) {
+  addEventListener(ev: string, fn: (payload: unknown) => void) {
     if (!this._listeners[ev]) this._listeners[ev] = []
     this._listeners[ev].push(fn)
   }
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = 0 }
-  _fire(ev, payload) {
+  _fire(ev: string, payload: unknown) {
     for (const fn of (this._listeners[ev] || [])) fn(payload)
   }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
 }
-FakeWebSocket.instances = []
 
 // Silence console output from FabricClient internals.
 beforeEach(() => {
@@ -44,14 +49,23 @@ beforeEach(() => {
 })
 afterEach(() => { vi.restoreAllMocks() })
 
+interface CapturePollArgs {
+  authToken?: string | null
+  allowUnsignedRelayAuth?: boolean
+}
+
+interface FetchOptsWithHeaders {
+  headers?: Record<string, string>
+}
+
 /**
  * Build a minimal FabricClient, force one peer into 'relay' state,
  * run one poll tick, and capture the Authorization header sent.
  */
-async function capturePollAuthHeader({ authToken, allowUnsignedRelayAuth = false }) {
-  let capturedHeader
+async function capturePollAuthHeader({ authToken, allowUnsignedRelayAuth = false }: CapturePollArgs) {
+  let capturedHeader: string | undefined
 
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+  vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithHeaders) => {
     if (String(url).includes('/api/peering/relay/pickup')) {
       capturedHeader = opts?.headers?.['Authorization']
       // Return an empty blobs array so poll completes cleanly.
@@ -80,6 +94,7 @@ async function capturePollAuthHeader({ authToken, allowUnsignedRelayAuth = false
     relayTimer: null,
     pendingCandidates: [],
     reset() {},
+    reinitTimer: null, reinitDelay: 0, left: false,
   })
 
   await fc._relayPoll()
@@ -129,7 +144,7 @@ describe('FabricClient — deposit public key publication (integrity wiring)', (
 
     // The deposit key must be generated up front so its public key is ready.
     expect(typeof fc._depositPubKeyB64).toBe('string')
-    expect(fc._depositPubKeyB64.length).toBeGreaterThan(0)
+    expect(fc._depositPubKeyB64!.length).toBeGreaterThan(0)
 
     // Drive the signaling socket open and inspect the join frame.
     const ws = FakeWebSocket.instances[FakeWebSocket.instances.length - 1]
