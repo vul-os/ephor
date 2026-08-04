@@ -15,19 +15,26 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { FabricClient } from '../fabric.js'
+import type { SignalingClient } from '../signaling.js'
 import { makeRelayBlob } from './_relayTestUtil.js'
 
 class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
+  static last: FakeWebSocket | null = null
+
+  readyState: number
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  sent: string[]
+
   constructor() {
     this.readyState = FakeWebSocket.CONNECTING
     this._listeners = {}
     this.sent = []
     FakeWebSocket.last = this
   }
-  addEventListener(e, f) { if (!this._listeners[e]) this._listeners[e] = []; this._listeners[e].push(f) }
-  send(d) { this.sent.push(d) }
+  addEventListener(e: string, f: (payload: unknown) => void) { if (!this._listeners[e]) this._listeners[e] = []; this._listeners[e].push(f) }
+  send(d: string) { this.sent.push(d) }
   close() {}
   _open() { this.readyState = FakeWebSocket.OPEN; for (const f of (this._listeners['open'] || [])) f({}) }
 }
@@ -43,10 +50,11 @@ function makeFabric(sessionId = 'sess-meter') {
   })
 }
 
-function relayPeer(fc) {
+function relayPeer(fc: FabricClient) {
   fc._peers.set('remote', {
     id: 'remote', state: 'relay', dc: null, pc: null,
     relayTimer: null, pendingCandidates: [], reset() {},
+    reinitTimer: null, reinitDelay: 0, left: false,
   })
 }
 
@@ -147,7 +155,7 @@ describe('FabricClient — relayByteCount (billing G-1)', () => {
     relayPeer(fc)
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote',
       session: 'sess-meter', data,
     })
 
@@ -177,9 +185,9 @@ describe('FabricClient — relayByteCount (billing G-1)', () => {
     await fc._ensureDepositKey()
     relayPeer(fc)
 
-    const mkBlob = (data, id) => {
+    const mkBlob = (data: string, id: string) => {
       const { blob_b64, epk } = makeRelayBlob({
-        recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote',
+        recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote',
         session: 'sess-meter', data,
       })
       return { id, from: 'remote', blob_b64, epk }
@@ -209,10 +217,10 @@ describe('FabricClient — relayByteCount (billing G-1)', () => {
     await fc._ensureDepositKey()
     relayPeer(fc)
     // Register the recipient (self) box key so the outbound deposit is not skipped.
-    fc._signaling._peerBoxKeys.set('remote', fc._boxPubKeyB64)
+    ;(fc._signaling as SignalingClient)._peerBoxKeys.set('remote', fc._boxPubKeyB64!)
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote',
       session: 'sess-meter', data,
     })
 
