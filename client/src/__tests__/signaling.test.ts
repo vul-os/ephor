@@ -15,13 +15,28 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SignalingClient } from '../signaling.js'
+import { SignalingClient, type SignalPayload } from '../signaling.js'
+
+interface SignalDetail {
+  from: string
+  payload: SignalPayload
+}
 
 class FakeWebSocket {
   static OPEN = 1
   static CLOSED = 3
   static CONNECTING = 0
-  constructor(url, protocols) {
+  static instances: FakeWebSocket[] = []
+  static lastUrl: string | null = null
+  static lastProtocols: string[] | undefined = undefined
+
+  url: string
+  protocols: string[] | undefined
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     FakeWebSocket.lastUrl = url
     FakeWebSocket.lastProtocols = protocols
     FakeWebSocket.instances.push(this)
@@ -31,30 +46,28 @@ class FakeWebSocket {
     this.sent = []
     this._listeners = {}
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  send(data) {
+  send(data: string) {
     this.sent.push(data)
   }
   close() {
     this.readyState = FakeWebSocket.CLOSED
     this._fire('close', {})
   }
-  _fire(evt, payload) {
+  _fire(evt: string, payload: unknown) {
     for (const fn of (this._listeners[evt] || [])) fn(payload)
   }
   _open() {
     this.readyState = FakeWebSocket.OPEN
     this._fire('open', {})
   }
-  _message(frame) {
+  _message(frame: unknown) {
     this._fire('message', { data: JSON.stringify(frame) })
   }
 }
-FakeWebSocket.instances = []
-FakeWebSocket.lastUrl = null
 
 beforeEach(() => {
   FakeWebSocket.instances = []
@@ -167,8 +180,8 @@ describe('SignalingClient', () => {
     const ws = FakeWebSocket.instances[0]
     ws._open()
 
-    const received = []
-    c.addEventListener('signal', (ev) => received.push(ev.detail))
+    const received: SignalDetail[] = []
+    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent<SignalDetail>).detail))
 
     ws._message({
       channel: 'signal',
@@ -176,8 +189,8 @@ describe('SignalingClient', () => {
       payload: { type: 'offer', session: 'doc-1', to: 'alice', sdp: 'v=0...' },
     })
     expect(received).toHaveLength(1)
-    expect(received[0].from).toBe('bob')
-    expect(received[0].payload.type).toBe('offer')
+    expect(received[0]!.from).toBe('bob')
+    expect(received[0]!.payload.type).toBe('offer')
   })
 
   it('drops frames on the wrong channel and frames addressed to a different peer', () => {
@@ -190,8 +203,8 @@ describe('SignalingClient', () => {
     const ws = FakeWebSocket.instances[0]
     ws._open()
 
-    const received = []
-    c.addEventListener('signal', (ev) => received.push(ev.detail))
+    const received: SignalDetail[] = []
+    c.addEventListener('signal', (ev) => received.push((ev as CustomEvent<SignalDetail>).detail))
 
     // Wrong channel → dropped.
     ws._message({ channel: 'presence', from: 'bob', payload: { type: 'offer' } })
