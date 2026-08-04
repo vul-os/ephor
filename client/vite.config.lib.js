@@ -14,21 +14,27 @@ import { resolve } from 'path'
 
 const dir = import.meta.dirname
 
-// NOTE: errors / signaling / rendezvous / rendezvousSignaling / chunkProof stay
-// .js on purpose — they are kotva-client substrate modules pinned byte-for-byte
-// by scripts/check-kotva-parity.mjs (see kotva-client.pin.json). They ship real
-// types via hand-written .d.ts sidecars instead of being converted to .ts.
+// NOTE: signaling / rendezvousSignaling stay .js on purpose — they are
+// kotva-client substrate modules pinned byte-for-byte by
+// scripts/check-kotva-parity.mjs (see kotva-client.pin.json), and pier's own
+// call/fabricSignaling.ts + fabric.ts depend on protocol-surface shapes wider
+// than kotva's own strict signaling.ts models (arbitrary app-level signal
+// kinds, nullable toId, data/identity passthrough — see the _comment block in
+// kotva-client.pin.json). They ship real types via a hand-written .d.ts
+// sidecar instead of being converted to .ts. errors / relayBox / chunkProof /
+// prekeys / rendezvous have since been converted to real .ts (verbatim kotva
+// copies) and no longer need sidecars.
 const entries = {
   index:             resolve(dir, 'src/index.ts'),
-  errors:            resolve(dir, 'src/errors.js'),
+  errors:            resolve(dir, 'src/errors.ts'),
   endpoints:         resolve(dir, 'src/endpoints.ts'),
   health:            resolve(dir, 'src/health.ts'),
   offlineBootstrap:  resolve(dir, 'src/offlineBootstrap.ts'),
   signaling:         resolve(dir, 'src/signaling.js'),
   fabric:            resolve(dir, 'src/fabric.ts'),
-  rendezvous:        resolve(dir, 'src/rendezvous.js'),
+  rendezvous:        resolve(dir, 'src/rendezvous.ts'),
   rendezvousSignaling: resolve(dir, 'src/rendezvousSignaling.js'),
-  chunkProof:        resolve(dir, 'src/chunkProof.js'),
+  chunkProof:        resolve(dir, 'src/chunkProof.ts'),
   presence:          resolve(dir, 'src/presence.ts'),
   call:              resolve(dir, 'src/call/index.ts'),
   useLiveCursors:    resolve(dir, 'src/useLiveCursors.ts'),
