@@ -21,31 +21,38 @@ import {
   STATUS_AWAY,
   STATUS_DND,
   STATUS_IN_CALL,
+  type LocalPresence,
+  type RosterPeer,
+  type PresenceManagerOptions,
 } from '../presence.js'
+
+type RosterEntry = (LocalPresence | RosterPeer) & { isSelf?: boolean }
 
 // ── Fake FabricClient ─────────────────────────────────────────────────────────
 
 class FakeFabric extends EventTarget {
+  sent: string[]
+
   constructor() {
     super()
     this.sent = []
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   sendTo(/* peerId, data */) {}
 
   /** Simulate incoming message from a remote peer */
-  _deliver(from, data) {
+  _deliver(from: string, data: string) {
     this.dispatchEvent(new CustomEvent('message', { detail: { from, data } }))
   }
 
   /** Simulate a peer state change */
-  _peerState(peerId, state) {
+  _peerState(peerId: string, state: string) {
     this.dispatchEvent(new CustomEvent('state', { detail: { peerId, state } }))
   }
 }
 
-function makePresence(opts = {}) {
+function makePresence(opts: Partial<PresenceManagerOptions> = {}) {
   const fabric = new FakeFabric()
   const pm = new PresenceManager({
     fabric,
@@ -55,7 +62,7 @@ function makePresence(opts = {}) {
   return { pm, fabric }
 }
 
-function presenceFrame(accountId, displayName, type = 'join', extras = {}) {
+function presenceFrame(accountId: string, displayName: string, type = 'join', extras: Record<string, unknown> = {}) {
   return JSON.stringify({
     channel: 'presence',
     payload: {
@@ -130,8 +137,8 @@ describe('PresenceManager — roster updates', () => {
     const { pm, fabric } = makePresence()
     pm.join()
 
-    const rosterEvents = []
-    pm.addEventListener('roster', ({ detail }) => rosterEvents.push(detail))
+    const rosterEvents: RosterEntry[][] = []
+    pm.addEventListener('roster', (ev) => rosterEvents.push((ev as CustomEvent<RosterEntry[]>).detail))
 
     fabric._deliver('bob-peer', presenceFrame('bob', 'Bob'))
 
@@ -139,7 +146,7 @@ describe('PresenceManager — roster updates', () => {
     const roster = rosterEvents[0]
     const bob = roster.find(p => p.accountId === 'bob')
     expect(bob).toBeTruthy()
-    expect(bob.displayName).toBe('Bob')
+    expect(bob!.displayName).toBe('Bob')
     pm.leave()
   })
 
@@ -147,8 +154,8 @@ describe('PresenceManager — roster updates', () => {
     const { pm, fabric } = makePresence()
     pm.join()
 
-    const rosterEvents = []
-    pm.addEventListener('roster', ({ detail }) => rosterEvents.push(detail))
+    const rosterEvents: RosterEntry[][] = []
+    pm.addEventListener('roster', (ev) => rosterEvents.push((ev as CustomEvent<RosterEntry[]>).detail))
 
     // Alice receives a frame from herself (server echo)
     fabric._deliver('alice-peer', presenceFrame('alice', 'Alice'))
@@ -164,8 +171,8 @@ describe('PresenceManager — roster updates', () => {
     // Add bob
     fabric._deliver('bob-peer', presenceFrame('bob', 'Bob', 'join'))
 
-    const rosterEvents = []
-    pm.addEventListener('roster', ({ detail }) => rosterEvents.push(detail))
+    const rosterEvents: RosterEntry[][] = []
+    pm.addEventListener('roster', (ev) => rosterEvents.push((ev as CustomEvent<RosterEntry[]>).detail))
 
     // Bob leaves
     fabric._deliver('bob-peer', presenceFrame('bob', 'Bob', 'leave'))
@@ -179,8 +186,8 @@ describe('PresenceManager — roster updates', () => {
     const { pm, fabric } = makePresence()
     pm.join()
 
-    const rosterEvents = []
-    pm.addEventListener('roster', ({ detail }) => rosterEvents.push(detail))
+    const rosterEvents: RosterEntry[][] = []
+    pm.addEventListener('roster', (ev) => rosterEvents.push((ev as CustomEvent<RosterEntry[]>).detail))
 
     // Message on a different channel
     fabric._deliver('bob-peer', JSON.stringify({
@@ -196,8 +203,8 @@ describe('PresenceManager — roster updates', () => {
     const { pm, fabric } = makePresence()
     pm.join()
 
-    const rosterEvents = []
-    pm.addEventListener('roster', ({ detail }) => rosterEvents.push(detail))
+    const rosterEvents: RosterEntry[][] = []
+    pm.addEventListener('roster', (ev) => rosterEvents.push((ev as CustomEvent<RosterEntry[]>).detail))
 
     fabric._deliver('bob-peer', 'not-json')
 
@@ -212,7 +219,7 @@ describe('PresenceManager — roster updates', () => {
     const full = pm.fullRoster
     const self = full.find(p => p.isSelf)
     expect(self).toBeTruthy()
-    expect(self.accountId).toBe('alice')
+    expect(self!.accountId).toBe('alice')
     pm.leave()
   })
 

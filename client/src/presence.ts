@@ -124,14 +124,25 @@ function loadOrCreateLocalIdentity(): ResolvedLocalIdentity {
   return identity
 }
 
+/**
+ * The structural surface PresenceManager needs from a fabric — satisfied by
+ * FabricClient and by lightweight test doubles that only implement the
+ * 'message'/'state' event pair + send(). Kept narrow deliberately (mirrors
+ * fabric.ts's own SignalingTransport idiom) so tests don't need a full
+ * FabricClient instance to exercise the presence layer in isolation.
+ */
+export interface PresenceFabricLike extends EventTarget {
+  send(data: string): void
+}
+
 export interface PresenceManagerOptions {
-  fabric: FabricClient
+  fabric: PresenceFabricLike
   /** Pass the Vulos account identity if authenticated; omit for guest. */
   localIdentity?: LocalIdentity | null
 }
 
 export class PresenceManager extends EventTarget {
-  private _fabric: FabricClient
+  private _fabric: PresenceFabricLike
   private _local: LocalPresence
   private _roster: Map<string, RosterPeer>
   private _heartbeatTimer: ReturnType<typeof setInterval> | null
@@ -184,7 +195,7 @@ export class PresenceManager extends EventTarget {
    * @param status  - one of STATUS_ONLINE | STATUS_AWAY | STATUS_DND | STATUS_IN_CALL
    * @param text  - optional free-text custom status
    */
-  setStatus(status: string, text = ''): void {
+  setStatus(status?: string, text = ''): void {
     this._local.status = status || STATUS_ONLINE
     this._local.statusText = text || ''
     this._broadcast()
