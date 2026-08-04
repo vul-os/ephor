@@ -18,7 +18,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { peerColor } from '../useLiveCursors.js'
+import { peerColor, type CursorPayload } from '../useLiveCursors.js'
 
 // ── peerColor tests (pure function, no hooks) ─────────────────────────────────
 
@@ -70,7 +70,7 @@ describe('peerColor()', () => {
     for (const id of ['alice', 'bob', 'charlie', 'dave', 'eve']) {
       const color = peerColor(id)
       const match = color.match(/^hsl\(\d+,\d+%,(\d+)%\)$/)
-      const lightness = parseInt(match[1], 10)
+      const lightness = parseInt(match![1]!, 10)
       expect(lightness).toBeGreaterThanOrEqual(40)
       expect(lightness).toBeLessThanOrEqual(49)
     }
@@ -80,7 +80,7 @@ describe('peerColor()', () => {
     for (const id of ['alice', 'bob', 'charlie', 'dave', 'eve']) {
       const color = peerColor(id)
       const match = color.match(/^hsl\(\d+,(\d+)%,\d+%\)$/)
-      const saturation = parseInt(match[1], 10)
+      const saturation = parseInt(match![1]!, 10)
       expect(saturation).toBeGreaterThanOrEqual(52)
       expect(saturation).toBeLessThanOrEqual(59)
     }
@@ -96,16 +96,21 @@ describe('peerColor()', () => {
 describe('cursor channel frame parsing', () => {
   /** Minimal EventTarget-based FakeFabric */
   class FakeFabric extends EventTarget {
-    _deliver(from, data) {
+    _deliver(from: string, data: unknown) {
       this.dispatchEvent(new CustomEvent('message', { detail: { from, data } }))
     }
   }
 
-  function parseCursorFrame(data, localAccountId) {
+  interface CursorFrame {
+    channel?: string
+    payload?: Partial<CursorPayload>
+  }
+
+  function parseCursorFrame(data: unknown, localAccountId: string): Partial<CursorPayload> | null {
     // Mirrors the logic in useLiveCursors's onMessage handler
-    let text
-    try { text = typeof data === 'string' ? data : new TextDecoder().decode(data) } catch { return null }
-    let frame
+    let text: string
+    try { text = typeof data === 'string' ? data : new TextDecoder().decode(data as ArrayBuffer) } catch { return null }
+    let frame: CursorFrame
     try { frame = JSON.parse(text) } catch { return null }
     if (frame.channel !== 'cursors') return null
     const p = frame.payload
@@ -121,9 +126,9 @@ describe('cursor channel frame parsing', () => {
     })
     const p = parseCursorFrame(data, 'alice')
     expect(p).not.toBeNull()
-    expect(p.accountId).toBe('bob')
-    expect(p.from).toBe(10)
-    expect(p.to).toBe(20)
+    expect(p!.accountId).toBe('bob')
+    expect(p!.from).toBe(10)
+    expect(p!.to).toBe(20)
   })
 
   it('ignores frames on non-cursors channels', () => {
@@ -176,8 +181,8 @@ describe('cursor channel frame parsing', () => {
     })
     const p = parseCursorFrame(data, 'alice')
     expect(p).not.toBeNull()
-    expect(p.type).toBe('sheet')
-    expect(p.from).toBe('3,5')
+    expect(p!.type).toBe('sheet')
+    expect(p!.from).toBe('3,5')
   })
 
   it('accepts slide cursor payload', () => {
@@ -194,6 +199,6 @@ describe('cursor channel frame parsing', () => {
     })
     const p = parseCursorFrame(data, 'alice')
     expect(p).not.toBeNull()
-    expect(p.slideId).toBe('slide-abc')
+    expect(p!.slideId).toBe('slide-abc')
   })
 })
