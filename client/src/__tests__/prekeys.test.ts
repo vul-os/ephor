@@ -24,12 +24,12 @@ import {
   relayBlobVersion, bytesToB64, b64ToBytes,
 } from '../relayBox.js'
 
-const hex = (u8) => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('')
-const dec = (b) => new TextDecoder().decode(b)
-const enc = (s) => new TextEncoder().encode(s)
+const hex = (u8: Uint8Array) => Array.from(u8).map(b => b.toString(16).padStart(2, '0')).join('')
+const dec = (b: Uint8Array) => new TextDecoder().decode(b)
+const enc = (s: string) => new TextEncoder().encode(s)
 
-function fill(n, b) { const u = new Uint8Array(n); u.fill(b); return u }
-function cat(arrs) {
+function fill(n: number, b: number) { const u = new Uint8Array(n); u.fill(b); return u }
+function cat(arrs: Uint8Array[]) {
   let n = 0; for (const a of arrs) n += a.length
   const out = new Uint8Array(n); let o = 0
   for (const a of arrs) { out.set(a, o); o += a.length }
@@ -40,13 +40,13 @@ function cat(arrs) {
 async function makeIdentity() {
   const kp = await crypto.subtle.generateKey(
     { name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'],
-  )
-  const signRaw = async (bytes) => {
-    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, bytes)
+  ) as CryptoKeyPair
+  const signRaw = async (bytes: Uint8Array) => {
+    const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, kp.privateKey, bytes as BufferSource)
     return bytesToB64(new Uint8Array(sig))
   }
-  const verifyRaw = async (bytes, sigB64) =>
-    crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, kp.publicKey, b64ToBytes(sigB64), bytes)
+  const verifyRaw = async (bytes: Uint8Array, sigB64: string) =>
+    crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, kp.publicKey, b64ToBytes(sigB64) as BufferSource, bytes as BufferSource)
   return { signRaw, verifyRaw }
 }
 
