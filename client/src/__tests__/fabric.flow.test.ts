@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricMessageDetail, type FabricStateDetail } from '../fabric.js'
 
 // ── Fake WebSocket ────────────────────────────────────────────────────────────
 
@@ -16,9 +16,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[] | undefined
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols
     this.readyState = FakeWebSocket.CONNECTING
@@ -28,18 +35,18 @@ class FakeWebSocket {
     FakeWebSocket.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() {
     this.readyState = FakeWebSocket.CLOSED
     this._fire('close', {})
   }
 
-  _fire(evt, payload) {
+  _fire(evt: string, payload: unknown) {
     for (const fn of (this._listeners[evt] || [])) fn(payload)
   }
 
@@ -48,7 +55,7 @@ class FakeWebSocket {
     this._fire('open', {})
   }
 
-  _message(frame) {
+  _message(frame: unknown) {
     this._fire('message', { data: JSON.stringify(frame) })
   }
 }
@@ -56,7 +63,13 @@ class FakeWebSocket {
 // ── Fake RTCDataChannel ───────────────────────────────────────────────────────
 
 class FakeDC {
-  constructor(label) {
+  label: string
+  readyState: string
+  binaryType: string
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(label: string) {
     this.label = label
     this.readyState = 'connecting'
     this.binaryType = 'arraybuffer'
@@ -64,25 +77,39 @@ class FakeDC {
     this._listeners = {}
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = 'closed'; this._fire('close', {}) }
 
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
   _open() { this.readyState = 'open'; this._fire('open', {}) }
-  _msg(data) { this._fire('message', { data }) }
+  _msg(data: unknown) { this._fire('message', { data }) }
 }
 
 // ── Fake RTCPeerConnection ────────────────────────────────────────────────────
 
-class FakePC {
-  static instances = []
+interface FakeSessionDescription {
+  type: string
+  sdp?: string
+}
 
-  constructor(config) {
+class FakePC {
+  static instances: FakePC[] = []
+  static last: FakePC | null = null
+
+  config: unknown
+  connectionState: string
+  localDescription: FakeSessionDescription | null
+  remoteDescription: FakeSessionDescription | null
+  pendingCandidates: unknown[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  _createdDC: FakeDC | null
+
+  constructor(config: unknown) {
     this.config = config
     this.connectionState = 'connecting'
     this.localDescription = null
@@ -94,14 +121,14 @@ class FakePC {
     FakePC.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
 
-  createDataChannel(label) {
+  createDataChannel(label: string) {
     const dc = new FakeDC(label)
     this._createdDC = dc
     return dc
@@ -110,17 +137,17 @@ class FakePC {
   createOffer() { return Promise.resolve({ type: 'offer', sdp: 'v=0 fake-offer' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0 fake-answer' }) }
 
-  setLocalDescription(desc) {
+  setLocalDescription(desc: FakeSessionDescription) {
     this.localDescription = { type: desc.type, sdp: desc.sdp || desc.type }
     return Promise.resolve()
   }
 
-  setRemoteDescription(desc) {
+  setRemoteDescription(desc: FakeSessionDescription) {
     this.remoteDescription = desc
     return Promise.resolve()
   }
 
-  addIceCandidate(c) {
+  addIceCandidate(c: unknown) {
     this.pendingCandidates.push(c)
     return Promise.resolve()
   }
@@ -141,18 +168,18 @@ class FakePC {
     this._fire('connectionstatechange', {})
   }
 
-  _receiveDataChannel(dc) {
+  _receiveDataChannel(dc: FakeDC) {
     this._fire('datachannel', { channel: dc })
   }
 
-  _iceCandidate(candidate) {
+  _iceCandidate(candidate: unknown) {
     this._fire('icecandidate', { candidate })
   }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function makeFabric({ peerId = 'local-peer', authToken = null } = {}) {
+function makeFabric({ peerId = 'local-peer', authToken = null }: { peerId?: string, authToken?: string | null } = {}) {
   const fc = new FabricClient({
     sessionId: 'sess-1',
     peerId,
@@ -180,11 +207,13 @@ const FAKE_SIG = new Uint8Array(64).buffer
 const FAKE_KEY = {
   type: 'public', algorithm: { name: 'ECDSA', namedCurve: 'P-256' },
   extractable: false, usages: ['verify'],
-}
+} as unknown as CryptoKey
 const FAKE_KEY_PAIR = {
-  privateKey: { type: 'private', algorithm: { name: 'ECDSA', namedCurve: 'P-256' }, extractable: false, usages: ['sign'] },
+  privateKey: {
+    type: 'private', algorithm: { name: 'ECDSA', namedCurve: 'P-256' }, extractable: false, usages: ['sign'],
+  } as unknown as CryptoKey,
   publicKey: FAKE_KEY,
-}
+} as unknown as CryptoKeyPair
 
 beforeEach(() => {
   FakeWebSocket.instances = []
@@ -217,7 +246,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     await fc.join()
 
     expect(typeof fc._depositPubKeyB64).toBe('string')
-    expect(fc._depositPubKeyB64.length).toBeGreaterThan(0)
+    expect(fc._depositPubKeyB64!.length).toBeGreaterThan(0)
     expect(FakeWebSocket.instances.length).toBe(1)
     fc.leave()
   })
@@ -226,7 +255,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     // local-peer < z-remote → local is impolite (offerer)
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -244,7 +273,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
       try { return JSON.parse(raw).payload?.type === 'offer' } catch { return false }
     })
     expect(offerFrame).toBeTruthy()
-    const parsed = JSON.parse(offerFrame)
+    const parsed = JSON.parse(offerFrame!)
     expect(parsed.payload.session).toBe('sess-1')
     expect(parsed.payload.to).toBe('z-remote')
     expect(parsed.payload.sdp).toBeTruthy()
@@ -255,7 +284,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     // z-local > a-remote → local is polite (waits for offer)
     const fc = makeFabric({ peerId: 'z-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -277,7 +306,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('answer flow: arriving offer → setRemoteDescription → answer sent', async () => {
     const fc = makeFabric({ peerId: 'z-local' })  // polite, receives offers
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -293,19 +322,19 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
       try { return JSON.parse(raw).payload?.type === 'answer' } catch { return false }
     })
     expect(answerFrame).toBeTruthy()
-    const parsed = JSON.parse(answerFrame)
+    const parsed = JSON.parse(answerFrame!)
     expect(parsed.payload.to).toBe('a-remote')
     expect(parsed.payload.sdp).toBeTruthy()
 
-    const pc = FakePC.last
-    expect(pc.remoteDescription.type).toBe('offer')
+    const pc = FakePC.last!
+    expect(pc.remoteDescription!.type).toBe('offer')
     fc.leave()
   })
 
   it('answer received → setRemoteDescription called', async () => {
     const fc = makeFabric({ peerId: 'a-local' })  // impolite, sends offers
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -317,7 +346,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const pc = FakePC.last
+    const pc = FakePC.last!
 
     // Deliver the answer
     ws._message({
@@ -327,14 +356,14 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    expect(pc.remoteDescription.type).toBe('answer')
+    expect(pc.remoteDescription!.type).toBe('answer')
     fc.leave()
   })
 
   it('ICE candidate forwarded via signaling', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
@@ -346,7 +375,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const pc = FakePC.last
+    const pc = FakePC.last!
     ws.sent.length = 0  // clear offer frame
 
     // Fire ICE candidate from the fake PC
@@ -362,7 +391,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
       try { return JSON.parse(raw).payload?.type === 'ice' } catch { return false }
     })
     expect(iceFrame).toBeTruthy()
-    const parsed = JSON.parse(iceFrame)
+    const parsed = JSON.parse(iceFrame!)
     expect(parsed.payload.candidate).toBeTruthy()
     fc.leave()
   })
@@ -370,7 +399,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('incoming ICE candidate before remoteDescription is queued then applied', async () => {
     const fc = makeFabric({ peerId: 'z-local' })  // polite
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Send ICE before offer (should be queued)
@@ -381,7 +410,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const ps = fc._peers.get('a-remote')
+    const ps = fc._peers.get('a-remote')!
     expect(ps.pendingCandidates.length).toBe(1)
 
     // Now deliver the offer — pending candidate should be applied
@@ -399,7 +428,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('data channel open → peer state transitions to connected', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -409,24 +438,24 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const pc = FakePC.last
+    const pc = FakePC.last!
     const dc = pc._createdDC
     expect(dc).toBeTruthy()
 
-    const states = []
-    fc.addEventListener('state', ({ detail }) => states.push(detail))
+    const states: FabricStateDetail[] = []
+    fc.addEventListener('state', (ev) => states.push((ev as CustomEvent<FabricStateDetail>).detail))
 
-    dc._open()
+    dc!._open()
 
     expect(states).toContainEqual({ peerId: 'z-remote', state: 'connected' })
-    expect(fc._peers.get('z-remote').state).toBe('connected')
+    expect(fc._peers.get('z-remote')!.state).toBe('connected')
     fc.leave()
   })
 
   it('messages on the data channel are dispatched as fabric "message" events', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -436,25 +465,25 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const pc = FakePC.last
-    const dc = pc._createdDC
+    const pc = FakePC.last!
+    const dc = pc._createdDC!
     dc._open()
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     dc._msg('hello world')
 
     expect(received).toHaveLength(1)
-    expect(received[0].from).toBe('z-remote')
-    expect(received[0].data).toBe('hello world')
+    expect(received[0]!.from).toBe('z-remote')
+    expect(received[0]!.data).toBe('hello world')
     fc.leave()
   })
 
   it('send() delivers to an open data channel', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -464,7 +493,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const dc = FakePC.last._createdDC
+    const dc = FakePC.last!._createdDC!
     dc._open()
 
     fc.send('broadcast-msg')
@@ -475,7 +504,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('sendTo() unicasts to a specific peer data channel', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -485,7 +514,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const dc = FakePC.last._createdDC
+    const dc = FakePC.last!._createdDC!
     dc._open()
 
     fc.sendTo('z-remote', 'unicast-msg')
@@ -496,7 +525,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('peer leave signal → peer state set to disconnected', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -506,11 +535,11 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     })
     await flush()
 
-    const dc = FakePC.last._createdDC
+    const dc = FakePC.last!._createdDC!
     dc._open()
 
-    const states = []
-    fc.addEventListener('state', ({ detail }) => states.push(detail))
+    const states: FabricStateDetail[] = []
+    fc.addEventListener('state', (ev) => states.push((ev as CustomEvent<FabricStateDetail>).detail))
 
     ws._message({
       channel: 'signal',
@@ -526,7 +555,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('peerStates snapshot reflects current peer states', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -544,7 +573,7 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
   it('signaling-open event re-offers disconnected peers', async () => {
     const fc = makeFabric({ peerId: 'a-local' })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Establish + disconnect a peer
@@ -556,11 +585,11 @@ describe('FabricClient — signaling join / ICE negotiation flow', () => {
     await flush()
 
     // Force peer to disconnected
-    fc._peers.get('z-remote').state = 'disconnected'
+    fc._peers.get('z-remote')!.state = 'disconnected'
 
     // Simulate signaling reconnect
     FakeWebSocket.instances.push(new FakeWebSocket('ws://localhost/sig'))
-    const ws2 = FakeWebSocket.last
+    const ws2 = FakeWebSocket.last!
     ws2._open()
 
     // Trigger signaling-open by dispatching the event on the SignalingClient
