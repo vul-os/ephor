@@ -71,18 +71,18 @@ describe('createHealthReport()', () => {
   it('relay reflects live counter values from the callback', () => {
     let counter = { out: 0, in: 0, total: 0 }
     const r1 = createHealthReport({ getRelayByteCount: () => counter })
-    expect(r1.relay.out).toBe(0)
+    expect(r1.relay!.out).toBe(0)
 
     counter = { out: 999, in: 1, total: 1000 }
     const r2 = createHealthReport({ getRelayByteCount: () => counter })
-    expect(r2.relay.out).toBe(999)
-    expect(r2.relay.total).toBe(1000)
+    expect(r2.relay!.out).toBe(999)
+    expect(r2.relay!.total).toBe(1000)
   })
 
   it('returned object is plain JSON-serializable (no circular refs)', () => {
     const r = createHealthReport({ getRelayByteCount: () => ({ out: 1, in: 2, total: 3 }) })
     expect(() => JSON.stringify(r)).not.toThrow()
-    const parsed = JSON.parse(JSON.stringify(r))
+    const parsed: { status: string, relay: { total: number } } = JSON.parse(JSON.stringify(r))
     expect(parsed.status).toBe('ok')
     expect(parsed.relay.total).toBe(3)
   })
@@ -90,16 +90,16 @@ describe('createHealthReport()', () => {
 
 describe('createHealthHandler()', () => {
   function makeMockRes() {
-    const headers = {}
-    let statusCode = null
-    let body = null
+    const headers: Record<string, string> = {}
+    let statusCode: number | null = null
+    let body: string | null = null
 
     return {
-      writeHead: vi.fn((code, hdrs) => {
+      writeHead: vi.fn((code: number, hdrs: Record<string, string>) => {
         statusCode = code
         Object.assign(headers, hdrs)
       }),
-      end: vi.fn((data) => { body = data }),
+      end: vi.fn((data: string) => { body = data }),
       _status: () => statusCode,
       _headers: () => headers,
       _body: () => body,
@@ -136,7 +136,7 @@ describe('createHealthHandler()', () => {
     const res = makeMockRes()
     handler({}, res)
 
-    const body = JSON.parse(res._body())
+    const body = JSON.parse(res._body()!)
     expect(body.status).toBe('ok')
     expect(body.component).toBe('pier-client')
     expect(body.version).toBe(RELAY_CLIENT_VERSION)
@@ -150,7 +150,7 @@ describe('createHealthHandler()', () => {
     const res = makeMockRes()
     handler({}, res)
 
-    const body = JSON.parse(res._body())
+    const body = JSON.parse(res._body()!)
     expect(body.relay).toEqual({ out: 42, in: 8, total: 50 })
   })
 
@@ -159,7 +159,7 @@ describe('createHealthHandler()', () => {
     const res = makeMockRes()
     handler({}, res)
 
-    const body = res._body()
+    const body = res._body()!
     const headerLen = parseInt(res._headers()['Content-Length'], 10)
     // Allow for the possibility that Buffer is not available in jsdom
     // (Content-Length may be body.length or actual byte length)
