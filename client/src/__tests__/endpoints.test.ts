@@ -37,17 +37,17 @@ async function freshModule() {
   return import('../endpoints.js')
 }
 
-function setEndpoints({ cloud = CLOUD, lan = LAN } = {}) {
-  globalThis.window = globalThis.window || {}
+function setEndpoints({ cloud = CLOUD, lan = LAN }: { cloud?: string, lan?: string } = {}) {
+  globalThis.window = globalThis.window || ({} as Window & typeof globalThis)
   window.__VULOS_ENDPOINTS__ = { cloud, lan }
 }
 
 beforeEach(() => {
   // jsdom provides localStorage; clear it so cached pairs don't leak across tests.
   try { localStorage.clear() } catch { /* ignore */ }
-  globalThis.window = globalThis.window || {}
-  if (!window.addEventListener) window.addEventListener = () => {}
-  globalThis.navigator = globalThis.navigator || {}
+  globalThis.window = globalThis.window || ({} as Window & typeof globalThis)
+  if (!window.addEventListener) window.addEventListener = (() => {}) as typeof window.addEventListener
+  globalThis.navigator = globalThis.navigator || ({} as Navigator)
 })
 
 afterEach(() => {
@@ -63,7 +63,7 @@ describe('endpoint failover (frozen contract)', () => {
     expect(pair.cloud).toBe(CLOUD)
     expect(pair.lan).toBe(LAN)
     // Persisted under the shared default namespace.
-    const cached = JSON.parse(localStorage.getItem(DEFAULT_LS_KEY))
+    const cached = JSON.parse(localStorage.getItem(DEFAULT_LS_KEY)!)
     expect(cached.cloud).toBe(CLOUD)
     expect(cached.lan).toBe(LAN)
   })
@@ -138,11 +138,11 @@ describe('endpoint failover (frozen contract)', () => {
 
   it('re-selects on the window "online" event (debounced)', async () => {
     setEndpoints()
-    let onlineHandler = null
-    const addEventListener = vi.fn((evt, fn) => {
+    let onlineHandler: ((ev?: Event) => void) | null = null
+    const addEventListener = vi.fn((evt: string, fn: (ev?: Event) => void) => {
       if (evt === 'online') onlineHandler = fn
     })
-    globalThis.window.addEventListener = addEventListener
+    globalThis.window.addEventListener = addEventListener as typeof window.addEventListener
 
     vi.useFakeTimers()
     const ep = await freshModule()
@@ -152,7 +152,7 @@ describe('endpoint failover (frozen contract)', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     // Fire the online event — debounced; fetch should NOT run immediately.
-    onlineHandler()
+    onlineHandler!()
     await Promise.resolve()
     await Promise.resolve()
     // fetch not yet called (still in debounce window).
@@ -190,7 +190,7 @@ describe('endpoint failover (frozen contract)', () => {
     const pair = ep.seedFromResolveBackend(target)
     expect(pair.cloud).toBe(CLOUD)
     expect(pair.lan).toBe(LAN)
-    const cached = JSON.parse(localStorage.getItem(DEFAULT_LS_KEY))
+    const cached = JSON.parse(localStorage.getItem(DEFAULT_LS_KEY)!)
     expect(cached.cloud).toBe(CLOUD)
     expect(cached.lan).toBe(LAN)
   })
@@ -229,7 +229,7 @@ describe('configure() — migration seams for the three consumers', () => {
     const ep = await freshModule()
     ep.configure({ healthPath: '/api/auth/me' })
     setEndpoints({ cloud: '', lan: LAN })
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }))
+    const fetchMock = vi.fn(async (_url: string, _opts?: RequestInit) => ({ ok: true, status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
     await ep.selectEndpoint({ force: true })
@@ -275,7 +275,7 @@ describe('credentialed-probe allowlist (cookie-exfil guard)', () => {
     // A poisoned cache supplies a well-formed https host that is NOT configured.
     localStorage.setItem(DEFAULT_LS_KEY, JSON.stringify({ cloud: EVIL, lan: '' }))
     const ep = await freshModule()
-    const fetchMock = vi.fn(async () => ({ ok: true, status: 200 }))
+    const fetchMock = vi.fn(async (_url: string, _opts?: RequestInit) => ({ ok: true, status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
     const selected = await ep.selectEndpoint({ force: true })
