@@ -12,10 +12,15 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
-import { SignalingClient } from '../signaling.js'
+import { FabricClient, type FabricMessageDetail } from '../fabric.js'
+import { SignalingClient, type SignalPayload } from '../signaling.js'
 import { makeRelayBlob } from './_relayTestUtil.js'
 import { sealRelayBlob, generateBoxKeyPair } from '../relayBox.js'
+
+interface SignalDetail {
+  from: string
+  payload: SignalPayload
+}
 
 // ── Fake WebSocket ────────────────────────────────────────────────────────────
 
@@ -23,9 +28,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[]
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols || []
     this.readyState = FakeWebSocket.CONNECTING
@@ -35,28 +47,34 @@ class FakeWebSocket {
     FakeWebSocket.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
 
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
 
   _open() {
     this.readyState = FakeWebSocket.OPEN
     this._fire('open', {})
   }
 
-  _message(frame) {
+  _message(frame: unknown) {
     this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) })
   }
 }
 
 class FakePC {
-  static instances = []
+  static instances: FakePC[] = []
+
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  connectionState: string
+  localDescription: unknown
+  remoteDescription: unknown
+
   constructor() {
     this._listeners = {}
     this.connectionState = 'connecting'
@@ -64,19 +82,19 @@ class FakePC {
     this.remoteDescription = null
     FakePC.instances.push(this)
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
   createOffer() { return Promise.resolve({ type: 'offer', sdp: 'v=0' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0' }) }
-  setLocalDescription(d) { this.localDescription = d; return Promise.resolve() }
-  setRemoteDescription(d) { this.remoteDescription = d; return Promise.resolve() }
+  setLocalDescription(d: unknown) { this.localDescription = d; return Promise.resolve() }
+  setRemoteDescription(d: unknown) { this.remoteDescription = d; return Promise.resolve() }
   addIceCandidate() { return Promise.resolve() }
   close() {}
   createDataChannel() {
-    return { readyState: 'connecting', binaryType: 'arraybuffer', sent: [],
-      addEventListener() {}, send(d) { this.sent.push(d) }, close() {} }
+    return { readyState: 'connecting', binaryType: 'arraybuffer', sent: [] as string[],
+      addEventListener() {}, send(d: string) { this.sent.push(d) }, close() {} }
   }
 }
 
@@ -116,7 +134,7 @@ describe('SignalingClient — JWT auth on WebSocket (not URL)', () => {
       authToken: 'my-jwt',
     })
     c.connect()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     expect(ws.url).not.toContain('token')
     expect(ws.url).not.toContain('jwt')
     expect(ws.protocols).toContain('vula.token.my-jwt')
@@ -128,7 +146,7 @@ describe('FabricClient — self-echo suppression', () => {
   it('ignores signals where from === own peerId', async () => {
     const fc = makeFabric('same-peer')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -148,7 +166,7 @@ describe('FabricClient — malformed signaling frame rejection', () => {
   it('non-JSON message is silently discarded (no crash)', async () => {
     const fc = makeFabric()
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Deliver a raw non-JSON string
@@ -163,7 +181,7 @@ describe('FabricClient — malformed signaling frame rejection', () => {
   it('frame with missing payload is silently discarded', async () => {
     const fc = makeFabric()
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({ channel: 'signal', from: 'bob' /* no payload */ })
@@ -176,7 +194,7 @@ describe('FabricClient — malformed signaling frame rejection', () => {
   it('frame with null payload is silently discarded', async () => {
     const fc = makeFabric()
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({ channel: 'signal', from: 'bob', payload: null })
@@ -189,7 +207,7 @@ describe('FabricClient — malformed signaling frame rejection', () => {
   it('frame with unknown type does not crash', async () => {
     const fc = makeFabric()
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -208,11 +226,11 @@ describe('FabricClient — cross-session isolation', () => {
   it('drops frames carrying a different session id', async () => {
     const fc = makeFabric('local-peer', 'sess-A')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
-    const signals = []
-    fc._signaling.addEventListener('signal', ({ detail }) => signals.push(detail))
+    const signals: SignalDetail[] = []
+    fc._signaling.addEventListener('signal', (ev) => signals.push((ev as CustomEvent<SignalDetail>).detail))
 
     ws._message({
       channel: 'signal',
@@ -230,11 +248,11 @@ describe('FabricClient — cross-session isolation', () => {
   it('drops frames addressed to a different peer', async () => {
     const fc = makeFabric('alice', 'sess-A')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
-    const signals = []
-    fc._signaling.addEventListener('signal', ({ detail }) => signals.push(detail))
+    const signals: SignalDetail[] = []
+    fc._signaling.addEventListener('signal', (ev) => signals.push((ev as CustomEvent<SignalDetail>).detail))
 
     ws._message({
       channel: 'signal',
@@ -262,7 +280,7 @@ describe('FabricClient — cross-session relay leakage', () => {
     )
     const blob_b64 = sealRelayBlob({
       plaintext, senderBoxPriv: senderKP.privateKey,
-      recipientBoxPubB64: fc._boxPubKeyB64,
+      recipientBoxPubB64: fc._boxPubKeyB64!,
       from: 'attacker', to: 'local-peer', session: 'sess-A',
     })
 
@@ -278,13 +296,14 @@ describe('FabricClient — cross-session relay leakage', () => {
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     // Force relay mode
     fc._peers.set('remote-peer', {
       id: 'remote-peer', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -299,7 +318,7 @@ describe('FabricClient — cross-session relay leakage', () => {
     await fc._ensureDepositKey()
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote-peer',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote-peer',
       session: 'sess-A', data: 'hello-from-relay',
     })
 
@@ -315,12 +334,13 @@ describe('FabricClient — cross-session relay leakage', () => {
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     fc._peers.set('remote-peer', {
       id: 'remote-peer', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
@@ -342,7 +362,7 @@ describe('FabricClient — identity validation on join', () => {
       authToken: 'my-jwt-token',
     })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     expect(ws.protocols).toContain('vula.token.my-jwt-token')
     expect(ws.url).not.toContain('token')
     fc.leave()
@@ -356,7 +376,7 @@ describe('FabricClient — identity validation on join', () => {
       iceUrl: '/api/peering/ice',
     })
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     expect(ws.protocols || []).not.toContain(
       (ws.protocols || []).find(p => p.startsWith('vula.token.'))
     )
