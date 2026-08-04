@@ -28,10 +28,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { FabricClient } from '../fabric.js'
 import { relayBlobVersion } from '../relayBox.js'
+import type { SignalingClient, SignalPayload } from '../signaling.js'
+
+interface CanonicalJoinArgs {
+  session: string
+  from: string
+  depositPubKey?: string | null
+  boxPubKey?: string | null
+  supportsV2?: boolean
+  nonce: string
+  ts: number
+}
 
 // ── Canonical JOIN capability commitment — must match signaling.js _canonicalJoin
 // EXACTLY (supportsV2 + depositPubKey + boxPubKey + nonce + ts; NO signedPreKey).
-function canonicalJoin({ session, from, depositPubKey, boxPubKey, supportsV2, nonce, ts }) {
+function canonicalJoin({ session, from, depositPubKey, boxPubKey, supportsV2, nonce, ts }: CanonicalJoinArgs): string {
   return JSON.stringify({
     type: 'join',
     session,
@@ -49,10 +60,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
-  static last = null
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[]
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols || []
     this.readyState = FakeWebSocket.CONNECTING
@@ -61,17 +78,23 @@ class FakeWebSocket {
     FakeWebSocket.instances.push(this)
     FakeWebSocket.last = this
   }
-  addEventListener(evt, fn) { (this._listeners[evt] ||= []).push(fn) }
-  send(data) { this.sent.push(data) }
+  addEventListener(evt: string, fn: (payload: unknown) => void) { (this._listeners[evt] ||= []).push(fn) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
-  _message(frame) { this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) }) }
+  _message(frame: unknown) { this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) }) }
 }
 
 class FakePC {
-  static instances = []
-  static last = null
+  static instances: FakePC[] = []
+  static last: FakePC | null = null
+
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  connectionState: string
+  localDescription: unknown
+  remoteDescription: unknown
+
   constructor() {
     this._listeners = {}
     this.connectionState = 'connecting'
@@ -80,20 +103,20 @@ class FakePC {
     FakePC.instances.push(this)
     FakePC.last = this
   }
-  addEventListener(evt, fn) { (this._listeners[evt] ||= []).push(fn) }
-  _fire(evt, payload) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
+  addEventListener(evt: string, fn: (payload: unknown) => void) { (this._listeners[evt] ||= []).push(fn) }
+  _fire(evt: string, payload: unknown) { for (const fn of (this._listeners[evt] || [])) fn(payload) }
   createOffer()  { return Promise.resolve({ type: 'offer',  sdp: 'v=0 fake-offer' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0 fake-answer' }) }
-  setLocalDescription(d)  { this.localDescription  = d; return Promise.resolve() }
-  setRemoteDescription(d) { this.remoteDescription = d; return Promise.resolve() }
+  setLocalDescription(d: unknown)  { this.localDescription  = d; return Promise.resolve() }
+  setRemoteDescription(d: unknown) { this.remoteDescription = d; return Promise.resolve() }
   addIceCandidate()       { return Promise.resolve() }
   close()                 { this.connectionState = 'closed' }
   createDataChannel() {
-    return { readyState: 'connecting', binaryType: 'arraybuffer', sent: [], addEventListener() {}, send(d) { this.sent.push(d) }, close() {} }
+    return { readyState: 'connecting', binaryType: 'arraybuffer', sent: [] as string[], addEventListener() {}, send(d: string) { this.sent.push(d) }, close() {} }
   }
 }
 
-async function waitFor(condition, { timeout = 700, interval = 5 } = {}) {
+async function waitFor(condition: () => boolean | Promise<boolean>, { timeout = 700, interval = 5 }: { timeout?: number, interval?: number } = {}) {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     if (await condition()) return
@@ -101,10 +124,15 @@ async function waitFor(condition, { timeout = 700, interval = 5 } = {}) {
   }
   throw new Error('waitFor: condition never true within ' + timeout + 'ms')
 }
-const sleep = ms => new Promise(r => setTimeout(r, ms))
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
-function makeFabric(peerId, sessionId = 'sess-1') {
+function makeFabric(peerId: string, sessionId = 'sess-1') {
   return new FabricClient({ sessionId, peerId, signalingUrl: 'ws://localhost/sig', iceUrl: '/api/peering/ice', relayBaseUrl: '' })
+}
+
+interface SignedJoinOpts {
+  stripSpk?: boolean
+  tamperSig?: boolean
 }
 
 /**
@@ -112,10 +140,10 @@ function makeFabric(peerId, sessionId = 'sess-1') {
  * factory for its signed-join frame.  `stripSpk` omits signedPreKey; `tamperSig`
  * corrupts the join signature.
  */
-async function makeV2Peer(peerId, sessionId = 'sess-1') {
+async function makeV2Peer(peerId: string, sessionId = 'sess-1') {
   const fc = makeFabric(peerId, sessionId)
   await fc._ensurePreKeys()  // generates deposit key, box key, signed prekey
-  async function signedJoin({ stripSpk = false, tamperSig = false } = {}) {
+  async function signedJoin({ stripSpk = false, tamperSig = false }: SignedJoinOpts = {}) {
     const nonce = crypto.randomUUID()
     const ts = Date.now()
     const canon = canonicalJoin({
@@ -130,7 +158,7 @@ async function makeV2Peer(peerId, sessionId = 'sess-1') {
       raw[0] ^= 0xff
       sig = btoa(String.fromCharCode(...raw))
     }
-    const payload = {
+    const payload: Partial<SignalPayload> = {
       type: 'join', session: sessionId,
       depositPubKey: fc._depositPubKeyB64, boxPubKey: fc._boxPubKeyB64,
       supportsV2: true, nonce, ts, sig,
@@ -161,31 +189,31 @@ describe('Downgrade protection — normal v2 path', () => {
     const alice = makeFabric('alice')           // 'alice' < 'bob' → impolite/offerer
     const { fc: bob, signedJoin } = await makeV2Peer('bob')
     await alice.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message(await signedJoin())
     await waitFor(() => alice._signaling.isPeerV2Capable('bob'))
-    await waitFor(() => alice._signaling._peerSignedPreKeys.has('bob'))
+    await waitFor(() => (alice._signaling as SignalingClient)._peerSignedPreKeys.has('bob'))
 
     expect(alice._signaling.isPeerV2Capable('bob')).toBe(true)
     expect(alice._signaling.getPeerSignedPreKey('bob')).toBeTruthy()
 
     // Seal a relay payload → must choose v2 (X3DH).  Host serves an OPK claim.
-    const bobBundle = bob._preKeys.publicBundle('bob')
-    let depositBody
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    const bobBundle = bob._preKeys!.publicBundle('bob')
+    let depositBody: { blob_b64: string } | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
       const u = String(url)
       if (u.includes('prekeys/claim')) {
         return { ok: true, json: async () => ({ identity_vula_id: 'bob', signed_prekey: bob._signedPreKeyPublic, one_time_prekey: bobBundle.one_time_prekeys[0] }) }
       }
-      if (u.includes('deposit')) { depositBody = JSON.parse(opts.body); return { ok: true } }
+      if (u.includes('deposit')) { depositBody = JSON.parse(String(opts?.body)); return { ok: true } }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
     await alice._relayDeposit('bob', { op: 'insert', text: 'fs-edit' })
     expect(depositBody).toBeTruthy()
-    expect(relayBlobVersion(depositBody.blob_b64)).toBe(2)   // forward-secret path
+    expect(relayBlobVersion(depositBody!.blob_b64)).toBe(2)   // forward-secret path
     alice.leave(); bob.leave()
   })
 })
@@ -196,7 +224,7 @@ describe('Downgrade protection — stripped signed prekey', () => {
     const alice = makeFabric('alice')
     const { fc: bob, signedJoin } = await makeV2Peer('bob')
     await alice.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Server strips signedPreKey; supportsV2 commitment + sig survive (SPK is not
@@ -215,18 +243,18 @@ describe('Downgrade protection — stripped signed prekey', () => {
     const alice = makeFabric('alice')
     const { fc: bob, signedJoin } = await makeV2Peer('bob')
     await alice.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message(await signedJoin({ stripSpk: true }))
     await waitFor(() => alice._signaling.isPeerV2Capable('bob'))
 
     // Server also withholds the SPK from the claim endpoint (full strip).
-    const deposits = []
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    const deposits: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
       const u = String(url)
       if (u.includes('prekeys/claim')) return { ok: false }      // no SPK via claim
-      if (u.includes('deposit')) { deposits.push(JSON.parse(opts.body)); return { ok: true } }
+      if (u.includes('deposit')) { deposits.push(JSON.parse(String(opts?.body))); return { ok: true } }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
@@ -247,7 +275,7 @@ describe('Downgrade protection — tampered join signature', () => {
     const alice = makeFabric('alice')
     const { fc: bob, signedJoin } = await makeV2Peer('bob')
     await alice.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // supportsV2:true claimed, signedPreKey stripped, but the join sig is corrupt.
@@ -269,7 +297,7 @@ describe('Downgrade protection — legacy v1 peer', () => {
     const alice = makeFabric('alice')
     const legacyBox = (await makeV2Peer('legacy')).fc._boxPubKeyB64  // borrow a real X25519 key
     await alice.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     // Legacy peer: no sig, no supportsV2, no signedPreKey — just identity + box key.
@@ -282,18 +310,18 @@ describe('Downgrade protection — legacy v1 peer', () => {
 
     expect(alice._signaling.isPeerV2Capable('legacy')).toBe(false)
 
-    let depositBody
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    let depositBody: { blob_b64: string } | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
       const u = String(url)
       if (u.includes('prekeys/claim')) return { ok: false }     // legacy host: no prekeys
-      if (u.includes('deposit')) { depositBody = JSON.parse(opts.body); return { ok: true } }
+      if (u.includes('deposit')) { depositBody = JSON.parse(String(opts?.body)); return { ok: true } }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
     await alice._relayDeposit('legacy', 'still-secret')
     expect(depositBody).toBeTruthy()
-    expect(relayBlobVersion(depositBody.blob_b64)).toBe(1)        // v1 allowed for legacy
-    expect(atob(depositBody.blob_b64)).not.toContain('still-secret')  // still encrypted
+    expect(relayBlobVersion(depositBody!.blob_b64)).toBe(1)        // v1 allowed for legacy
+    expect(atob(depositBody!.blob_b64)).not.toContain('still-secret')  // still encrypted
     alice.leave()
   })
 })
