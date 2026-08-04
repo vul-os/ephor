@@ -13,14 +13,27 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricMessageDetail } from '../fabric.js'
 import { relayBlobVersion } from '../relayBox.js'
+import type { SignalingClient } from '../signaling.js'
 
-function makeFabric(peerId, sessionId = 'sess-1') {
+interface DepositBody {
+  to: string
+  from: string
+  blob_b64: string
+  nonce: string
+  sig: string
+  epk: string
+}
+
+function makeFabric(peerId: string, sessionId = 'sess-1') {
   return new FabricClient({ sessionId, peerId, signalingUrl: 'ws://localhost/sig', relayBaseUrl: '' })
 }
-function relayPeer(id) {
-  return { id, state: 'relay', dc: null, pc: null, relayTimer: null, pendingCandidates: [], reset() {} }
+function relayPeer(id: string) {
+  return {
+    id, state: 'relay' as const, dc: null, pc: null, relayTimer: null, pendingCandidates: [], reset() {},
+    reinitTimer: null, reinitDelay: 0, left: false,
+  }
 }
 
 beforeEach(() => {
@@ -40,17 +53,18 @@ describe('Relay fallback — X3DH (v2) forward secrecy', () => {
 
     // Exchange the box (identity) key + signed prekey, as the signaling 'join'
     // frames would. Set them directly (already-verified) to drive the v2 path.
-    alice._signaling._peerBoxKeys.set('bob', bob._boxPubKeyB64)
-    alice._signaling._peerSignedPreKeys.set('bob', bob._signedPreKeyPublic)
+    const aliceSig = alice._signaling as SignalingClient
+    aliceSig._peerBoxKeys.set('bob', bob._boxPubKeyB64!)
+    aliceSig._peerSignedPreKeys.set('bob', bob._signedPreKeyPublic!)
 
     // The host serves a per-sender one-time prekey from bob's published pool.
-    const bobBundle = bob._preKeys.publicBundle('bob')
-    const claimedOpk = bobBundle.one_time_prekeys[0]
+    const bobBundle = bob._preKeys!.publicBundle('bob')
+    const claimedOpk = bobBundle.one_time_prekeys[0]!
     expect(claimedOpk).toBeTruthy()
 
     // Capture the deposit; answer the OPK claim with one of bob's real OPKs.
-    let depositBody
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    let depositBody: DepositBody | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
       const u = String(url)
       if (u.includes('prekeys/claim')) {
         return { ok: true, json: async () => ({
@@ -59,34 +73,34 @@ describe('Relay fallback — X3DH (v2) forward secrecy', () => {
           one_time_prekey: claimedOpk,
         }) }
       }
-      if (u.includes('deposit')) { depositBody = JSON.parse(opts.body); return { ok: true } }
+      if (u.includes('deposit')) { depositBody = JSON.parse(String(opts?.body)); return { ok: true } }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
     await alice._relayDeposit('bob', { op: 'insert', text: 'forward-secret edit' })
     expect(depositBody).toBeTruthy()
-    expect(relayBlobVersion(depositBody.blob_b64)).toBe(2)   // X3DH path chosen
+    expect(relayBlobVersion(depositBody!.blob_b64)).toBe(2)   // X3DH path chosen
 
     // bob picks up → decrypts via v2 and consumes the one-time prekey.
     bob._peers.set('alice', relayPeer('alice'))
-    const got = []
-    bob.addEventListener('message', ({ detail }) => got.push(detail))
-    const pickup = (body) => vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const got: FabricMessageDetail[] = []
+    bob.addEventListener('message', (ev) => got.push((ev as CustomEvent<FabricMessageDetail>).detail))
+    const pickup = (body: unknown) => vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       const u = String(url)
       if (u.includes('pickup')) return { ok: true, json: async () => ({ blobs: [body] }) }
       if (u.includes('ack')) return { ok: true }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
-    const blobMsg = { id: 'b1', from: 'alice', blob_b64: depositBody.blob_b64, epk: depositBody.epk, nonce: depositBody.nonce, sig: depositBody.sig }
+    const blobMsg = { id: 'b1', from: 'alice', blob_b64: depositBody!.blob_b64, epk: depositBody!.epk, nonce: depositBody!.nonce, sig: depositBody!.sig }
 
     pickup(blobMsg)
     await bob._relayPoll()
     expect(got).toHaveLength(1)
-    expect(got[0].data).toEqual({ op: 'insert', text: 'forward-secret edit' })
+    expect(got[0]!.data).toEqual({ op: 'insert', text: 'forward-secret edit' })
 
     // FORWARD SECRECY: the one-time prekey is now deleted; re-delivering the SAME
     // captured blob produces NOTHING (its SK can no longer be re-derived).
-    expect(bob._preKeys.oneTimePreKeyPriv(claimedOpk.id)).toBe(null)
+    expect(bob._preKeys!.oneTimePreKeyPriv(claimedOpk.id)).toBe(null)
     got.length = 0
     pickup({ ...blobMsg, id: 'b2' })
     await bob._relayPoll()
@@ -94,8 +108,8 @@ describe('Relay fallback — X3DH (v2) forward secrecy', () => {
 
     // A different peer cannot decrypt the captured v2 blob either.
     eve._peers.set('alice', relayPeer('alice'))
-    const eveGot = []
-    eve.addEventListener('message', ({ detail }) => eveGot.push(detail))
+    const eveGot: FabricMessageDetail[] = []
+    eve.addEventListener('message', (ev) => eveGot.push((ev as CustomEvent<FabricMessageDetail>).detail))
     pickup({ ...blobMsg, id: 'b3' })
     await eve._relayPoll()
     expect(eveGot).toHaveLength(0)
@@ -109,21 +123,22 @@ describe('Relay fallback — X3DH (v2) forward secrecy', () => {
     await alice._ensurePreKeys()
     await bob._ensurePreKeys()
     // Only the box key is known — NO signed prekey → v2 cannot be established.
-    alice._signaling._peerBoxKeys.set('bob', bob._boxPubKeyB64)
+    const aliceSig = alice._signaling as SignalingClient
+    aliceSig._peerBoxKeys.set('bob', bob._boxPubKeyB64!)
 
-    let depositBody
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    let depositBody: DepositBody | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
       const u = String(url)
       if (u.includes('prekeys/claim')) return { ok: false }   // host has no bundle
-      if (u.includes('deposit')) { depositBody = JSON.parse(opts.body); return { ok: true } }
+      if (u.includes('deposit')) { depositBody = JSON.parse(String(opts?.body)); return { ok: true } }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
     await alice._relayDeposit('bob', 'still-secret')
     expect(depositBody).toBeTruthy()
-    expect(relayBlobVersion(depositBody.blob_b64)).toBe(1)   // v1 fallback
+    expect(relayBlobVersion(depositBody!.blob_b64)).toBe(1)   // v1 fallback
     // The relay still sees only ciphertext, not the plaintext envelope.
-    expect(atob(depositBody.blob_b64)).not.toContain('still-secret')
+    expect(atob(depositBody!.blob_b64)).not.toContain('still-secret')
 
     alice.leave(); bob.leave()
   })
@@ -131,10 +146,10 @@ describe('Relay fallback — X3DH (v2) forward secrecy', () => {
   it('fail-closed: no recipient box key → deposit skipped (no plaintext), even with prekeys', async () => {
     const alice = makeFabric('alice')
     await alice._ensurePreKeys()
-    const deposits = []
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    const deposits: DepositBody[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
       const u = String(url)
-      if (u.includes('deposit')) deposits.push(JSON.parse(opts.body))
+      if (u.includes('deposit')) deposits.push(JSON.parse(String(opts?.body)))
       if (u.includes('prekeys/claim')) return { ok: false }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
