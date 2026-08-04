@@ -30,7 +30,15 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  constructor(url, protocols) {
+  static last: FakeWebSocket | null = null
+
+  url: string
+  protocols: string[]
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols || []
     this.readyState = FakeWebSocket.CONNECTING
@@ -38,8 +46,8 @@ class FakeWebSocket {
     this._listeners = {}
     FakeWebSocket.last = this
   }
-  addEventListener(evt, fn) { (this._listeners[evt] ||= []).push(fn) }
-  send(data) { this.sent.push(data) }
+  addEventListener(evt: string, fn: (payload: unknown) => void) { (this._listeners[evt] ||= []).push(fn) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED }
 }
 
@@ -95,14 +103,14 @@ describe('tokenTransportSecure()', () => {
 
 describe('SignalingClient — refuses to leak the token over plaintext', () => {
   it('throws INSECURE_TOKEN_TRANSPORT for a token over ws:// to a remote host', () => {
-    let thrown
+    let thrown: SignalingError | undefined
     try {
       new SignalingClient({ signalingUrl: 'ws://evil.example/stream', sessionId: 's', peerId: 'a', authToken: TOKEN })
-    } catch (e) { thrown = e }
+    } catch (e) { thrown = e as SignalingError }
     expect(thrown).toBeInstanceOf(SignalingError)
-    expect(thrown.code).toBe('INSECURE_TOKEN_TRANSPORT')
+    expect(thrown!.code).toBe('INSECURE_TOKEN_TRANSPORT')
     // The thrown message must NOT contain the token value.
-    expect(thrown.message).not.toContain(TOKEN)
+    expect(thrown!.message).not.toContain(TOKEN)
   })
 
   it('also throws on the legacy query transport over plaintext remote', () => {
@@ -116,15 +124,15 @@ describe('SignalingClient — refuses to leak the token over plaintext', () => {
     const c = new SignalingClient({ signalingUrl: 'wss://relay.vulos.app/stream', sessionId: 's', peerId: 'a', authToken: TOKEN })
     c.connect()
     expect(FakeWebSocket.last).toBeTruthy()
-    expect(FakeWebSocket.last.protocols).toContain('vula.token.' + TOKEN)
-    expect(FakeWebSocket.last.url).not.toContain(TOKEN)   // never in the URL
+    expect(FakeWebSocket.last!.protocols).toContain('vula.token.' + TOKEN)
+    expect(FakeWebSocket.last!.url).not.toContain(TOKEN)   // never in the URL
     c.close()
   })
 
   it('permits a token over ws:// to a loopback host (local dev)', () => {
     const c = new SignalingClient({ signalingUrl: 'ws://localhost:8080/stream', sessionId: 's', peerId: 'a', authToken: TOKEN })
     c.connect()
-    expect(FakeWebSocket.last.protocols).toContain('vula.token.' + TOKEN)
+    expect(FakeWebSocket.last!.protocols).toContain('vula.token.' + TOKEN)
     c.close()
   })
 
@@ -140,16 +148,16 @@ describe('SignalingClient — refuses to leak the token over plaintext', () => {
 
 describe('FabricClient — refuses to leak the token over plaintext', () => {
   it('throws for a token with an insecure relay base URL', () => {
-    let thrown
+    let thrown: RelayDepositError | undefined
     try {
       new FabricClient({
         sessionId: 's', peerId: 'a', signalingUrl: 'wss://relay.vulos.app/stream',
         relayBaseUrl: 'http://evil.example', authToken: TOKEN,
       })
-    } catch (e) { thrown = e }
+    } catch (e) { thrown = e as RelayDepositError }
     expect(thrown).toBeInstanceOf(RelayDepositError)
-    expect(thrown.code).toBe('INSECURE_TOKEN_TRANSPORT')
-    expect(thrown.message).not.toContain(TOKEN)
+    expect(thrown!.code).toBe('INSECURE_TOKEN_TRANSPORT')
+    expect(thrown!.message).not.toContain(TOKEN)
   })
 
   it('throws for a token with an insecure ICE URL', () => {
@@ -187,7 +195,7 @@ describe('FabricClient — refuses to leak the token over plaintext', () => {
 
 describe('token value is never written to the console', () => {
   it('no console sink receives the token across construct/connect/close', () => {
-    const sinks = ['log', 'info', 'warn', 'error', 'debug'].map(
+    const sinks = (['log', 'info', 'warn', 'error', 'debug'] as const).map(
       (m) => vi.spyOn(console, m).mockImplementation(() => {}),
     )
     const c = new SignalingClient({ signalingUrl: 'wss://relay.vulos.app/stream', sessionId: 's', peerId: 'a', authToken: TOKEN })
