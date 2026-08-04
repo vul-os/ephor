@@ -82,4 +82,7 @@ export declare class RendezvousSignalingClient extends EventTarget {
   // ── internal, exposed for tests (see rendezvousSignaling.test.js) ──────────
   _pollBoardOnce(wait?: number): Promise<number>
   _pollInboxOnce(wait?: number): Promise<number>
+
+  /** Publish this peer's join announcement onto the shared session board. */
+  _announceAndJoin(): Promise<void>
 }

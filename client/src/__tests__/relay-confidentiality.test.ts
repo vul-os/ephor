@@ -1,5 +1,5 @@
 /**
- * relay-confidentiality.test.js — Fix 1 at the FabricClient layer.
+ * relay-confidentiality.test.ts — Fix 1 at the FabricClient layer.
  *
  * Asserts the end-to-end property the product markets: when collaboration falls
  * back to the relay circuit, the relay server only ever transports ciphertext,
@@ -14,9 +14,20 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricMessageDetail } from '../fabric.js'
+import type { SignalingClient } from '../signaling.js'
 
-function makeFabric(peerId, sessionId = 'sess-1') {
+/** The signed+sealed deposit envelope POSTed to /api/peering/relay/deposit. */
+interface DepositBody {
+  to: string
+  from: string
+  blob_b64: string
+  nonce: string
+  sig: string
+  epk: string
+}
+
+function makeFabric(peerId: string, sessionId = 'sess-1') {
   return new FabricClient({
     sessionId,
     peerId,
@@ -42,32 +53,34 @@ describe('Relay fallback — end-to-end confidentiality', () => {
     await eve._ensureDepositKey()
 
     // Box-key exchange (as would happen via signaling 'join' frames).
-    alice._signaling._peerBoxKeys.set('bob', bob._boxPubKeyB64)
+    const aliceSig = alice._signaling as SignalingClient
+    aliceSig._peerBoxKeys.set('bob', bob._boxPubKeyB64!)
 
     // Capture the deposit blob alice sends to the relay.
-    let depositBody
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
-      if (String(url).includes('deposit')) depositBody = JSON.parse(opts.body)
+    let depositBody: DepositBody | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
+      if (String(url).includes('deposit')) depositBody = JSON.parse(String(opts?.body))
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
     await alice._relayDeposit('bob', { op: 'insert', text: 'hello world', pos: 42 })
     expect(depositBody).toBeTruthy()
-    expect(depositBody.to).toBe('bob')
-    expect(depositBody.epk).toBeTruthy()
+    expect(depositBody!.to).toBe('bob')
+    expect(depositBody!.epk).toBeTruthy()
 
     // Feed the SAME blob into bob's pickup → bob decrypts and dispatches.
     bob._peers.set('alice', {
       id: 'alice', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
-    const bobReceived = []
-    bob.addEventListener('message', ({ detail }) => bobReceived.push(detail))
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const bobReceived: FabricMessageDetail[] = []
+    bob.addEventListener('message', (ev) => bobReceived.push((ev as CustomEvent<FabricMessageDetail>).detail))
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return {
           ok: true,
-          json: async () => ({ blobs: [{ id: 'x1', from: 'alice', blob_b64: depositBody.blob_b64, epk: depositBody.epk }] }),
+          json: async () => ({ blobs: [{ id: 'x1', from: 'alice', blob_b64: depositBody!.blob_b64, epk: depositBody!.epk }] }),
         }
       }
       if (String(url).includes('ack')) return { ok: true }
@@ -76,16 +89,17 @@ describe('Relay fallback — end-to-end confidentiality', () => {
     await bob._relayPoll()
 
     expect(bobReceived).toHaveLength(1)
-    expect(bobReceived[0].from).toBe('alice')
-    expect(bobReceived[0].data).toEqual({ op: 'insert', text: 'hello world', pos: 42 })
+    expect(bobReceived[0]!.from).toBe('alice')
+    expect(bobReceived[0]!.data).toEqual({ op: 'insert', text: 'hello world', pos: 42 })
 
     // The SAME blob fed into eve's pickup → eve cannot decrypt → nothing delivered.
     eve._peers.set('alice', {
       id: 'alice', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
-    const eveReceived = []
-    eve.addEventListener('message', ({ detail }) => eveReceived.push(detail))
+    const eveReceived: FabricMessageDetail[] = []
+    eve.addEventListener('message', (ev) => eveReceived.push((ev as CustomEvent<FabricMessageDetail>).detail))
     await eve._relayPoll()
     expect(eveReceived).toHaveLength(0)   // confidentiality holds vs other peers
 
@@ -97,17 +111,18 @@ describe('Relay fallback — end-to-end confidentiality', () => {
     const bob = makeFabric('bob')
     await alice._ensureDepositKey()
     await bob._ensureDepositKey()
-    alice._signaling._peerBoxKeys.set('bob', bob._boxPubKeyB64)
+    const aliceSig = alice._signaling as SignalingClient
+    aliceSig._peerBoxKeys.set('bob', bob._boxPubKeyB64!)
 
-    let depositBody
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
-      if (String(url).includes('deposit')) depositBody = JSON.parse(opts.body)
+    let depositBody: DepositBody | undefined
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
+      if (String(url).includes('deposit')) depositBody = JSON.parse(String(opts?.body))
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
     await alice._relayDeposit('bob', 'CONFIDENTIAL-DOC-BODY')
 
-    const decodedBytes = atob(depositBody.blob_b64)
+    const decodedBytes = atob(depositBody!.blob_b64)
     expect(decodedBytes).not.toContain('CONFIDENTIAL-DOC-BODY')
     expect(decodedBytes).not.toContain('session')
     let leaked = false
@@ -122,9 +137,9 @@ describe('Relay fallback — end-to-end confidentiality', () => {
     await alice._ensureDepositKey()
     // NOTE: no _peerBoxKeys entry for 'bob'.
 
-    const depositCalls = []
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
-      if (String(url).includes('deposit')) depositCalls.push(JSON.parse(opts.body))
+    const depositCalls: DepositBody[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: RequestInit) => {
+      if (String(url).includes('deposit')) depositCalls.push(JSON.parse(String(opts?.body)))
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 

@@ -149,4 +149,20 @@ export declare class SignalingClient extends EventTarget {
 
   /** Run the full E2E peer-authentication pipeline on one inbound SignalPayload. */
   _processSignal(senderPeerId: string, p: SignalPayload): Promise<void>
+
+  // ── internal TOFU/replay state, exposed for white-box tests (peer-auth.test.js,
+  // fabric.*.test.js, relay-*.test.js, replay-timestamp.test.js) that seed or
+  // assert on it directly rather than only through the public accessors above.
+
+  /** TOFU-imported ECDSA P-256 verify key per peerId (first key wins). */
+  _peerKeys: Map<string, CryptoKey>
+
+  /** TOFU-imported base64 X25519 box (encryption) public key per peerId. */
+  _peerBoxKeys: Map<string, string>
+
+  /** ECDSA-verified signed prekey per peerId (v2/X3DH relay path). */
+  _peerSignedPreKeys: Map<string, SignedPreKeyAnnouncement>
+
+  /** Replay-protection cache: `${peerId}:${nonce}` → seen. */
+  _seenNonces: Map<string, boolean>
 }

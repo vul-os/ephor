@@ -42,6 +42,18 @@ import { RendezvousSignalingClient } from './rendezvousSignaling.js'
 /** The application-payload datum passed to send()/sendTo(). */
 export type FabricSendData = string | Blob | ArrayBuffer | ArrayBufferView
 
+/** Event detail for FabricClient's 'message' CustomEvent (see addEventListener docs above). */
+export interface FabricMessageDetail {
+  from: string
+  data: unknown
+}
+
+/** Event detail for FabricClient's 'state' CustomEvent (per-peer connection state changes). */
+export interface FabricStateDetail {
+  peerId: string
+  state: PeerConnState
+}
+
 /**
  * Normalised relay-fallback blob shape, regardless of transport (host-box
  * HTTP pickup or rendezvous mailbox poll).
@@ -164,30 +176,30 @@ export interface FabricClientOptions {
 }
 
 export class FabricClient extends EventTarget {
-  private _rendezvous: RendezvousClient | null
-  private _session: string
-  private _peerId: string
-  private _iceUrl: string
-  private _relayBase: string
-  private _authToken: string | null
-  private _allowUnsignedRelayAuth: boolean
-  private _requirePeerAuth: boolean
-  private _peers: Map<string, PeerState>
-  private _iceServers: RTCIceServer[]
-  private _relayPollTimer: ReturnType<typeof setInterval> | null
-  private _stopped: boolean
+  _rendezvous: RendezvousClient | null
+  _session: string
+  _peerId: string
+  _iceUrl: string
+  _relayBase: string
+  _authToken: string | null
+  _allowUnsignedRelayAuth: boolean
+  _requirePeerAuth: boolean
+  _peers: Map<string, PeerState>
+  _iceServers: RTCIceServer[]
+  _relayPollTimer: ReturnType<typeof setInterval> | null
+  _stopped: boolean
   /** lazily generated on first deposit */
-  private _depositKeyPair: CryptoKeyPair | null
+  _depositKeyPair: CryptoKeyPair | null
   /** base64 raw public key for signaling announce */
-  private _depositPubKeyB64: string | null
-  private _boxKeyPair: BoxKeyPair | null
+  _depositPubKeyB64: string | null
+  _boxKeyPair: BoxKeyPair | null
   /** base64 raw X25519 box public key */
-  private _boxPubKeyB64: string | null
-  private _preKeys: PreKeyStore | null
-  private _signedPreKeyPublic: SignedPreKeyAnnouncement | null
-  private _relayedBytesOut: number
-  private _relayedBytesIn: number
-  private _signaling: SignalingTransport
+  _boxPubKeyB64: string | null
+  _preKeys: PreKeyStore | null
+  _signedPreKeyPublic: SignedPreKeyAnnouncement | null
+  _relayedBytesOut: number
+  _relayedBytesIn: number
+  _signaling: SignalingTransport
 
   constructor({
     sessionId,
@@ -463,7 +475,7 @@ export class FabricClient extends EventTarget {
 
   // ─── ICE / TURN ────────────────────────────────────────────────────────────
 
-  private async _fetchICE(): Promise<RTCIceServer[]> {
+  async _fetchICE(): Promise<RTCIceServer[]> {
     const headers: Record<string, string> = this._authToken ? { Authorization: `Bearer ${this._authToken}` } : {}
     return fetchIce(this._iceUrl, {
       responseKey: 'ice_servers',
@@ -474,7 +486,7 @@ export class FabricClient extends EventTarget {
 
   // ─── Peer management ───────────────────────────────────────────────────────
 
-  private _getOrCreatePeer(remoteId: string): PeerState | null {
+  _getOrCreatePeer(remoteId: string): PeerState | null {
     if (this._peers.has(remoteId)) return this._peers.get(remoteId)!
     if (this._peers.size >= MAX_PEERS) {
       console.warn('[fabric] peer limit reached, dropping peer', remoteId)
@@ -486,7 +498,7 @@ export class FabricClient extends EventTarget {
   }
 
   /** Initiate an offer to a remote peer (called when we see their 'join'). */
-  private async _initiatePeer(remoteId: string): Promise<void> {
+  async _initiatePeer(remoteId: string): Promise<void> {
     const ps = this._getOrCreatePeer(remoteId)
     if (!ps) return                       // peer limit reached
     if (ps.state === 'connected') return
@@ -520,7 +532,7 @@ export class FabricClient extends EventTarget {
     }
   }
 
-  private _buildPC(remoteId: string, ps: PeerState): RTCPeerConnection {
+  _buildPC(remoteId: string, ps: PeerState): RTCPeerConnection {
     const pc = new RTCPeerConnection({ iceServers: this._iceServers })
 
     pc.addEventListener('icecandidate', ({ candidate }) => {
@@ -554,7 +566,7 @@ export class FabricClient extends EventTarget {
     return pc
   }
 
-  private _wireDataChannel(dc: RTCDataChannel, remoteId: string, ps: PeerState): void {
+  _wireDataChannel(dc: RTCDataChannel, remoteId: string, ps: PeerState): void {
     dc.binaryType = 'arraybuffer'
 
     dc.addEventListener('open', () => {
@@ -569,7 +581,7 @@ export class FabricClient extends EventTarget {
         console.warn('[fabric] oversized data-channel payload from', remoteId, '— dropped')
         return
       }
-      this.dispatchEvent(new CustomEvent('message', { detail: { from: remoteId, data } }))
+      this.dispatchEvent(new CustomEvent<FabricMessageDetail>('message', { detail: { from: remoteId, data } }))
     })
 
     dc.addEventListener('close', () => {
@@ -586,7 +598,7 @@ export class FabricClient extends EventTarget {
 
   // ─── Signaling handler ─────────────────────────────────────────────────────
 
-  private async _onSignal({ from, payload }: { from: string, payload: SignalPayload }): Promise<void> {
+  async _onSignal({ from, payload }: { from: string, payload: SignalPayload }): Promise<void> {
     const { type, sdp, candidate } = payload
     if (from === this._peerId) return   // ignore self-echoes
 
@@ -675,7 +687,7 @@ export class FabricClient extends EventTarget {
 
   // ─── Relay fallback ────────────────────────────────────────────────────────
 
-  private _setRelayTimer(remoteId: string, ps: PeerState): void {
+  _setRelayTimer(remoteId: string, ps: PeerState): void {
     if (ps.relayTimer) clearTimeout(ps.relayTimer)
     // GLARE/FALLBACK SYMMETRY.
     // Start listening on the relay circuit as soon as a negotiation is in
@@ -705,7 +717,7 @@ export class FabricClient extends EventTarget {
    * Retries with exponential back-off (2s → 16s), stops on success, on an
    * explicit peer `leave`, and when the client is torn down.
    */
-  private _scheduleReinitiate(remoteId: string, ps: PeerState): void {
+  _scheduleReinitiate(remoteId: string, ps: PeerState): void {
     if (this._stopped || ps.left) return
     if (ps.reinitTimer) clearTimeout(ps.reinitTimer)
     ps.reinitDelay = ps.reinitDelay ? Math.min(ps.reinitDelay * 2, 16_000) : 2_000
@@ -717,7 +729,7 @@ export class FabricClient extends EventTarget {
     }, ps.reinitDelay)
   }
 
-  private _activateRelay(remoteId: string, ps: PeerState): void {
+  _activateRelay(remoteId: string, ps: PeerState): void {
     if (ps.state === 'relay') return
     console.info(`[fabric] P2P failed for ${remoteId}; switching to relay circuit`)
     this._setPeerState(remoteId, ps, 'relay')
@@ -725,12 +737,12 @@ export class FabricClient extends EventTarget {
   }
 
   /** Start polling the relay pickup endpoint for any peers in relay mode. */
-  private _startRelayPolling(): void {
+  _startRelayPolling(): void {
     if (this._relayPollTimer) return
     this._relayPollTimer = setInterval(() => this._relayPoll(), RELAY_POLL_MS)
   }
 
-  private async _relayPoll(): Promise<void> {
+  async _relayPoll(): Promise<void> {
     // 'connecting' counts (see _setRelayTimer): a peer that has already fallen
     // back is depositing for us while we are still negotiating. Once every peer
     // is either connected or gone, this clears itself.
@@ -759,7 +771,7 @@ export class FabricClient extends EventTarget {
    * Authorization headers for the host-box relay fallback endpoints. Unused on
    * the rendezvous mailbox path (that transport is Ed25519-signature-authed).
    */
-  private _relayHeaders(): Record<string, string> {
+  _relayHeaders(): Record<string, string> {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this._authToken) {
       // Bearer JWT takes precedence when present.
@@ -780,7 +792,7 @@ export class FabricClient extends EventTarget {
    *     each mailbox blob's opaque payload is our JSON deposit envelope.
    *   • host-box mode   → GET /api/peering/relay/pickup (unchanged).
    */
-  private async _relayFetch(): Promise<RelayBlobEnvelope[]> {
+  async _relayFetch(): Promise<RelayBlobEnvelope[]> {
     if (this._rendezvous) {
       const mb = await this._rendezvous.mailboxPoll({ wait: 0 })
       return mb
@@ -802,7 +814,7 @@ export class FabricClient extends EventTarget {
   }
 
   /** Ack consumed relay-fallback blobs on whichever transport is in use. */
-  private async _relayAck(ackIds: string[]): Promise<void> {
+  async _relayAck(ackIds: string[]): Promise<void> {
     if (this._rendezvous) {
       await this._rendezvous.mailboxAck(ackIds).catch(() => { /* best-effort */ })
       return
@@ -815,7 +827,7 @@ export class FabricClient extends EventTarget {
   }
 
   /** Parse a rendezvous mailbox blob's opaque bytes back into our deposit envelope. */
-  private _unwrapRelayEnvelope(bytes: Uint8Array): RelayBlobEnvelope | null {
+  _unwrapRelayEnvelope(bytes: Uint8Array): RelayBlobEnvelope | null {
     try {
       const w = JSON.parse(new TextDecoder().decode(bytes))
       if (!w || typeof w !== 'object' || typeof w.blob_b64 !== 'string') return null
@@ -829,7 +841,7 @@ export class FabricClient extends EventTarget {
    * missing epk, bad signature, undecryptable, wrong session). The crypto is
    * IDENTICAL on both transports — only the byte source differs.
    */
-  private async _processRelayBlob(blob: RelayBlobEnvelope): Promise<string | null> {
+  async _processRelayBlob(blob: RelayBlobEnvelope): Promise<string | null> {
     try {
       // ── MED-DoS: relay blob size cap ────────────────────────────────────
       // Cap the encoded ciphertext size up front (before any crypto work).
@@ -931,7 +943,7 @@ export class FabricClient extends EventTarget {
         if (senderPs.relayTimer) clearTimeout(senderPs.relayTimer)
         this._setPeerState(blob.from, senderPs, 'relay')
       }
-      this.dispatchEvent(new CustomEvent('message', { detail: { from: blob.from, data: msg.data } }))
+      this.dispatchEvent(new CustomEvent<FabricMessageDetail>('message', { detail: { from: blob.from, data: msg.data } }))
       return blob.id
     } catch { /* malformed / undecryptable blob, skip */ return null }
   }
@@ -962,7 +974,7 @@ export class FabricClient extends EventTarget {
    * (no keyed 'join' seen), the deposit is SKIPPED rather than sent in the
    * clear — the sovereign/E2E guarantee must not silently degrade to plaintext.
    */
-  private async _relayDeposit(toPeerId: string, data: unknown): Promise<void> {
+  async _relayDeposit(toPeerId: string, data: unknown): Promise<void> {
     // ── billing meter: count outbound payload bytes before encoding ──────────
     this._relayedBytesOut += _byteSize(data)
     try {
@@ -1047,7 +1059,7 @@ export class FabricClient extends EventTarget {
    * @param recipientBoxPubB64  recipient X25519 box (identity) pubkey
    * @returns blob_b64
    */
-  private async _sealForPeer(toPeerId: string, recipientBoxPubB64: string, plaintext: Uint8Array): Promise<string> {
+  async _sealForPeer(toPeerId: string, recipientBoxPubB64: string, plaintext: Uint8Array): Promise<string> {
     await this._ensurePreKeys()
 
     // A verified signed prekey announced via the peer's join frame (already
@@ -1127,7 +1139,7 @@ export class FabricClient extends EventTarget {
    * "join" announcement — the server binds it to the authenticated peerId and
    * uses it to verify deposit signatures.
    */
-  private async _ensureDepositKey(): Promise<void> {
+  async _ensureDepositKey(): Promise<void> {
     // Generate the X25519 box keypair alongside the signing key so its public
     // key is announced in the same "join" frame.
     if (!this._boxKeyPair) {
@@ -1155,7 +1167,7 @@ export class FabricClient extends EventTarget {
    *
    * @returns base64 signature
    */
-  private async _signDeposit(message: string): Promise<string> {
+  async _signDeposit(message: string): Promise<string> {
     await this._ensureDepositKey()
     const enc = new TextEncoder()
     const sigBuf = await crypto.subtle.sign(
@@ -1171,7 +1183,7 @@ export class FabricClient extends EventTarget {
    * base64 signature. Used to sign the X3DH signed-prekey public key, mirroring
    * how depositPubKey/boxPubKey are bound to this identity.
    */
-  private async _signDepositRaw(bytes: Uint8Array): Promise<string> {
+  async _signDepositRaw(bytes: Uint8Array): Promise<string> {
     await this._ensureDepositKey()
     const sigBuf = await crypto.subtle.sign(
       { name: 'ECDSA', hash: 'SHA-256' },
@@ -1187,7 +1199,7 @@ export class FabricClient extends EventTarget {
    * Lazily create the per-session X3DH prekey store: a signed prekey (signed by
    * the ECDSA identity) plus a one-time-prekey pool. Idempotent.
    */
-  private async _ensurePreKeys(): Promise<void> {
+  async _ensurePreKeys(): Promise<void> {
     await this._ensureDepositKey()   // box key + ECDSA identity
     if (this._preKeys) return
     this._preKeys = await PreKeyStore.create(
@@ -1204,7 +1216,7 @@ export class FabricClient extends EventTarget {
    * host does not (yet) host /api/peering/prekeys/publish, v2 still works
    * signed-prekey-only via the join-frame announcement.
    */
-  private async _publishPreKeys(): Promise<void> {
+  async _publishPreKeys(): Promise<void> {
     await this._ensurePreKeys()
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (this._authToken) headers['Authorization'] = `Bearer ${this._authToken}`
@@ -1227,7 +1239,7 @@ export class FabricClient extends EventTarget {
    * relay peerId here; the host maps it to the canonical base58 VulaID. Returns
    * null on any error so the caller can fall back.
    */
-  private async _claimPreKeys(toPeerId: string): Promise<PreKeyClaimResult | null> {
+  async _claimPreKeys(toPeerId: string): Promise<PreKeyClaimResult | null> {
     try {
       const headers: Record<string, string> = { 'Content-Type': 'application/json' }
       if (this._authToken) headers['Authorization'] = `Bearer ${this._authToken}`
@@ -1245,12 +1257,12 @@ export class FabricClient extends EventTarget {
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
 
-  private _setPeerState(peerId: string, ps: PeerState, state: PeerConnState): void {
+  _setPeerState(peerId: string, ps: PeerState, state: PeerConnState): void {
     ps.state = state
-    this.dispatchEvent(new CustomEvent('state', { detail: { peerId, state } }))
+    this.dispatchEvent(new CustomEvent<FabricStateDetail>('state', { detail: { peerId, state } }))
   }
 
-  private _sendToPeer(ps: PeerState, data: FabricSendData): void {
+  _sendToPeer(ps: PeerState, data: FabricSendData): void {
     if (ps.state === 'connected' && ps.dc && ps.dc.readyState === 'open') {
       // RTCDataChannel.send is 4 separate overloads (one per member of
       // FabricSendData); TS does not distribute a union argument across
