@@ -18,12 +18,20 @@ import {
   openRelayBlob,
   bytesToB64,
   b64ToBytes,
+  type BoxKeyPair,
 } from '../relayBox.js'
 
-const enc = (s) => new TextEncoder().encode(s)
-const dec = (b) => new TextDecoder().decode(b)
+const enc = (s: string) => new TextEncoder().encode(s)
+const dec = (b: Uint8Array) => new TextDecoder().decode(b)
 
-function seal(senderKP, recipientKP, { from = 'alice', to = 'bob', session = 'sess-1', data = 'secret' } = {}) {
+interface SealOpts {
+  from?: string
+  to?: string
+  session?: string
+  data?: unknown
+}
+
+function seal(senderKP: BoxKeyPair, recipientKP: BoxKeyPair, { from = 'alice', to = 'bob', session = 'sess-1', data = 'secret' }: SealOpts = {}) {
   return sealRelayBlob({
     plaintext: enc(JSON.stringify({ session, data })),
     senderBoxPriv: senderKP.privateKey,
