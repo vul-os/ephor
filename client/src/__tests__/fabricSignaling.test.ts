@@ -12,7 +12,8 @@
  *   • The SignalingError is thrown when neither transport is available.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
+import type { CallIdentity, CallSignalMessage } from '../call/fabricSignaling.js'
 
 // ─── WebSocket class stub ────────────────────────────────────────────────────
 
@@ -24,9 +25,15 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
-  static lastInstance = null
+  static lastInstance: FakeWebSocket | null = null
 
-  constructor(url) {
+  url: string
+  readyState: number
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  send: Mock<(data: string) => void>
+  close: Mock<() => void>
+
+  constructor(url: string) {
     this.url = url
     this.readyState = FakeWebSocket.CONNECTING
     this._listeners = {}
@@ -35,32 +42,43 @@ class FakeWebSocket {
     FakeWebSocket.lastInstance = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  _fire(evt, data) {
+  _fire(evt: string, data: unknown) {
     ;(this._listeners[evt] || []).forEach((fn) => fn(data))
   }
 }
 
 // ─── BroadcastChannel stub ───────────────────────────────────────────────────
 
-function makeBCStub() {
-  const channels = {} // name → [stub, ...]
+interface BCStubMessage {
+  data: unknown
+}
 
-  function BroadcastChannelStub(name) {
-    if (!channels[name]) channels[name] = []
-    this._name = name
-    this.onmessage = null
-    this.postMessage = vi.fn((data) => {
-      for (const peer of channels[name]) {
-        if (peer !== this && peer.onmessage) peer.onmessage({ data })
-      }
-    })
-    this.close = vi.fn()
-    channels[name].push(this)
+function makeBCStub() {
+  const channels: Record<string, InstanceType<typeof BroadcastChannelStub>[]> = {} // name → [stub, ...]
+
+  class BroadcastChannelStub {
+    _name: string
+    onmessage: ((ev: BCStubMessage) => void) | null
+    postMessage: Mock<(data: unknown) => void>
+    close: Mock<() => void>
+
+    constructor(name: string) {
+      if (!channels[name]) channels[name] = []
+      this._name = name
+      this.onmessage = null
+      this.postMessage = vi.fn((data: unknown) => {
+        for (const peer of channels[name]!) {
+          if (peer !== this && peer.onmessage) peer.onmessage({ data })
+        }
+      })
+      this.close = vi.fn()
+      channels[name]!.push(this)
+    }
   }
 
   return { BroadcastChannelStub, channels }
@@ -76,9 +94,9 @@ async function freshFabricSignaling() {
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('joinSignalingSession — transport selection', () => {
-  let origWS
-  let origBC
-  let origLocation
+  let origWS: typeof WebSocket
+  let origBC: typeof BroadcastChannel
+  let origLocation: Location | undefined
 
   beforeEach(() => {
     origWS = globalThis.WebSocket
@@ -106,7 +124,7 @@ describe('joinSignalingSession — transport selection', () => {
 
   it('uses bc-stub when no signalingUrl is resolvable', async () => {
     const { BroadcastChannelStub } = makeBCStub()
-    globalThis.BroadcastChannel = BroadcastChannelStub
+    globalThis.BroadcastChannel = BroadcastChannelStub as unknown as typeof BroadcastChannel
 
     // jsdom has window.location.hostname = 'localhost' which would derive a WS URL.
     // Override with empty hostname for this test.
@@ -124,7 +142,7 @@ describe('joinSignalingSession — transport selection', () => {
   })
 
   it('uses ws transport when __VULOS_ENDPOINTS__.signalingUrl is set', async () => {
-    globalThis.WebSocket = FakeWebSocket
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
 
     if (typeof window !== 'undefined') {
       window.__VULOS_ENDPOINTS__ = { signalingUrl: 'ws://localhost:9999/api/peering/stream' }
@@ -138,7 +156,7 @@ describe('joinSignalingSession — transport selection', () => {
   })
 
   it('bridges peer-join from SignalingClient signal event', async () => {
-    globalThis.WebSocket = FakeWebSocket
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
 
     if (typeof window !== 'undefined') {
       window.__VULOS_ENDPOINTS__ = { signalingUrl: 'ws://localhost:9999/api/peering/stream' }
@@ -146,9 +164,9 @@ describe('joinSignalingSession — transport selection', () => {
 
     const { joinSignalingSession } = await freshFabricSignaling()
     const session = await joinSignalingSession('room-join', { peerId: 'local' })
-    const ws = FakeWebSocket.lastInstance
+    const ws = FakeWebSocket.lastInstance!
 
-    const joinCb = vi.fn()
+    const joinCb = vi.fn<(peerId: string, identity: CallIdentity | null) => void>()
     session.on('peer-join', joinCb)
 
     // Simulate the server delivering a 'join' signal frame.
@@ -169,7 +187,7 @@ describe('joinSignalingSession — transport selection', () => {
   })
 
   it('bridges peer-leave from SignalingClient signal event', async () => {
-    globalThis.WebSocket = FakeWebSocket
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
 
     if (typeof window !== 'undefined') {
       window.__VULOS_ENDPOINTS__ = { signalingUrl: 'ws://localhost:9999/api/peering/stream' }
@@ -177,9 +195,9 @@ describe('joinSignalingSession — transport selection', () => {
 
     const { joinSignalingSession } = await freshFabricSignaling()
     const session = await joinSignalingSession('room-leave', { peerId: 'local' })
-    const ws = FakeWebSocket.lastInstance
+    const ws = FakeWebSocket.lastInstance!
 
-    const leaveCb = vi.fn()
+    const leaveCb = vi.fn<(peerId: string) => void>()
     session.on('peer-leave', leaveCb)
 
     // First add the peer via join.
@@ -204,7 +222,7 @@ describe('joinSignalingSession — transport selection', () => {
   })
 
   it('bridges sdp/ice messages to the message event', async () => {
-    globalThis.WebSocket = FakeWebSocket
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
 
     if (typeof window !== 'undefined') {
       window.__VULOS_ENDPOINTS__ = { signalingUrl: 'ws://localhost:9999/api/peering/stream' }
@@ -212,9 +230,9 @@ describe('joinSignalingSession — transport selection', () => {
 
     const { joinSignalingSession } = await freshFabricSignaling()
     const session = await joinSignalingSession('room-sdp', { peerId: 'local' })
-    const ws = FakeWebSocket.lastInstance
+    const ws = FakeWebSocket.lastInstance!
 
-    const msgCb = vi.fn()
+    const msgCb = vi.fn<(msg: CallSignalMessage) => void>()
     session.on('message', msgCb)
 
     ws._fire('message', {
@@ -231,17 +249,17 @@ describe('joinSignalingSession — transport selection', () => {
     })
 
     expect(msgCb).toHaveBeenCalledTimes(1)
-    const msg = msgCb.mock.calls[0][0]
+    const msg = msgCb.mock.calls[0]![0]
     expect(msg.kind).toBe('sdp')
     expect(msg.from).toBe('remote-peer')
-    expect(msg.data.sdp).toBe('v=0...')
+    expect((msg.data as { sdp?: string }).sdp).toBe('v=0...')
     session.close()
   })
 
   it('throws SignalingError when neither WS URL nor BroadcastChannel is available', async () => {
     const savedWindow = globalThis.window
-    globalThis.window = undefined
-    globalThis.BroadcastChannel = undefined
+    globalThis.window = undefined as unknown as Window & typeof globalThis
+    globalThis.BroadcastChannel = undefined as unknown as typeof BroadcastChannel
 
     const { joinSignalingSession } = await freshFabricSignaling()
     await expect(joinSignalingSession('x', null)).rejects.toMatchObject({
@@ -257,8 +275,8 @@ describe('joinSignalingSession — transport selection', () => {
 // ── Call-path signing (HIGH audit fix #2) ─────────────────────────────────────
 
 describe('networkSession (call path) — E2E identity binding + DTLS pinning', () => {
-  let origWS
-  let origBC
+  let origWS: typeof WebSocket
+  let origBC: typeof BroadcastChannel
 
   beforeEach(() => {
     origWS = globalThis.WebSocket
@@ -267,7 +285,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
     if (typeof window !== 'undefined') {
       window.__VULOS_ENDPOINTS__ = { signalingUrl: 'ws://localhost:9999/api/peering/stream' }
     }
-    globalThis.WebSocket = FakeWebSocket
+    globalThis.WebSocket = FakeWebSocket as unknown as typeof WebSocket
   })
 
   afterEach(() => {
@@ -280,7 +298,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
   it('publishes a depositPubKey in the join frame (per-session ECDSA key)', async () => {
     const { joinSignalingSession } = await freshFabricSignaling()
     const session = await joinSignalingSession('room-sign', { peerId: 'caller' })
-    const ws = FakeWebSocket.lastInstance
+    const ws = FakeWebSocket.lastInstance!
 
     // SignalingClient._send() checks this._ws.readyState !== WebSocket.OPEN before
     // sending; we must set readyState = OPEN before firing 'open' so _send works.
@@ -297,7 +315,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
       try { return JSON.parse(raw).payload?.depositPubKey != null } catch { return false }
     })
     expect(joinRaw).toBeTruthy()
-    const joinFrame = JSON.parse(joinRaw[0])
+    const joinFrame = JSON.parse(joinRaw![0])
     expect(typeof joinFrame.payload.depositPubKey).toBe('string')
     expect(joinFrame.payload.depositPubKey.length).toBeGreaterThan(0)
 
@@ -307,7 +325,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
   it('outgoing send() includes pubKey and sig on the WS frame', async () => {
     const { joinSignalingSession } = await freshFabricSignaling()
     const session = await joinSignalingSession('room-sign2', { peerId: 'caller' })
-    const ws = FakeWebSocket.lastInstance
+    const ws = FakeWebSocket.lastInstance!
     ws.readyState = FakeWebSocket.OPEN
     ws._fire('open', {})
 
@@ -326,7 +344,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
     await new Promise(r => setTimeout(r, 30))
 
     expect(ws.send).toHaveBeenCalled()
-    const raw = ws.send.mock.calls[ws.send.mock.calls.length - 1][0]
+    const raw = ws.send.mock.calls[ws.send.mock.calls.length - 1]![0]
     const frame = JSON.parse(raw)
     const p = frame.payload
 
@@ -346,7 +364,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
   it('outgoing offer signature verifies against the session pubkey', async () => {
     const { joinSignalingSession } = await freshFabricSignaling()
     const session = await joinSignalingSession('room-sign3', { peerId: 'caller' })
-    const ws = FakeWebSocket.lastInstance
+    const ws = FakeWebSocket.lastInstance!
     ws.readyState = FakeWebSocket.OPEN
     ws._fire('open', {})
     await new Promise(r => setTimeout(r, 30))
@@ -356,11 +374,11 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
     session.send({ kind: 'sdp', to: 'remote', data: { type: 'offer', sdp: testSdp } })
     await new Promise(r => setTimeout(r, 30))
 
-    const raw = ws.send.mock.calls[ws.send.mock.calls.length - 1][0]
+    const raw = ws.send.mock.calls[ws.send.mock.calls.length - 1]![0]
     const { payload: p } = JSON.parse(raw)
 
     // Import the session pubkey from the frame
-    const rawPub = Uint8Array.from(atob(p.pubKey), c => c.charCodeAt(0))
+    const rawPub = Uint8Array.from(atob(p.pubKey), (c: string) => c.charCodeAt(0))
     const verifyKey = await crypto.subtle.importKey(
       'raw', rawPub, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify'],
     )
@@ -376,7 +394,7 @@ describe('networkSession (call path) — E2E identity binding + DTLS pinning', (
       sdp: p.sdp,
       pubKey: p.pubKey,
     })
-    const sigBuf = Uint8Array.from(atob(p.sig), c => c.charCodeAt(0))
+    const sigBuf = Uint8Array.from(atob(p.sig), (c: string) => c.charCodeAt(0))
     const msgBuf = new TextEncoder().encode(canonicalMsg)
     const valid = await crypto.subtle.verify(
       { name: 'ECDSA', hash: 'SHA-256' }, verifyKey, sigBuf, msgBuf,
