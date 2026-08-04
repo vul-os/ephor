@@ -1,17 +1,17 @@
 {
   "compilerOptions": {
-    "allowJs": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "declaration": true,
     "emitDeclarationOnly": true,
     "outDir": "dist-lib",
     "rootDir": "src",
     "moduleResolution": "bundler",
     "module": "esnext",
-    "target": "esnext",
-    "checkJs": false,
-    "strict": false,
-    "skipLibCheck": true
+    "target": "es2023",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client", "node"]
   },
-  "include": ["src/**/*.js"],
-  "exclude": ["src/**/*.test.js", "src/__tests__/**"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.test.ts", "src/__tests__/**"]
 }

@@ -17,7 +17,13 @@ import * as XLSX from 'xlsx'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-function assert(label, cond, detail = '') {
+export interface CheckResult {
+  label: string
+  ok: boolean
+  detail: string
+}
+
+function assert(label: string, cond: unknown, detail = ''): CheckResult {
   return { label, ok: !!cond, detail }
 }
 
@@ -27,8 +33,38 @@ function assert(label, cond, detail = '') {
 // logic, read it back via importFile logic, and verify the merge config
 // survives.
 
-function fortuneToWorksheet(sheet) {
-  const ws = {}
+/** The FortuneSheet cell-value shape this fixture round-trips. */
+interface FortuneCellValue {
+  v?: string | number
+  m?: string
+  f?: string
+}
+
+interface FortuneCell {
+  r: number
+  c: number
+  v: FortuneCellValue
+}
+
+interface FortuneMergeEntry {
+  r: number
+  c: number
+  rs?: number
+  cs?: number
+}
+
+interface FortuneMergeConfig {
+  merge?: Record<string, FortuneMergeEntry>
+}
+
+interface FortuneSheet {
+  name: string
+  celldata: FortuneCell[]
+  config: FortuneMergeConfig
+}
+
+function fortuneToWorksheet(sheet: FortuneSheet): XLSX.WorkSheet {
+  const ws: XLSX.WorkSheet = {}
   const cells = sheet.celldata || []
   let maxR = 0, maxC = 0
   for (const { r, c, v } of cells) {
@@ -49,40 +85,40 @@ function fortuneToWorksheet(sheet) {
   return ws
 }
 
-function xlsxBufToFortuneSheets(buf) {
+function xlsxBufToFortuneSheets(buf: unknown): FortuneSheet[] {
   const wb = XLSX.read(buf, { type: 'array' })
   return wb.SheetNames.map(name => {
     const ws = wb.Sheets[name]
     if (!ws['!ref']) return { name, celldata: [], config: {} }
     const range = XLSX.utils.decode_range(ws['!ref'])
-    const celldata = []
+    const celldata: FortuneCell[] = []
     for (let r = range.s.r; r <= range.e.r; r++) {
       for (let c = range.s.c; c <= range.e.c; c++) {
         const addr = XLSX.utils.encode_cell({ r, c })
-        const cell = ws[addr]
+        const cell = ws[addr] as XLSX.CellObject | undefined
         if (!cell) continue
         const v = cell.v ?? ''
         const m = cell.w || String(v)
         const f = cell.f ? `=${cell.f}` : undefined
-        celldata.push({ r, c, v: { v, m, ...(f ? { f } : {}) } })
+        celldata.push({ r, c, v: { v: v as string | number, m, ...(f ? { f } : {}) } })
       }
     }
     const merges = ws['!merges'] || []
-    const mc = {}
+    const mc: Record<string, FortuneMergeEntry> = {}
     for (const merge of merges) {
       const key = `${merge.s.r}_${merge.s.c}`
       mc[key] = { r: merge.s.r, c: merge.s.c, rs: merge.e.r - merge.s.r + 1, cs: merge.e.c - merge.s.c + 1 }
     }
-    const config = merges.length ? { merge: mc } : {}
+    const config: FortuneMergeConfig = merges.length ? { merge: mc } : {}
     return { name, celldata, config }
   })
 }
 
-function checkMergedCellRoundTrip() {
-  const results = []
+function checkMergedCellRoundTrip(): CheckResult[] {
+  const results: CheckResult[] = []
 
   // Original Fortune Sheet with two merged regions
-  const original = {
+  const original: FortuneSheet = {
     name: 'Sheet1',
     celldata: [
       { r: 0, c: 0, v: { v: 'Merged A1:B2', m: 'Merged A1:B2' } },
@@ -138,11 +174,24 @@ function checkMergedCellRoundTrip() {
 //   - image nodes produce ImageRun entries
 //   - the exported structure's paragraph count and ordering match expectations
 
-function checkNestedListDocxLogic() {
-  const results = []
+/** A minimal TipTap-JSON-shaped node, just enough for this fixture. */
+interface TipTapNode {
+  type: string
+  attrs?: Record<string, unknown>
+  text?: string
+  content?: TipTapNode[]
+}
+
+interface FlatListItem {
+  depth: number
+  text: string
+}
+
+function checkNestedListDocxLogic(): CheckResult[] {
+  const results: CheckResult[] = []
 
   // Simulate a TipTap doc with: heading, nested bullet list, paragraph with image
-  const doc = {
+  const doc: TipTapNode = {
     type: 'doc',
     content: [
       { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Title' }] },
@@ -190,12 +239,12 @@ function checkNestedListDocxLogic() {
   }
 
   // Run the same listToDocx logic used in docsExport
-  function inlineText(nodes) {
+  function inlineText(nodes: TipTapNode[] | undefined): string {
     return (nodes || []).map(n => n.text || '').join('')
   }
 
-  function listToFlat(listNode, depth) {
-    const items = []
+  function listToFlat(listNode: TipTapNode, depth: number): FlatListItem[] {
+    const items: FlatListItem[] = []
     for (const item of listNode.content || []) {
       for (const child of item.content || []) {
         if (child.type === 'bulletList' || child.type === 'orderedList') {
@@ -208,7 +257,7 @@ function checkNestedListDocxLogic() {
     return items
   }
 
-  const listNode = doc.content[1]
+  const listNode = doc.content![1]
   const flat = listToFlat(listNode, 0)
 
   results.push(assert('nested-list: 4 items total (2 top + 2 nested)', flat.length === 4,
@@ -223,8 +272,8 @@ function checkNestedListDocxLogic() {
 
 // ─── Fixture 3: Image node survives export mapping ──────────────────────────
 
-function checkImageNodeMapping() {
-  const results = []
+function checkImageNodeMapping(): CheckResult[] {
+  const results: CheckResult[] = []
 
   // Simulate the nodeToDocx image branch
   const base64Png =
@@ -235,7 +284,7 @@ function checkImageNodeMapping() {
   let mapped = false
   let errored = false
   try {
-    const src = node.attrs?.src
+    const src: string | undefined = node.attrs?.src
     if (src?.startsWith('data:image')) {
       const [header, b64] = src.split(',')
       const ext = (header.match(/data:(image\/\w+);/)?.[1] || 'image/png').split('/')[1]
@@ -243,7 +292,7 @@ function checkImageNodeMapping() {
       const buffer = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
       mapped = buffer.length > 0 && ext === 'png'
     }
-  } catch (e) {
+  } catch {
     errored = true
   }
 
@@ -255,11 +304,19 @@ function checkImageNodeMapping() {
 
 // ─── Fixture 4: Slide ordering and notes preserved in export structure ────────
 
-function checkSlideOrderingAndNotes() {
-  const results = []
+interface SlideFixture {
+  id: number
+  title: string
+  content: string
+  notes: string
+  order: number
+}
+
+function checkSlideOrderingAndNotes(): CheckResult[] {
+  const results: CheckResult[] = []
 
   // Simulate a slides data structure that goes through exportSlidesToPptx-style ordering
-  const slidesData = {
+  const slidesData: { theme: string, slides: SlideFixture[] } = {
     theme: 'black',
     slides: [
       { id: 1, title: 'Slide A', content: '<p>Content A</p>', notes: 'Note A', order: 0 },
@@ -286,8 +343,19 @@ function checkSlideOrderingAndNotes() {
 
 // ─── Runner ─────────────────────────────────────────────────────────────────
 
-export function runRoundTripChecks() {
-  const suites = [
+export interface RoundTripResult extends CheckResult {
+  suite: string
+}
+
+export interface RoundTripSummary {
+  passed: number
+  failed: number
+  total: number
+  results: RoundTripResult[]
+}
+
+export function runRoundTripChecks(): RoundTripSummary {
+  const suites: Array<{ name: string, fn: () => CheckResult[] }> = [
     { name: 'Merged-cell xlsx', fn: checkMergedCellRoundTrip },
     { name: 'Nested-list docx logic', fn: checkNestedListDocxLogic },
     { name: 'Image node mapping', fn: checkImageNodeMapping },
@@ -296,10 +364,10 @@ export function runRoundTripChecks() {
 
   let passed = 0
   let failed = 0
-  const results = []
+  const results: RoundTripResult[] = []
 
   for (const suite of suites) {
-    let suiteResults
+    let suiteResults: CheckResult[]
     try {
       suiteResults = suite.fn()
     } catch (err) {

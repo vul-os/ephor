@@ -23,105 +23,105 @@
   "types": "./dist-lib/index.d.ts",
   "exports": {
     ".": {
-      "source": "./src/index.js",
+      "source": "./src/index.ts",
       "types": "./dist-lib/index.d.ts",
       "import": "./dist-lib/index.js",
       "require": "./dist-lib/index.cjs",
       "default": "./dist-lib/index.js"
     },
     "./errors": {
-      "source": "./src/errors.js",
+      "source": "./src/errors.ts",
       "types": "./dist-lib/errors.d.ts",
       "import": "./dist-lib/errors.js",
       "require": "./dist-lib/errors.cjs",
       "default": "./dist-lib/errors.js"
     },
     "./endpoints": {
-      "source": "./src/endpoints.js",
+      "source": "./src/endpoints.ts",
       "types": "./dist-lib/endpoints.d.ts",
       "import": "./dist-lib/endpoints.js",
       "require": "./dist-lib/endpoints.cjs",
       "default": "./dist-lib/endpoints.js"
     },
     "./offlineBootstrap": {
-      "source": "./src/offlineBootstrap.js",
+      "source": "./src/offlineBootstrap.ts",
       "types": "./dist-lib/offlineBootstrap.d.ts",
       "import": "./dist-lib/offlineBootstrap.js",
       "require": "./dist-lib/offlineBootstrap.cjs",
       "default": "./dist-lib/offlineBootstrap.js"
     },
     "./signaling": {
-      "source": "./src/signaling.js",
+      "source": "./src/signaling.ts",
       "types": "./dist-lib/signaling.d.ts",
       "import": "./dist-lib/signaling.js",
       "require": "./dist-lib/signaling.cjs",
       "default": "./dist-lib/signaling.js"
     },
     "./fabric": {
-      "source": "./src/fabric.js",
+      "source": "./src/fabric.ts",
       "types": "./dist-lib/fabric.d.ts",
       "import": "./dist-lib/fabric.js",
       "require": "./dist-lib/fabric.cjs",
       "default": "./dist-lib/fabric.js"
     },
     "./rendezvous": {
-      "source": "./src/rendezvous.js",
+      "source": "./src/rendezvous.ts",
       "types": "./dist-lib/rendezvous.d.ts",
       "import": "./dist-lib/rendezvous.js",
       "require": "./dist-lib/rendezvous.cjs",
       "default": "./dist-lib/rendezvous.js"
     },
     "./rendezvousSignaling": {
-      "source": "./src/rendezvousSignaling.js",
+      "source": "./src/rendezvousSignaling.ts",
       "types": "./dist-lib/rendezvousSignaling.d.ts",
       "import": "./dist-lib/rendezvousSignaling.js",
       "require": "./dist-lib/rendezvousSignaling.cjs",
       "default": "./dist-lib/rendezvousSignaling.js"
     },
     "./chunkProof": {
-      "source": "./src/chunkProof.js",
+      "source": "./src/chunkProof.ts",
       "types": "./dist-lib/chunkProof.d.ts",
       "import": "./dist-lib/chunkProof.js",
       "require": "./dist-lib/chunkProof.cjs",
       "default": "./dist-lib/chunkProof.js"
     },
     "./presence": {
-      "source": "./src/presence.js",
+      "source": "./src/presence.ts",
       "types": "./dist-lib/presence.d.ts",
       "import": "./dist-lib/presence.js",
       "require": "./dist-lib/presence.cjs",
       "default": "./dist-lib/presence.js"
     },
     "./call": {
-      "source": "./src/call/index.js",
+      "source": "./src/call/index.ts",
       "types": "./dist-lib/call/index.d.ts",
       "import": "./dist-lib/call.js",
       "require": "./dist-lib/call.cjs",
       "default": "./dist-lib/call.js"
     },
     "./useLiveCursors": {
-      "source": "./src/useLiveCursors.js",
+      "source": "./src/useLiveCursors.ts",
       "types": "./dist-lib/useLiveCursors.d.ts",
       "import": "./dist-lib/useLiveCursors.js",
       "require": "./dist-lib/useLiveCursors.cjs",
       "default": "./dist-lib/useLiveCursors.js"
     },
     "./health": {
-      "source": "./src/health.js",
+      "source": "./src/health.ts",
       "types": "./dist-lib/health.d.ts",
       "import": "./dist-lib/health.js",
       "require": "./dist-lib/health.cjs",
       "default": "./dist-lib/health.js"
     },
     "./roundTripCheck": {
-      "source": "./src/roundTripCheck.js",
+      "source": "./src/roundTripCheck.ts",
       "types": "./dist-lib/roundTripCheck.d.ts",
       "import": "./dist-lib/roundTripCheck.js",
       "require": "./dist-lib/roundTripCheck.cjs",
       "default": "./dist-lib/roundTripCheck.js"
     },
     "./regionPop": {
-      "source": "./src/regionPop.js",
+      "source": "./src/regionPop.ts",
       "types": "./dist-lib/regionPop.d.ts",
       "import": "./dist-lib/regionPop.js",
       "require": "./dist-lib/regionPop.cjs",
@@ -154,6 +154,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@types/node": "^20.19.43",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.0.1",
     "jsdom": "^29.1.1",
     "license-checker-rseidelsohn": "^5.0.1",
@@ -161,7 +164,8 @@
     "react-dom": "^18.3.1",
     "typescript": "^5.9.3",
     "vite": "^8.0.1",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.7",
+    "xlsx": "^0.18.5"
   },
   "dependencies": {
     "@noble/ciphers": "^2.2.0",

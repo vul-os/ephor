@@ -14,22 +14,26 @@ import { resolve } from 'path'
 
 const dir = import.meta.dirname
 
+// NOTE: errors / signaling / rendezvous / rendezvousSignaling / chunkProof stay
+// .js on purpose — they are kotva-client substrate modules pinned byte-for-byte
+// by scripts/check-kotva-parity.mjs (see kotva-client.pin.json). They ship real
+// types via hand-written .d.ts sidecars instead of being converted to .ts.
 const entries = {
-  index:             resolve(dir, 'src/index.js'),
+  index:             resolve(dir, 'src/index.ts'),
   errors:            resolve(dir, 'src/errors.js'),
-  endpoints:         resolve(dir, 'src/endpoints.js'),
-  health:            resolve(dir, 'src/health.js'),
-  offlineBootstrap:  resolve(dir, 'src/offlineBootstrap.js'),
+  endpoints:         resolve(dir, 'src/endpoints.ts'),
+  health:            resolve(dir, 'src/health.ts'),
+  offlineBootstrap:  resolve(dir, 'src/offlineBootstrap.ts'),
   signaling:         resolve(dir, 'src/signaling.js'),
-  fabric:            resolve(dir, 'src/fabric.js'),
+  fabric:            resolve(dir, 'src/fabric.ts'),
   rendezvous:        resolve(dir, 'src/rendezvous.js'),
   rendezvousSignaling: resolve(dir, 'src/rendezvousSignaling.js'),
   chunkProof:        resolve(dir, 'src/chunkProof.js'),
-  presence:          resolve(dir, 'src/presence.js'),
-  call:              resolve(dir, 'src/call/index.js'),
-  useLiveCursors:    resolve(dir, 'src/useLiveCursors.js'),
-  roundTripCheck:    resolve(dir, 'src/roundTripCheck.js'),
-  regionPop:         resolve(dir, 'src/regionPop.js'),
+  presence:          resolve(dir, 'src/presence.ts'),
+  call:              resolve(dir, 'src/call/index.ts'),
+  useLiveCursors:    resolve(dir, 'src/useLiveCursors.ts'),
+  roundTripCheck:    resolve(dir, 'src/roundTripCheck.ts'),
+  regionPop:         resolve(dir, 'src/regionPop.ts'),
 }
 
 export default defineConfig({

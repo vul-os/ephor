@@ -53,24 +53,36 @@
 /** Package version — must match package.json "version" field. */
 export const RELAY_CLIENT_VERSION = '1.0.0'
 
-/**
- * Build a health report object.
- *
- * @param {object} [opts]
- * @param {(() => { out: number, in: number, total: number }) | null} [opts.getRelayByteCount]
- *   Optional callback returning the current FabricClient.relayByteCount snapshot.
- *   When omitted the `relay` field is `null` in the report.
- * @returns {HealthReport}
- *
- * @typedef {object} HealthReport
- * @property {'ok'} status         - always 'ok' (unhealthy deployments should not serve 200)
- * @property {string} version      - semver version of pier-client
- * @property {string} component    - fixed string 'pier-client'
- * @property {string} ts           - ISO-8601 timestamp of report generation
- * @property {{ out: number, in: number, total: number } | null} relay
- *   Current relay byte meter snapshot, or null when not wired up.
- */
-export function createHealthReport(opts = {}) {
+/** Snapshot of the relay byte meter (see FabricClient.relayByteCount). */
+export interface RelayByteCount {
+  out: number
+  in: number
+  total: number
+}
+
+export interface CreateHealthReportOptions {
+  /**
+   * Optional callback returning the current FabricClient.relayByteCount snapshot.
+   * When omitted the `relay` field is `null` in the report.
+   */
+  getRelayByteCount?: (() => RelayByteCount) | null
+}
+
+export interface HealthReport {
+  /** always 'ok' (unhealthy deployments should not serve 200) */
+  status: 'ok'
+  /** semver version of pier-client */
+  version: string
+  /** fixed string 'pier-client' */
+  component: string
+  /** ISO-8601 timestamp of report generation */
+  ts: string
+  /** Current relay byte meter snapshot, or null when not wired up. */
+  relay: RelayByteCount | null
+}
+
+/** Build a health report object. */
+export function createHealthReport(opts: CreateHealthReportOptions = {}): HealthReport {
   const relay = typeof opts.getRelayByteCount === 'function'
     ? opts.getRelayByteCount()
     : null
@@ -83,6 +95,27 @@ export function createHealthReport(opts = {}) {
   }
 }
 
+/** The Node.js built-in `http.ServerResponse` shape createHealthHandler needs. */
+export interface NodeHttpResponseLike {
+  writeHead: (statusCode: number, headers: Record<string, string>) => void
+  end: (body: string) => void
+  status?: undefined
+}
+
+/** The Express-style response shape createHealthHandler needs. */
+export interface ExpressResponseLike {
+  writeHead?: undefined
+  status: (code: number) => {
+    set: (name: string, value: string) => { send: (body: string) => void }
+  }
+}
+
+/**
+ * Minimal shape covering both the Node.js built-in `http.ServerResponse` and
+ * an Express-style response — just enough of each for createHealthHandler.
+ */
+export type HealthResponseLike = NodeHttpResponseLike | ExpressResponseLike
+
 /**
  * Create a Node.js `(req, res) => void` handler for `GET /healthz`.
  *
@@ -90,11 +123,12 @@ export function createHealthReport(opts = {}) {
  * (via .nodejs adapter), Hono (Node adapter), and any framework that accepts
  * the Node.js `IncomingMessage` / `ServerResponse` interface.
  *
- * @param {object} [opts]  — same options as createHealthReport
- * @returns {(req: object, res: object) => void}
+ * @param opts  — same options as createHealthReport
  */
-export function createHealthHandler(opts = {}) {
-  return (_req, res) => {
+export function createHealthHandler(
+  opts: CreateHealthReportOptions = {},
+): (req: unknown, res: HealthResponseLike) => void {
+  return (_req: unknown, res: HealthResponseLike) => {
     const report = createHealthReport(opts)
     const body = JSON.stringify(report)
     // Support both Node.js http.ServerResponse and Express-style res objects.

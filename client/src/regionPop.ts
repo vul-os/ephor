@@ -34,7 +34,7 @@
  *
  * @type {Record<string, string>}
  */
-export const REGION_POP_MAP = {
+export const REGION_POP_MAP: Record<string, string> = {
   eu: 'eu.relay.vulos.app',
 }
 
@@ -45,11 +45,11 @@ export const REGION_POP_MAP = {
  * returned.  Otherwise `defaultPop` is returned — which may be undefined when
  * the caller has no configured default, preserving the pre-hook behaviour.
  *
- * @param {string|undefined} [region]     - region code for the peer/session
+ * @param region     - region code for the peer/session
  *        (e.g. 'eu').  Case-insensitive.  Undefined / falsy → default path.
- * @param {string|undefined} [defaultPop] - PoP to use when no region match is
+ * @param defaultPop - PoP to use when no region match is
  *        found.  Defaults to undefined (same-origin / no PoP hint).
- * @returns {string|undefined} PoP hostname, or defaultPop when no match.
+ * @returns PoP hostname, or defaultPop when no match.
  *
  * @example
  * selectPop('eu')                          // → 'eu.relay.vulos.app'
@@ -58,7 +58,7 @@ export const REGION_POP_MAP = {
  * selectPop(undefined, 'relay.vulos.app')  // → 'relay.vulos.app'  (no region)
  * selectPop()                              // → undefined           (pure default)
  */
-export function selectPop(region, defaultPop) {
+export function selectPop(region?: string, defaultPop?: string): string | undefined {
   if (region && typeof region === 'string') {
     const pop = REGION_POP_MAP[region.toLowerCase()]
     if (pop) return pop

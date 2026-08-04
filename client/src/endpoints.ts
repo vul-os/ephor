@@ -68,12 +68,12 @@ let _healthPath = DEFAULT_HEALTH_PATH
 // may be an exact host[:port] ('box.vulos.org'), a leading-dot suffix
 // ('.vulos.org' → any subdomain of vulos.org), or a '*.suffix' wildcard.
 // See configure({ allowedProbeHosts }).
-let _allowedProbeHosts = []
+let _allowedProbeHosts: string[] = []
 
 // Hosts learned from a trusted BackendTarget via seedFromResolveBackend() (the
 // cloud control plane's /api/resolve/backend response). These are as trusted as
 // injected/env endpoints for the purpose of the credentialed-probe allowlist.
-let _seededHosts = []
+let _seededHosts: string[] = []
 
 // How long a health-probe may take before the endpoint is considered down.
 const HEALTH_TIMEOUT_MS = 2_500
@@ -82,29 +82,40 @@ const HEALTH_TIMEOUT_MS = 2_500
 // always forces an immediate re-selection regardless of this interval.
 const REVALIDATE_AFTER_MS = 30_000
 
-/** @typedef {{ cloud: string, lan: string }} EndpointPair */
+export interface EndpointPair {
+  cloud: string
+  lan: string
+}
 
-let _state = {
-  /** @type {EndpointPair} */
-  pair: { cloud: '', lan: '' },
+interface EndpointState {
+  pair: EndpointPair
   /** Currently selected base URL ('' = same-origin). */
-  selected: '',
+  selected: string
   /** Timestamp (ms) of the last successful selection. */
-  selectedAt: 0,
+  selectedAt: number
   /** In-flight selection promise (deduped). */
+  selecting: Promise<string> | null
+}
+
+const _state: EndpointState = {
+  pair: { cloud: '', lan: '' },
+  selected: '',
+  selectedAt: 0,
   selecting: null,
 }
 
-const listeners = new Set()
+type EndpointListener = (selected: string) => void
 
-function emit() {
+const listeners = new Set<EndpointListener>()
+
+function emit(): void {
   for (const fn of listeners) {
     try { fn(_state.selected) } catch { /* listener errors are non-fatal */ }
   }
 }
 
 /** Subscribe to selected-endpoint changes. Returns an unsubscribe fn. */
-export function onEndpointChange(fn) {
+export function onEndpointChange(fn: EndpointListener): () => void {
   listeners.add(fn)
   return () => listeners.delete(fn)
 }
@@ -122,10 +133,20 @@ export function onEndpointChange(fn) {
  *   configure({ allowedProbeHosts: ['.vulos.org'] })           // lock probes
  *                                                               // to a domain
  *
- * @param {{ lsKeyPrefix?: string, healthPath?: string,
- *           allowedProbeHosts?: string[] }} opts
  */
-export function configure(opts = {}) {
+export interface ConfigureOptions {
+  lsKeyPrefix?: string
+  healthPath?: string
+  allowedProbeHosts?: string[]
+}
+
+export interface ConfigureResult {
+  lsKeyPrefix: string
+  healthPath: string
+  allowedProbeHosts: string[]
+}
+
+export function configure(opts: ConfigureOptions = {}): ConfigureResult {
   if (opts && typeof opts === 'object') {
     if (typeof opts.lsKeyPrefix === 'string' && opts.lsKeyPrefix) {
       _lsKey = opts.lsKeyPrefix
@@ -162,7 +183,7 @@ export function configure(opts = {}) {
 //      configured injected/env endpoint hosts + configure({ allowedProbeHosts })).
 
 /** Parse a base URL (origin or origin+path prefix) into a URL, or null. */
-function parseBase(base) {
+function parseBase(base: string | null | undefined): URL | null {
   if (typeof base !== 'string' || base === '') return null
   try {
     const ref =
@@ -174,7 +195,7 @@ function parseBase(base) {
 }
 
 /** This document's host ('' when not in a browser). */
-function sameOriginHost() {
+function sameOriginHost(): string {
   try {
     if (typeof location !== 'undefined' && location.host) return location.host
   } catch { /* ignore */ }
@@ -182,7 +203,7 @@ function sameOriginHost() {
 }
 
 /** True when `base` is '' (same-origin) or a well-formed https/same-origin URL. */
-function isSafeEndpointScheme(base) {
+function isSafeEndpointScheme(base: string): boolean {
   if (base === '') return true
   const u = parseBase(base)
   if (!u) return false
@@ -197,13 +218,13 @@ function isSafeEndpointScheme(base) {
 }
 
 /** Keep a cached endpoint only if it passes scheme validation; else ''. */
-function sanitizeEndpoint(base) {
+function sanitizeEndpoint(base: string): string {
   return isSafeEndpointScheme(base) ? base : ''
 }
 
 /** Hosts of the configured (injected/env) cloud+LAN endpoints — trusted config. */
-function configuredHosts() {
-  const out = []
+function configuredHosts(): string[] {
+  const out: string[] = []
   const inj = readInjected()
   const candidates = [
     inj && inj.cloud,
@@ -220,7 +241,7 @@ function configuredHosts() {
 }
 
 /** Match a host against one allowlist entry (exact, '.suffix', or '*.suffix'). */
-function hostMatches(host, entry) {
+function hostMatches(host: string, entry: string): boolean {
   if (host === entry) return true
   if (entry.startsWith('.')) return host.endsWith(entry) || host === entry.slice(1)
   if (entry.startsWith('*.')) {
@@ -235,7 +256,7 @@ function hostMatches(host, entry) {
  * allowed; cross-origin requires https AND a host on the allowlist (configured
  * endpoint hosts + explicit allowedProbeHosts). Empty base = same-origin.
  */
-function isCredentialedProbeAllowed(base) {
+function isCredentialedProbeAllowed(base: string): boolean {
   if (base === '') return true
   const u = parseBase(base)
   if (!u) return false
@@ -256,15 +277,15 @@ function isCredentialedProbeAllowed(base) {
   return false
 }
 
-function readEnv(name) {
+function readEnv(name: string): string {
   try {
-    return (import.meta && import.meta.env && import.meta.env[name]) || ''
+    return (import.meta && import.meta.env && (import.meta.env as Record<string, string>)[name]) || ''
   } catch {
     return ''
   }
 }
 
-function readInjected() {
+function readInjected(): EndpointPair | null {
   try {
     const g = typeof window !== 'undefined' ? window.__VULOS_ENDPOINTS__ : null
     if (g && typeof g === 'object') return { cloud: g.cloud || '', lan: g.lan || '' }
@@ -272,7 +293,7 @@ function readInjected() {
   return null
 }
 
-function readCache() {
+function readCache(): EndpointPair | null {
   try {
     const raw = typeof localStorage !== 'undefined' && localStorage.getItem(_lsKey)
     if (!raw) return null
@@ -290,7 +311,7 @@ function readCache() {
   return null
 }
 
-function writeCache(pair) {
+function writeCache(pair: EndpointPair): void {
   try {
     if (typeof localStorage !== 'undefined') {
       localStorage.setItem(_lsKey, JSON.stringify({ cloud: pair.cloud, lan: pair.lan }))
@@ -303,7 +324,7 @@ function writeCache(pair) {
  * Injected/env values take priority; otherwise the last cached pair is reused
  * so failover survives a cloud-discovery outage.
  */
-export function resolveEndpoints() {
+export function resolveEndpoints(): EndpointPair {
   const injected = readInjected()
   const cached = readCache()
 
@@ -342,7 +363,22 @@ export function resolveEndpoints() {
  * for the missing side and triggers an immediate re-selection so the live
  * pair is exercised at once.
  */
-export function seedFromResolveBackend(target) {
+export interface LANCandidate {
+  BoxID?: string
+  boxId?: string
+  Endpoint?: string
+  endpoint?: string
+}
+
+/** The cloud control plane's /api/resolve/backend response shape. */
+export interface BackendTarget {
+  Endpoint?: string
+  endpoint?: string
+  LANCandidate?: LANCandidate | null
+  lan_candidate?: LANCandidate | null
+}
+
+export function seedFromResolveBackend(target: BackendTarget | null | undefined): EndpointPair {
   if (!target || typeof target !== 'object') return _state.pair
   const cached = readCache() || { cloud: '', lan: '' }
   const cloud = target.Endpoint || target.endpoint || cached.cloud || ''
@@ -369,7 +405,7 @@ export function seedFromResolveBackend(target) {
  * the configured health path still proves the box is up). Same-origin ('') is
  * always usable.
  */
-export async function probe(base) {
+export async function probe(base: string): Promise<boolean> {
   // An empty base means same-origin: assume reachable if the document is
   // online, and trivially reachable when offline reads come from the SW cache.
   if (base === '') {
@@ -411,10 +447,9 @@ export async function probe(base) {
  * candidates is done concurrently so a dead cloud route doesn't add latency to
  * picking the live LAN one.
  *
- * @param {{ force?: boolean }} [opts]
- * @returns {Promise<string>} the selected base URL
+ * @returns the selected base URL
  */
-export async function selectEndpoint(opts = {}) {
+export async function selectEndpoint(opts: { force?: boolean } = {}): Promise<string> {
   const { force = false } = opts
 
   // Reuse a recent successful selection unless forced (e.g. after a failure).
@@ -429,7 +464,7 @@ export async function selectEndpoint(opts = {}) {
     const { cloud, lan } = resolveEndpoints()
 
     // Candidate list, LAN preferred for latency, then cloud, then same-origin.
-    const candidates = []
+    const candidates: string[] = []
     if (lan) candidates.push(lan)
     if (cloud) candidates.push(cloud)
     candidates.push('') // same-origin fallback is always last and always present
@@ -455,7 +490,7 @@ export async function selectEndpoint(opts = {}) {
 }
 
 /** The currently selected base URL (synchronous; '' = same-origin). */
-export function currentEndpoint() {
+export function currentEndpoint(): string {
   return _state.selected
 }
 
@@ -463,7 +498,7 @@ export function currentEndpoint() {
  * Invalidate the current selection. Called by the API client when a request to
  * the selected endpoint fails so the next call re-probes and fails over.
  */
-export function invalidateEndpoint() {
+export function invalidateEndpoint(): void {
   _state.selectedAt = 0
 }
 
@@ -477,7 +512,7 @@ export function invalidateEndpoint() {
 // delaying failover detection (which already has a REVALIDATE_AFTER_MS TTL).
 if (typeof window !== 'undefined' && window.addEventListener) {
   const RESELECT_DEBOUNCE_MS = 400
-  let _reselectTimer = null
+  let _reselectTimer: ReturnType<typeof setTimeout> | null = null
   const reselect = () => {
     if (_reselectTimer !== null) clearTimeout(_reselectTimer)
     _reselectTimer = setTimeout(() => {

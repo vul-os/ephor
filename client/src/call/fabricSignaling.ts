@@ -1,4 +1,4 @@
-// fabricSignaling.js — real network signaling for cross-device WebRTC calls,
+// fabricSignaling.ts — real network signaling for cross-device WebRTC calls,
 // with an in-browser BroadcastChannel same-origin optimisation.
 //
 // Strategy:
@@ -6,11 +6,11 @@
 //      (window.__VULOS_ENDPOINTS__.signalingUrl or VITE_SIGNALING_URL env var,
 //      or derived from window.location).
 //   2. If yes → open a SignalingClient and adapt its EventTarget API to
-//      the lightweight on/off/emit surface that rtc.js expects.
+//      the lightweight on/off/emit surface that rtc.ts expects.
 //   3. If not (standalone dev loop, no host) → fall back to BroadcastChannel
 //      so in-browser same-origin multi-tab negotiation still works.
 //
-// Signaling envelope (call layer, used by rtc.js):
+// Signaling envelope (call layer, used by rtc.ts):
 //   { kind: 'sdp'|'ice'|'screen-share'|..., to?: peerId,
 //     from: peerId, data: {...} }
 //
@@ -18,14 +18,59 @@
 //   { channel: "signal", from: peerId,
 //     payload: { type: kind, session, to, data } }
 
-import { SignalingClient } from '../signaling.js'
+import { SignalingClient, type SignalPayload } from '../signaling.js'
 import { SignalingError } from '../errors.js'
-import { Emitter } from './emitter.js'
+import { Emitter, type EventMap } from './emitter.js'
 import { fetchIce, resolveStunFallback } from './ice.js'
+
+// ─── shared shapes ───────────────────────────────────────────────────────────
+
+/** Opaque per-peer identity carried through the call signaling layer. */
+export interface CallIdentity {
+  peerId?: string
+  authToken?: string | null
+  [key: string]: unknown
+}
+
+/** The call-layer signaling envelope (translated from/to SignalPayload). */
+export interface CallSignalMessage {
+  kind: string
+  from?: string
+  to?: string | null
+  data?: unknown
+  identity?: CallIdentity | null
+}
+
+export interface CallSessionEvents extends EventMap {
+  'peer-join': [string, CallIdentity | null]
+  'peer-leave': [string]
+  message: [CallSignalMessage]
+  state: [string]
+}
+
+/** A message the call layer asks the session to send. */
+export interface OutgoingCallMessage {
+  kind: string
+  to?: string | null
+  data?: unknown
+  identity?: CallIdentity | null
+}
+
+/** The session surface both networkSession() and bcSession() implement. */
+export interface CallSession {
+  peerId: string
+  identity: CallIdentity | null
+  transport: 'ws' | 'bc-stub'
+  readonly state: string
+  send(msg: OutgoingCallMessage): void
+  on<K extends keyof CallSessionEvents>(ev: K, cb: (...args: CallSessionEvents[K]) => void): () => void
+  off<K extends keyof CallSessionEvents>(ev: K, cb: (...args: CallSessionEvents[K]) => void): void
+  close(): void
+}
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function _newPeerId(identity) {
+function _newPeerId(identity: CallIdentity | null | undefined): string {
   return identity?.peerId || (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()))
 }
 
@@ -39,9 +84,8 @@ function _newPeerId(identity) {
  *      — skipped in Node / test environments where window.location is absent.
  *
  * Returns null when no host can be determined (unit tests, SSR, pure offline).
- * @returns {string|null}
  */
-function _resolveSignalingUrl() {
+function _resolveSignalingUrl(): string | null {
   try {
     const injected = typeof window !== 'undefined' && window.__VULOS_ENDPOINTS__
     if (injected && injected.signalingUrl) return injected.signalingUrl
@@ -67,7 +111,7 @@ function _resolveSignalingUrl() {
 
 /**
  * Wrap a SignalingClient into the lightweight on/off/emit session surface that
- * rtc.js (Call) and other callers expect.
+ * rtc.ts (Call) and other callers expect.
  *
  * The session object is symmetric with the BroadcastChannel stub:
  *   { peerId, identity, transport, state,
@@ -78,19 +122,14 @@ function _resolveSignalingUrl() {
  *   'peer-leave' (peerId)
  *   'message'    (msg)    — sdp / ice / screen-share / etc.
  *   'state'      (string) — 'connecting'|'connected'|'reconnecting'|'closed'
- *
- * @param {string} sessionId
- * @param {object|null} identity
- * @param {string} signalingUrl
- * @returns {Promise<object>} session
  */
-async function networkSession(sessionId, identity, signalingUrl) {
-  const em = new Emitter()
+async function networkSession(sessionId: string, identity: CallIdentity | null, signalingUrl: string): Promise<CallSession> {
+  const em = new Emitter<CallSessionEvents>()
   const peerId = _newPeerId(identity)
-  const peers = new Set()
+  const peers = new Set<string>()
   let state = 'connecting'
 
-  const setState = (s) => { state = s; em.emit('state', s) }
+  const setState = (s: string) => { state = s; em.emit('state', s) }
 
   // ── Per-session ECDSA P-256 signing key ─────────────────────────────────────
   // Generate a non-extractable private key for signing outgoing signaling frames.
@@ -106,8 +145,8 @@ async function networkSession(sessionId, identity, signalingUrl) {
   // Falls back to unsigned signaling when WebCrypto is unavailable (non-secure
   // context, very old browser).  Peers with requirePeerAuth=false (the default
   // for the call path) will still accept unsigned frames.
-  let _sessionKeyPair = null
-  let _sessionPubKeyB64 = null
+  let _sessionKeyPair: CryptoKeyPair | null = null
+  let _sessionPubKeyB64: string | null = null
   try {
     _sessionKeyPair = await crypto.subtle.generateKey(
       { name: 'ECDSA', namedCurve: 'P-256' },
@@ -120,8 +159,9 @@ async function networkSession(sessionId, identity, signalingUrl) {
     // WebCrypto unavailable — outgoing frames will be unsigned.
     // Peers whose keys are already stored will drop our frames; peers with
     // requirePeerAuth=false (including all call-path sessions) will accept them.
-    console.warn('[fabricSignaling] WebCrypto unavailable; frames will be unsigned:', err.message)
+    console.warn('[fabricSignaling] WebCrypto unavailable; frames will be unsigned:', (err as Error)?.message)
   }
+  const sessionKeyPair = _sessionKeyPair
 
   const sc = new SignalingClient({
     signalingUrl,
@@ -133,11 +173,11 @@ async function networkSession(sessionId, identity, signalingUrl) {
     getDepositPubKey: () => _sessionPubKeyB64,
     // Sign every outgoing offer/answer/ice frame.  Including the SDP in the
     // canonical message (for sdp-kind frames) pins the DTLS fingerprint.
-    signFrame: _sessionKeyPair
-      ? async (msg) => {
+    signFrame: sessionKeyPair
+      ? async (msg: string) => {
           const sigBuf = await crypto.subtle.sign(
             { name: 'ECDSA', hash: 'SHA-256' },
-            _sessionKeyPair.privateKey,
+            sessionKeyPair.privateKey,
             new TextEncoder().encode(msg),
           )
           return btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
@@ -160,15 +200,15 @@ async function networkSession(sessionId, identity, signalingUrl) {
     setState('reconnecting')
   })
 
-  sc.addEventListener('signal', (ev) => {
-    const { from, payload } = ev.detail
+  sc.addEventListener('signal', (ev: Event) => {
+    const { from, payload } = (ev as CustomEvent<{ from: string, payload: SignalPayload }>).detail
     if (!payload) return
 
     // Peer lifecycle signals.
     if (payload.type === 'join') {
       if (!peers.has(from)) {
         peers.add(from)
-        em.emit('peer-join', from, payload.identity || null)
+        em.emit('peer-join', from, (payload.identity as CallIdentity | undefined) || null)
       }
       return
     }
@@ -178,13 +218,13 @@ async function networkSession(sessionId, identity, signalingUrl) {
     }
 
     // Media / data payloads: translate back to the call-layer envelope so
-    // PeerConn.handleSignal() in rtc.js receives a consistent shape.
-    const msg = {
+    // PeerConn.handleSignal() in rtc.ts receives a consistent shape.
+    const msg: CallSignalMessage = {
       kind: payload.type,    // 'sdp', 'ice', 'screen-share', etc.
       from,
-      to: payload.to || null,
-      data: payload.data || {},
-      identity: payload.identity || null,
+      to: (payload.to as string | null | undefined) || null,
+      data: (payload.data as Record<string, unknown> | undefined) || {},
+      identity: (payload.identity as CallIdentity | undefined) || null,
     }
     em.emit('message', msg)
   })
@@ -206,18 +246,17 @@ async function networkSession(sessionId, identity, signalingUrl) {
      * include them in the signed message.  This pins the DTLS fingerprint for
      * sdp-kind frames and binds ICE candidates to the per-session identity.
      * The nested `data` object is preserved unchanged for the receiving call layer.
-     *
-     * @param {{ kind: string, to?: string, data?: object, identity?: object }} msg
      */
-    send(msg) {
-      const extra = { data: msg.data, identity: msg.identity }
+    send(msg: OutgoingCallMessage) {
+      const extra: Partial<SignalPayload> = { data: msg.data, identity: msg.identity }
       if (_sessionPubKeyB64) {
         // Publish our pubkey in every frame so late-joining peers can TOFU-import
         // it from the first offer/answer they receive (handles out-of-order delivery).
         extra.pubKey = _sessionPubKeyB64
         // Mirror payload fields so the signed canonical message covers them.
-        if (msg.data?.sdp)       extra.sdp       = msg.data.sdp
-        if (msg.data?.candidate) extra.candidate  = msg.data.candidate
+        const data = msg.data as { sdp?: string, candidate?: RTCIceCandidateInit } | undefined
+        if (data?.sdp)       extra.sdp       = data.sdp
+        if (data?.candidate) extra.candidate = data.candidate
       }
       sc.signal(msg.kind, msg.to || null, extra)
     },
@@ -234,35 +273,40 @@ async function networkSession(sessionId, identity, signalingUrl) {
 
 // ─── BroadcastChannel fallback (same-origin multi-tab, no network) ───────────
 
+interface BroadcastCallMessage {
+  kind: string
+  from: string
+  to?: string | null
+  identity?: CallIdentity | null
+  [key: string]: unknown
+}
+
 /**
  * Same-origin BroadcastChannel signaling stub for dev loops, Storybook, unit
  * tests, and any context where no peering WebSocket is reachable.
  *
  * transport === 'bc-stub' so callers can detect the mode and warn.
- * @param {string} sessionId
- * @param {object|null} identity
- * @returns {object} session
  */
-function bcSession(sessionId, identity) {
-  const em = new Emitter()
+function bcSession(sessionId: string, identity: CallIdentity | null): CallSession {
+  const em = new Emitter<CallSessionEvents>()
   const peerId = _newPeerId(identity)
   const ch = new BroadcastChannel(`vulos-call:${sessionId}`)
-  const peers = new Set()
+  const peers = new Set<string>()
   let state = 'connecting'
 
-  const setState = (s) => { state = s; em.emit('state', s) }
+  const setState = (s: string) => { state = s; em.emit('state', s) }
 
-  ch.onmessage = (ev) => {
+  ch.onmessage = (ev: MessageEvent<BroadcastCallMessage>) => {
     const m = ev.data
     if (!m || m.from === peerId) return
     if (m.kind === 'hello') {
-      if (!peers.has(m.from)) { peers.add(m.from); em.emit('peer-join', m.from, m.identity) }
+      if (!peers.has(m.from)) { peers.add(m.from); em.emit('peer-join', m.from, m.identity || null) }
       // Reply so the new peer learns about us.
       ch.postMessage({ kind: 'hello-ack', from: peerId, identity, to: m.from })
       return
     }
     if (m.kind === 'hello-ack' && m.to === peerId) {
-      if (!peers.has(m.from)) { peers.add(m.from); em.emit('peer-join', m.from, m.identity) }
+      if (!peers.has(m.from)) { peers.add(m.from); em.emit('peer-join', m.from, m.identity || null) }
       return
     }
     if (m.kind === 'bye') {
@@ -270,7 +314,7 @@ function bcSession(sessionId, identity) {
       return
     }
     if (m.to && m.to !== peerId) return
-    em.emit('message', m)
+    em.emit('message', m as CallSignalMessage)
   }
 
   // Announce after the current microtask — identical timing to the WS path.
@@ -284,7 +328,7 @@ function bcSession(sessionId, identity) {
     identity,
     transport: 'bc-stub',
     get state() { return state },
-    send(msg) { ch.postMessage({ ...msg, from: peerId }) },
+    send(msg: OutgoingCallMessage) { ch.postMessage({ ...msg, from: peerId }) },
     on: em.on.bind(em),
     off: em.off.bind(em),
     close() {
@@ -312,13 +356,9 @@ function bcSession(sessionId, identity) {
  * the real network path is used automatically, without any explicit
  * configuration.
  *
- * @param {string} sessionId
- * @param {object|null} identity  — may carry .peerId and/or .authToken
- * @returns {Promise<object>} session
- *   { peerId: string, transport: 'ws'|'bc-stub', state: string,
- *     send(msg), on(ev,cb), off(ev,cb), close() }
+ * @param identity  — may carry .peerId and/or .authToken
  */
-export async function joinSignalingSession(sessionId, identity) {
+export async function joinSignalingSession(sessionId: string, identity: CallIdentity | null): Promise<CallSession> {
   const signalingUrl = _resolveSignalingUrl()
   if (signalingUrl) {
     return networkSession(sessionId, identity, signalingUrl)
@@ -339,8 +379,8 @@ export async function joinSignalingSession(sessionId, identity) {
 // Fetch TURN/STUN credentials from the cloud (OFFICE-20 path). Server endpoint
 // mirrors what the OS fabric uses. The fallback is host-provided ICE only (no
 // third-party reach-out) unless the operator opts into a public STUN server —
-// see resolveStunFallback() in ice.js.
-export function fetchIceServers() {
+// see resolveStunFallback() in ice.ts.
+export function fetchIceServers(): Promise<RTCIceServer[]> {
   return fetchIce('/api/turn/credentials', {
     responseKey: 'iceServers',
     fetchOptions: { credentials: 'include' },

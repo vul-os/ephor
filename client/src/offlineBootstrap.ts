@@ -42,12 +42,12 @@
 import { selectEndpoint } from './endpoints.js'
 
 let _booted = false
-let _waitingWorker = null
-let _registration = null
-let _tierHint = undefined
-const _updateListeners = new Set()
+let _waitingWorker: ServiceWorker | null = null
+let _registration: ServiceWorkerRegistration | null = null
+let _tierHint: unknown = undefined
+const _updateListeners = new Set<() => void>()
 
-function notifyUpdateAvailable(worker) {
+function notifyUpdateAvailable(worker: ServiceWorker): void {
   _waitingWorker = worker
   for (const fn of _updateListeners) {
     try { fn() } catch { /* listener errors are non-fatal */ }
@@ -58,7 +58,7 @@ function notifyUpdateAvailable(worker) {
  * Subscribe to "a new SW is waiting" events. The callback fires whenever a
  * fresh SW has installed and is sitting in `waiting`. Returns an unsubscribe fn.
  */
-export function onUpdateAvailable(cb) {
+export function onUpdateAvailable(cb: () => void): () => void {
   _updateListeners.add(cb)
   // If a worker is already waiting at the time of subscription, fire once.
   if (_waitingWorker) {
@@ -71,7 +71,7 @@ export function onUpdateAvailable(cb) {
  * Apply a pending SW update: posts SKIP_WAITING to the waiting worker, then
  * reloads the page once it takes over (controllerchange).
  */
-export function applyUpdate() {
+export function applyUpdate(): boolean {
   if (!_waitingWorker) return false
   let reloaded = false
   const reloadOnce = () => {
@@ -88,7 +88,7 @@ export function applyUpdate() {
   return true
 }
 
-function wireUpdateDetection(registration) {
+function wireUpdateDetection(registration: ServiceWorkerRegistration): void {
   _registration = registration
   // Worker already waiting at registration time.
   if (registration.waiting && navigator.serviceWorker.controller) {
@@ -107,16 +107,19 @@ function wireUpdateDetection(registration) {
   })
 }
 
+export interface BootstrapOfflineOptions {
+  /** service-worker URL (default '/sw.js') */
+  swPath?: string
+  /** fn called once after SW registration kicks off. Errors swallowed. */
+  onBoot?: () => void
+  /** fn returning an opaque tier-hint surfaced via currentTierHint(). */
+  tierHint?: () => unknown
+}
+
 /**
  * Boot the offline-first shell. Idempotent.
- *
- * @param {{
- *   swPath?:    string,
- *   onBoot?:    () => void,
- *   tierHint?:  () => any,
- * }} [opts]
  */
-export function bootstrapOffline(opts = {}) {
+export function bootstrapOffline(opts: BootstrapOfflineOptions = {}): void {
   if (_booted) return
   _booted = true
 
@@ -163,12 +166,12 @@ export function bootstrapOffline(opts = {}) {
  * Read the most-recently-captured tier hint. Returns `undefined` if no
  * `tierHint` callback was supplied at bootstrap time.
  */
-export function currentTierHint() {
+export function currentTierHint(): unknown {
   return _tierHint
 }
 
 // Test-only helpers — let suites reset internal state between cases.
-export function _resetForTests() {
+export function _resetForTests(): void {
   _booted = false
   _waitingWorker = null
   _registration = null

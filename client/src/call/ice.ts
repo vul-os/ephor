@@ -1,4 +1,4 @@
-// ice.js — shared ICE-server fetch helper.
+// ice.ts — shared ICE-server fetch helper.
 //
 // Both the OS fabric path (/api/peering/ice → body.ice_servers) and
 // the call/TURN path (/api/turn/credentials → body.iceServers) implement
@@ -29,11 +29,11 @@
  * The classic Google public STUN server. Exported so callers can opt into it
  * explicitly; it is NOT used as a default fallback any more.
  */
-export const GOOGLE_STUN_FALLBACK = [{ urls: ['stun:stun.l.google.com:19302'] }]
+export const GOOGLE_STUN_FALLBACK: RTCIceServer[] = [{ urls: ['stun:stun.l.google.com:19302'] }]
 
-function _readEnv(name) {
+function _readEnv(name: string): string {
   try {
-    return (import.meta && import.meta.env && import.meta.env[name]) || ''
+    return (import.meta && import.meta.env && (import.meta.env as Record<string, string>)[name]) || ''
   } catch {
     return ''
   }
@@ -44,9 +44,9 @@ function _readEnv(name) {
  * nothing. Defaults to an empty list (host-provided ICE only — no third-party
  * reach-out). Operators opt in via host injection or a build-time env var.
  *
- * @returns {Array} ICE server objects to fall back to (may be empty)
+ * @returns ICE server objects to fall back to (may be empty)
  */
-export function resolveStunFallback() {
+export function resolveStunFallback(): RTCIceServer[] {
   try {
     const inj = typeof window !== 'undefined' ? window.__VULOS_ENDPOINTS__ : null
     if (inj && Array.isArray(inj.iceServersFallback)) return inj.iceServersFallback
@@ -59,22 +59,28 @@ export function resolveStunFallback() {
   return []
 }
 
+export interface FetchIceOptions {
+  /** key in the JSON body that holds the array */
+  responseKey?: string
+  /** extra options forwarded to fetch() */
+  fetchOptions?: RequestInit
+  /**
+   * servers to return on any fetch error, non-ok response, or empty array.
+   * Defaults to [] so a standalone build never reaches out to a third party.
+   */
+  fallbackIceServers?: RTCIceServer[]
+}
+
 /**
  * Fetch ICE servers from a relay/TURN endpoint.
  *
- * @param {string} endpoint      - URL path to GET (e.g. '/api/turn/credentials')
- * @param {object} [opts]
- * @param {string} [opts.responseKey='iceServers']  - key in the JSON body that holds the array
- * @param {object} [opts.fetchOptions={}]           - extra options forwarded to fetch()
- * @param {Array}  [opts.fallbackIceServers=[]]     - servers to return on any
- *        fetch error, non-ok response, or empty array. Defaults to [] so a
- *        standalone build never reaches out to a third party.
- * @returns {Promise<Array>}     - ICE server objects (may be empty)
+ * @param endpoint      - URL path to GET (e.g. '/api/turn/credentials')
+ * @returns ICE server objects (may be empty)
  */
 export async function fetchIce(
-  endpoint,
-  { responseKey = 'iceServers', fetchOptions = {}, fallbackIceServers = [] } = {},
-) {
+  endpoint: string,
+  { responseKey = 'iceServers', fetchOptions = {}, fallbackIceServers = [] }: FetchIceOptions = {},
+): Promise<RTCIceServer[]> {
   try {
     const r = await fetch(endpoint, fetchOptions)
     if (r.ok) {
