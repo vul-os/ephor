@@ -13,25 +13,37 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { SignalingClient } from '../signaling.js'
+import { SignalingClient, type SignalPayload } from '../signaling.js'
+
+interface CanonicalArgs {
+  type: string
+  session: string
+  to?: string | null
+  from: string
+  nonce: string
+  ts?: number
+  sdp?: string
+  candidate?: RTCIceCandidateInit
+  pubKey?: string
+}
 
 // Canonical form — MUST match signaling.js _canonical (now includes ts).
-function canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }) {
-  const msg = { type, session, to: to ?? null, from, nonce, ts }
+function canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }: CanonicalArgs): string {
+  const msg: CanonicalArgs & { to: string | null } = { type, session, to: to ?? null, from, nonce, ts }
   if (sdp !== undefined) msg.sdp = sdp
   if (candidate !== undefined) msg.candidate = candidate
   if (pubKey !== undefined) msg.pubKey = pubKey
   return JSON.stringify(msg)
 }
 
-async function generatePeerKey() {
-  return crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify'])
+async function generatePeerKey(): Promise<CryptoKeyPair> {
+  return crypto.subtle.generateKey({ name: 'ECDSA', namedCurve: 'P-256' }, true, ['sign', 'verify']) as Promise<CryptoKeyPair>
 }
-async function exportPubKeyB64(kp) {
+async function exportPubKeyB64(kp: CryptoKeyPair): Promise<string> {
   const raw = await crypto.subtle.exportKey('raw', kp.publicKey)
   return btoa(String.fromCharCode(...new Uint8Array(raw)))
 }
-async function signMsg(privateKey, msg) {
+async function signMsg(privateKey: CryptoKey, msg: string): Promise<string> {
   const buf = await crypto.subtle.sign(
     { name: 'ECDSA', hash: 'SHA-256' }, privateKey, new TextEncoder().encode(msg),
   )
@@ -42,26 +54,36 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static last = null
+  static last: FakeWebSocket | null = null
+
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
   constructor() {
     this.readyState = FakeWebSocket.CONNECTING
     this.sent = []
     this._listeners = {}
     FakeWebSocket.last = this
   }
-  addEventListener(e, f) { (this._listeners[e] ||= []).push(f) }
-  send(d) { this.sent.push(d) }
+  addEventListener(e: string, f: (payload: unknown) => void) { (this._listeners[e] ||= []).push(f) }
+  send(d: string) { this.sent.push(d) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
-  _fire(e, p) { for (const f of (this._listeners[e] || [])) f(p) }
+  _fire(e: string, p: unknown) { for (const f of (this._listeners[e] || [])) f(p) }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
-  _message(frame) { this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) }) }
+  _message(frame: unknown) { this._fire('message', { data: typeof frame === 'string' ? frame : JSON.stringify(frame) }) }
 }
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms))
-async function waitFor(cond, { timeout = 500, interval = 5 } = {}) {
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+async function waitFor(cond: () => boolean, { timeout = 500, interval = 5 }: { timeout?: number, interval?: number } = {}) {
   const end = Date.now() + timeout
   while (Date.now() < end) { if (cond()) return; await sleep(interval) }
   throw new Error('waitFor: condition never true within ' + timeout + 'ms')
+}
+
+interface SignalDetail {
+  from: string
+  payload: SignalPayload
 }
 
 async function makeKeyedClient() {
@@ -74,12 +96,13 @@ async function makeKeyedClient() {
     peerId: 'bob',
     requirePeerAuth: false,
   })
-  const offers = []
-  sc.addEventListener('signal', ({ detail }) => {
+  const offers: SignalDetail[] = []
+  sc.addEventListener('signal', (ev) => {
+    const { detail } = ev as CustomEvent<SignalDetail>
     if (detail.payload.type === 'offer') offers.push(detail)
   })
   sc.connect()
-  const ws = FakeWebSocket.last
+  const ws = FakeWebSocket.last!
   ws._open()
 
   // Register alice's key via join.
@@ -89,7 +112,15 @@ async function makeKeyedClient() {
   return { sc, ws, aliceKP, alicePubB64, offers }
 }
 
-function signedOfferFrame({ nonce, ts, sdp = 'v=0 ts-test', sig, pubKey }) {
+interface SignedOfferFrameArgs {
+  nonce: string
+  ts?: number
+  sdp?: string
+  sig: string
+  pubKey: string
+}
+
+function signedOfferFrame({ nonce, ts, sdp = 'v=0 ts-test', sig, pubKey }: SignedOfferFrameArgs) {
   return {
     channel: 'signal',
     from: 'alice',
@@ -195,12 +226,12 @@ describe('Signaling replay protection — signed timestamp', () => {
       signFrame: (msg) => signMsg(localKP.privateKey, msg),
     })
     sc.connect()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
     ws.sent.length = 0
 
     await sc.signal('offer', 'remote', { sdp: 'v=0 out' })
-    const frame = JSON.parse(ws.sent[ws.sent.length - 1])
+    const frame = JSON.parse(ws.sent[ws.sent.length - 1]!)
     expect(typeof frame.payload.ts).toBe('number')
     expect(frame.payload.ts).toBeGreaterThan(0)
     sc.close()
