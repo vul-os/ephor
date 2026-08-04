@@ -11,7 +11,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricMessageDetail, type FabricStateDetail } from '../fabric.js'
+import { SignalingClient } from '../signaling.js'
 import { makeRelayBlob } from './_relayTestUtil.js'
 import { openRelayBlob } from '../relayBox.js'
 
@@ -21,9 +22,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[] | undefined
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols
     this.readyState = FakeWebSocket.CONNECTING
@@ -33,37 +41,55 @@ class FakeWebSocket {
     FakeWebSocket.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
-  _fire(evt, p) { for (const fn of (this._listeners[evt] || [])) fn(p) }
+  _fire(evt: string, p: unknown) { for (const fn of (this._listeners[evt] || [])) fn(p) }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
-  _message(frame) { this._fire('message', { data: JSON.stringify(frame) }) }
+  _message(frame: unknown) { this._fire('message', { data: JSON.stringify(frame) }) }
 }
 
 class FakeDC {
+  readyState: string
+  binaryType: string
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
   constructor() {
     this.readyState = 'connecting'
     this.binaryType = 'arraybuffer'
     this.sent = []
     this._listeners = {}
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  send(d) { this.sent.push(d) }
+  send(d: string) { this.sent.push(d) }
   close() { this.readyState = 'closed'; this._fire('close', {}) }
-  _fire(evt, p) { for (const fn of (this._listeners[evt] || [])) fn(p) }
+  _fire(evt: string, p: unknown) { for (const fn of (this._listeners[evt] || [])) fn(p) }
   _open() { this.readyState = 'open'; this._fire('open', {}) }
 }
 
+interface FakeSessionDescription {
+  type: string
+  sdp: string
+}
+
 class FakePC {
-  static instances = []
+  static instances: FakePC[] = []
+  static last: FakePC | null = null
+
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  connectionState: string
+  localDescription: FakeSessionDescription | null
+  remoteDescription: FakeSessionDescription | null
+  _dc: FakeDC
+
   constructor() {
     this._listeners = {}
     this.connectionState = 'connecting'
@@ -73,15 +99,15 @@ class FakePC {
     FakePC.instances.push(this)
     FakePC.last = this
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  _fire(evt, p) { for (const fn of (this._listeners[evt] || [])) fn(p) }
+  _fire(evt: string, p: unknown) { for (const fn of (this._listeners[evt] || [])) fn(p) }
   createOffer() { return Promise.resolve({ type: 'offer', sdp: 'v=0' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0' }) }
-  setLocalDescription(d) { this.localDescription = d; return Promise.resolve() }
-  setRemoteDescription(d) { this.remoteDescription = d; return Promise.resolve() }
+  setLocalDescription(d: FakeSessionDescription) { this.localDescription = d; return Promise.resolve() }
+  setRemoteDescription(d: FakeSessionDescription) { this.remoteDescription = d; return Promise.resolve() }
   addIceCandidate() { return Promise.resolve() }
   close() { this.connectionState = 'closed'; this._fire('connectionstatechange', {}) }
   createDataChannel() { return this._dc }
@@ -121,7 +147,7 @@ describe('FabricClient — relay fallback activation', () => {
   it('_activateRelay() transitions peer to relay state', async () => {
     const fc = makeFabric('a-local')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -131,10 +157,10 @@ describe('FabricClient — relay fallback activation', () => {
     })
     await flush()
 
-    const states = []
-    fc.addEventListener('state', ({ detail }) => states.push(detail))
+    const states: FabricStateDetail[] = []
+    fc.addEventListener('state', (ev) => states.push((ev as CustomEvent<FabricStateDetail>).detail))
 
-    const ps = fc._peers.get('z-remote')
+    const ps = fc._peers.get('z-remote')!
     fc._activateRelay('z-remote', ps)
 
     expect(ps.state).toBe('relay')
@@ -145,7 +171,7 @@ describe('FabricClient — relay fallback activation', () => {
   it('PC connectionState === "failed" triggers relay activation', async () => {
     const fc = makeFabric('a-local')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -155,9 +181,9 @@ describe('FabricClient — relay fallback activation', () => {
     })
     await flush()
 
-    const pc = FakePC.last
-    const states = []
-    fc.addEventListener('state', ({ detail }) => states.push(detail))
+    const pc = FakePC.last!
+    const states: FabricStateDetail[] = []
+    fc.addEventListener('state', (ev) => states.push((ev as CustomEvent<FabricStateDetail>).detail))
 
     pc._fail()
 
@@ -172,9 +198,10 @@ describe('FabricClient — relay fallback activation', () => {
     fc._peers.set('z-remote', {
       id: 'z-remote', state: 'disconnected', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
-    fc._activateRelay('z-remote', fc._peers.get('z-remote'))
+    fc._activateRelay('z-remote', fc._peers.get('z-remote')!)
 
     expect(fc._relayPollTimer).not.toBeNull()
     fc.leave()
@@ -185,17 +212,27 @@ describe('FabricClient — relay fallback activation', () => {
     await fc.join()
 
     // No relay peers → poll immediately clears the timer
-    fc._relayPollTimer = 999
+    fc._relayPollTimer = 999 as unknown as ReturnType<typeof setInterval>
     await fc._relayPoll()
     expect(fc._relayPollTimer).toBeNull()
     fc.leave()
   })
 })
 
+interface FetchOptsWithBody {
+  headers?: Record<string, string>
+  body?: string
+}
+
+interface DepositCall {
+  url: string | URL
+  opts?: FetchOptsWithBody
+}
+
 describe('FabricClient — relay deposit / pickup round-trip', () => {
   it('sendTo() a relay peer triggers _relayDeposit with correct auth', async () => {
-    const depositCalls = []
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    const depositCalls: DepositCall[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithBody) => {
       if (String(url).includes('deposit')) depositCalls.push({ url, opts })
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
@@ -213,19 +250,20 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     fc._peers.set('remote-peer', {
       id: 'remote-peer', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     // _relayDeposit needs the signing + box keys, and the recipient's box key
     // (fail-closed E2E: encrypt to the peer's announced X25519 key).
     await fc._ensureDepositKey()
-    fc._signaling._peerBoxKeys.set('remote-peer', fc._boxPubKeyB64)
+    ;(fc._signaling as SignalingClient)._peerBoxKeys.set('remote-peer', fc._boxPubKeyB64!)
     await fc._relayDeposit('remote-peer', 'hello-relay')
 
     expect(depositCalls).toHaveLength(1)
-    const { opts } = depositCalls[0]
-    expect(opts.headers['Authorization']).toBe('Bearer test-jwt')
+    const { opts } = depositCalls[0]!
+    expect(opts!.headers!['Authorization']).toBe('Bearer test-jwt')
 
-    const body = JSON.parse(opts.body)
+    const body = JSON.parse(opts!.body!)
     expect(body.to).toBe('remote-peer')
     expect(body.from).toBe('local-peer')
     expect(body.blob_b64).toBeTruthy()
@@ -236,9 +274,9 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
   })
 
   it('relay deposit payload is encrypted (not plaintext) and decrypts to the original', async () => {
-    const deposits = []
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
-      if (String(url).includes('deposit')) deposits.push(JSON.parse(opts.body))
+    const deposits: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithBody) => {
+      if (String(url).includes('deposit')) deposits.push(JSON.parse(opts!.body!))
       return { ok: true, json: async () => ({ ice_servers: [] }) }
     }))
 
@@ -251,11 +289,11 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
 
     await fc._ensureDepositKey()
     // Encrypt to ourselves so the test holds the box private key to decrypt.
-    fc._signaling._peerBoxKeys.set('remote', fc._boxPubKeyB64)
+    ;(fc._signaling as SignalingClient)._peerBoxKeys.set('remote', fc._boxPubKeyB64!)
     await fc._relayDeposit('remote', 'my-payload')
 
     expect(deposits).toHaveLength(1)
-    const body = deposits[0]
+    const body = deposits[0] as { blob_b64: string, epk: string }
 
     // The relay MUST NOT see plaintext: the base64 blob must not decode to JSON.
     let leaked = false
@@ -266,7 +304,7 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     // Authorised recipient decrypts with its box private key + the sender epk.
     const plaintext = openRelayBlob({
       blobB64: body.blob_b64,
-      recipientBoxPriv: fc._boxKeyPair.privateKey,
+      recipientBoxPriv: fc._boxKeyPair!.privateKey,
       senderBoxPubB64: body.epk,
       from: 'local', to: 'remote', session: 'sess-1',
     })
@@ -281,11 +319,11 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     await fc._ensureDepositKey()
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote-peer',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote-peer',
       session: 'sess-1', data: 'picked-up-data',
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return {
           ok: true,
@@ -301,16 +339,17 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     fc._peers.set('remote-peer', {
       id: 'remote-peer', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     await fc._relayPoll()
 
     expect(received).toHaveLength(1)
-    expect(received[0].from).toBe('remote-peer')
-    expect(received[0].data).toBe('picked-up-data')
+    expect(received[0]!.from).toBe('remote-peer')
+    expect(received[0]!.data).toBe('picked-up-data')
     fc.leave()
   })
 
@@ -319,12 +358,12 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     await fc._ensureDepositKey()
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote-peer',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote-peer',
       session: 'sess-1', data: 'x',
     })
 
-    const ackCalls = []
-    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    const ackCalls: Array<{ blob_ids: string[] }> = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL, opts?: FetchOptsWithBody) => {
       if (String(url).includes('pickup')) {
         return {
           ok: true,
@@ -334,7 +373,7 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
         }
       }
       if (String(url).includes('ack')) {
-        ackCalls.push(JSON.parse(opts.body))
+        ackCalls.push(JSON.parse(opts!.body!))
         return { ok: true }
       }
       return { ok: true, json: async () => ({ ice_servers: [] }) }
@@ -343,12 +382,13 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     fc._peers.set('remote-peer', {
       id: 'remote-peer', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
     await fc._relayPoll()
 
     expect(ackCalls).toHaveLength(1)
-    expect(ackCalls[0].blob_ids).toContain('blob-99')
+    expect(ackCalls[0]!.blob_ids).toContain('blob-99')
     fc.leave()
   })
 
@@ -357,11 +397,11 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     await fc._ensureDepositKey()
 
     const good = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote-peer',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote-peer',
       session: 'sess-1', data: 'ok',
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return {
           ok: true,
@@ -380,16 +420,17 @@ describe('FabricClient — relay deposit / pickup round-trip', () => {
     fc._peers.set('remote-peer', {
       id: 'remote-peer', state: 'relay', dc: null, pc: null,
       relayTimer: null, pendingCandidates: [], reset() {},
+      reinitTimer: null, reinitDelay: 0, left: false,
     })
 
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     await fc._relayPoll()
 
     // Only the valid blob delivers; malformed is skipped
     expect(received).toHaveLength(1)
-    expect(received[0].data).toBe('ok')
+    expect(received[0]!.data).toBe('ok')
     fc.leave()
   })
 })
@@ -400,7 +441,7 @@ describe('FabricClient — data channel close reconnect', () => {
     // reconnect setTimeout fires on a stopped client and does nothing.
     const fc = makeFabric('a-local')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -411,12 +452,12 @@ describe('FabricClient — data channel close reconnect', () => {
     await new Promise(r => setTimeout(r, 0))
     await new Promise(r => setTimeout(r, 0))
 
-    const pc = FakePC.last
+    const pc = FakePC.last!
     const dc = pc._dc
     dc._open()
 
-    const states = []
-    fc.addEventListener('state', ({ detail }) => states.push(detail))
+    const states: FabricStateDetail[] = []
+    fc.addEventListener('state', (ev) => states.push((ev as CustomEvent<FabricStateDetail>).detail))
 
     // dc.close() is synchronous: the close handler fires, _setPeerState is
     // called, and the reconnect setTimeout is queued. We stop the client
@@ -432,7 +473,7 @@ describe('FabricClient — data channel close reconnect', () => {
 
     const fc = makeFabric('a-local')
     await fc.join()
-    const ws = FakeWebSocket.last
+    const ws = FakeWebSocket.last!
     ws._open()
 
     ws._message({
@@ -443,17 +484,17 @@ describe('FabricClient — data channel close reconnect', () => {
     await Promise.resolve()
     await Promise.resolve()
 
-    const pc = FakePC.last
+    const pc = FakePC.last!
     const dc = pc._dc
     dc._open()
 
     // Peer is connected
-    expect(fc._peers.get('z-remote').state).toBe('connected')
+    expect(fc._peers.get('z-remote')!.state).toBe('connected')
 
     // Close the channel — should schedule reconnect
     dc.close()
     // Peer transitions to disconnected immediately
-    expect(fc._peers.get('z-remote').state).toBe('disconnected')
+    expect(fc._peers.get('z-remote')!.state).toBe('disconnected')
 
     // Stop before advancing timers to prevent infinite reconnect loop
     fc._stopped = true
