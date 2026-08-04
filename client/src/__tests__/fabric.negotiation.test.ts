@@ -19,7 +19,8 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { FabricClient } from '../fabric.js'
+import { FabricClient, type FabricMessageDetail, type FabricStateDetail, type PeerConnState } from '../fabric.js'
+import type { SignalPayload } from '../signaling.js'
 import { makeRelayBlob } from './_relayTestUtil.js'
 
 // ── Shared fake stubs (same shape as fabric.reconnect.test.js) ───────────────
@@ -28,9 +29,16 @@ class FakeWebSocket {
   static OPEN = 1
   static CONNECTING = 0
   static CLOSED = 3
-  static instances = []
+  static instances: FakeWebSocket[] = []
+  static last: FakeWebSocket | null = null
 
-  constructor(url, protocols) {
+  url: string
+  protocols: string[] | undefined
+  readyState: number
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
+  constructor(url: string, protocols?: string[]) {
     this.url = url
     this.protocols = protocols
     this.readyState = FakeWebSocket.CONNECTING
@@ -40,33 +48,43 @@ class FakeWebSocket {
     FakeWebSocket.last = this
   }
 
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
 
-  send(data) { this.sent.push(data) }
+  send(data: string) { this.sent.push(data) }
   close() { this.readyState = FakeWebSocket.CLOSED; this._fire('close', {}) }
-  _fire(evt, p) { for (const fn of (this._listeners[evt] || [])) fn(p) }
+  _fire(evt: string, p: unknown) { for (const fn of (this._listeners[evt] || [])) fn(p) }
   _open() { this.readyState = FakeWebSocket.OPEN; this._fire('open', {}) }
-  _message(frame) { this._fire('message', { data: JSON.stringify(frame) }) }
+  _message(frame: unknown) { this._fire('message', { data: JSON.stringify(frame) }) }
 }
 
 class FakeDC {
+  readyState: string
+  binaryType: string
+  sent: string[]
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+
   constructor() {
     this.readyState = 'connecting'
     this.binaryType = 'arraybuffer'
     this.sent = []
     this._listeners = {}
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  send(d) { this.sent.push(d) }
+  send(d: string) { this.sent.push(d) }
   close() { this.readyState = 'closed'; this._fire('close', {}) }
-  _fire(evt, p) { for (const fn of (this._listeners[evt] || [])) fn(p) }
+  _fire(evt: string, p: unknown) { for (const fn of (this._listeners[evt] || [])) fn(p) }
   _open() { this.readyState = 'open'; this._fire('open', {}) }
+}
+
+interface FakeSessionDescription {
+  type: string
+  sdp: string
 }
 
 /**
@@ -74,7 +92,17 @@ class FakeDC {
  * GLARE guard keys off 'have-local-offer', so the stub must model it.
  */
 class FakePC {
-  static instances = []
+  static instances: FakePC[] = []
+  static last: FakePC | null = null
+
+  _listeners: Record<string, Array<(payload: unknown) => void>>
+  connectionState: string
+  signalingState: string
+  localDescription: FakeSessionDescription | null
+  remoteDescription: FakeSessionDescription | null
+  closed: boolean
+  _dc: FakeDC
+
   constructor() {
     this._listeners = {}
     this.connectionState = 'connecting'
@@ -86,19 +114,19 @@ class FakePC {
     FakePC.instances.push(this)
     FakePC.last = this
   }
-  addEventListener(evt, fn) {
+  addEventListener(evt: string, fn: (payload: unknown) => void) {
     if (!this._listeners[evt]) this._listeners[evt] = []
     this._listeners[evt].push(fn)
   }
-  _fire(evt, p) { for (const fn of (this._listeners[evt] || [])) fn(p) }
+  _fire(evt: string, p: unknown) { for (const fn of (this._listeners[evt] || [])) fn(p) }
   createOffer() { return Promise.resolve({ type: 'offer', sdp: 'v=0-local-offer' }) }
   createAnswer() { return Promise.resolve({ type: 'answer', sdp: 'v=0-local-answer' }) }
-  setLocalDescription(d) {
+  setLocalDescription(d: FakeSessionDescription) {
     this.localDescription = d
     this.signalingState = d.type === 'offer' ? 'have-local-offer' : 'stable'
     return Promise.resolve()
   }
-  setRemoteDescription(d) {
+  setRemoteDescription(d: FakeSessionDescription) {
     this.remoteDescription = d
     this.signalingState = d.type === 'offer' ? 'have-remote-offer' : 'stable'
     return Promise.resolve()
@@ -114,7 +142,7 @@ class FakePC {
   _connect() { this.connectionState = 'connected'; this._fire('connectionstatechange', {}) }
 }
 
-function makeFabric(peerId) {
+function makeFabric(peerId: string) {
   return new FabricClient({
     sessionId: 'sess-1',
     peerId,
@@ -146,16 +174,17 @@ afterEach(() => {
 })
 
 /** Bring a fabric up with an open signaling socket and a signal() spy. */
-async function bootFabric(peerId) {
+async function bootFabric(peerId: string) {
   const fc = makeFabric(peerId)
   await fc.join()
-  const ws = FakeWebSocket.last
+  const ws = FakeWebSocket.last!
   ws._open()
   const signal = vi.spyOn(fc._signaling, 'signal').mockResolvedValue(undefined)
   return { fc, ws, signal }
 }
 
-const sentTypes = (signal) => signal.mock.calls.map(c => c[0])
+interface CallsHolder { mock: { calls: unknown[][] } }
+const sentTypes = (signal: CallsHolder) => signal.mock.calls.map(c => c[0])
 
 // ── 1. GLARE ────────────────────────────────────────────────────────────────
 
@@ -168,18 +197,18 @@ describe('FabricClient — GLARE tie-break on colliding offers', () => {
     ws._message({ channel: 'signal', from: 'z-remote', payload: { type: 'join', session: 'sess-1' } })
     await flush()
 
-    const ps = fc._peers.get('z-remote')
-    const ownPc = ps.pc
+    const ps = fc._peers.get('z-remote')!
+    const ownPc = ps.pc as unknown as FakePC
     expect(ownPc.signalingState).toBe('have-local-offer')
     expect(sentTypes(signal)).toEqual(['offer'])
     const pcCountBefore = FakePC.instances.length
 
     // The colliding offer arrives.
-    await fc._onSignal({ from: 'z-remote', payload: { type: 'offer', sdp: 'v=0-their-offer' } })
+    await fc._onSignal({ from: 'z-remote', payload: { type: 'offer', sdp: 'v=0-their-offer' } as SignalPayload })
     await flush()
 
     // Ignored: same pc, not reset, not closed, no new pc, and no answer sent.
-    expect(fc._peers.get('z-remote').pc).toBe(ownPc)
+    expect(fc._peers.get('z-remote')!.pc).toBe(ps.pc)
     expect(ownPc.closed).toBe(false)
     expect(ownPc.signalingState).toBe('have-local-offer')
     expect(ownPc.remoteDescription).toBeNull()
@@ -194,20 +223,20 @@ describe('FabricClient — GLARE tie-break on colliding offers', () => {
     const { fc, signal } = await bootFabric('z-local')
 
     // Put a local offer in flight by hand (over rendezvous both sides offer).
-    const ps = fc._getOrCreatePeer('a-remote')
-    const ownPc = fc._buildPC('a-remote', ps)
-    ps.pc = ownPc
+    const ps = fc._getOrCreatePeer('a-remote')!
+    const ownPc = fc._buildPC('a-remote', ps) as unknown as FakePC
+    ps.pc = ownPc as unknown as RTCPeerConnection
     await ownPc.setLocalDescription(await ownPc.createOffer())
     expect(ownPc.signalingState).toBe('have-local-offer')
 
-    await fc._onSignal({ from: 'a-remote', payload: { type: 'offer', sdp: 'v=0-their-offer' } })
+    await fc._onSignal({ from: 'a-remote', payload: { type: 'offer', sdp: 'v=0-their-offer' } as SignalPayload })
     await flush()
 
     // Rolled back: the old pc was reset()/closed and replaced, and we answered.
     expect(ownPc.closed).toBe(true)
-    expect(fc._peers.get('a-remote').pc).not.toBe(ownPc)
+    expect(fc._peers.get('a-remote')!.pc).not.toBe(ownPc)
     expect(sentTypes(signal)).toContain('answer')
-    expect(fc._peers.get('a-remote').state).toBe('connecting')
+    expect(fc._peers.get('a-remote')!.state).toBe('connecting')
 
     fc.leave()
   })
@@ -221,17 +250,17 @@ describe('FabricClient — GLARE tie-break on colliding offers', () => {
     // Both put an offer in flight.
     impolite.ws._message({ channel: 'signal', from: 'z-peer', payload: { type: 'join', session: 'sess-1' } })
     await flush()
-    const impolitePs = impolite.fc._peers.get('z-peer')
-    const impolitePc = impolitePs.pc
+    const impolitePs = impolite.fc._peers.get('z-peer')!
+    const impolitePc = impolitePs.pc as unknown as FakePC
 
-    const politePs = polite.fc._getOrCreatePeer('a-peer')
-    const politePc = polite.fc._buildPC('a-peer', politePs)
-    politePs.pc = politePc
+    const politePs = polite.fc._getOrCreatePeer('a-peer')!
+    const politePc = polite.fc._buildPC('a-peer', politePs) as unknown as FakePC
+    politePs.pc = politePc as unknown as RTCPeerConnection
     await politePc.setLocalDescription(await politePc.createOffer())
 
     // Each receives the other's offer.
-    await impolite.fc._onSignal({ from: 'z-peer', payload: { type: 'offer', sdp: 'from-z' } })
-    await polite.fc._onSignal({ from: 'a-peer', payload: { type: 'offer', sdp: 'from-a' } })
+    await impolite.fc._onSignal({ from: 'z-peer', payload: { type: 'offer', sdp: 'from-z' } as SignalPayload })
+    await polite.fc._onSignal({ from: 'a-peer', payload: { type: 'offer', sdp: 'from-a' } as SignalPayload })
     await flush()
 
     const answered = [
@@ -242,7 +271,7 @@ describe('FabricClient — GLARE tie-break on colliding offers', () => {
     expect(answered).toEqual([false, true])            // and it is the polite one
 
     // The impolite side's own offer is the survivor.
-    expect(impolite.fc._peers.get('z-peer').pc).toBe(impolitePc)
+    expect(impolite.fc._peers.get('z-peer')!.pc).toBe(impolitePc)
     expect(impolitePc.closed).toBe(false)
     expect(politePc.closed).toBe(true)
 
@@ -254,11 +283,11 @@ describe('FabricClient — GLARE tie-break on colliding offers', () => {
     // Impolite side, but with NO local offer in flight — the guard must not fire.
     const { fc, signal } = await bootFabric('a-local')
 
-    await fc._onSignal({ from: 'z-remote', payload: { type: 'offer', sdp: 'v=0-their-offer' } })
+    await fc._onSignal({ from: 'z-remote', payload: { type: 'offer', sdp: 'v=0-their-offer' } as SignalPayload })
     await flush()
 
     expect(sentTypes(signal)).toEqual(['answer'])
-    const ps = fc._peers.get('z-remote')
+    const ps = fc._peers.get('z-remote')!
     expect(ps.pc).not.toBeNull()
     expect(ps.state).toBe('connecting')
 
@@ -270,12 +299,12 @@ describe('FabricClient — GLARE tie-break on colliding offers', () => {
     // impolite side — only 'have-local-offer' counts as a collision.
     const { fc, signal } = await bootFabric('a-local')
 
-    const ps = fc._getOrCreatePeer('z-remote')
-    const stalePc = fc._buildPC('z-remote', ps)
-    ps.pc = stalePc
+    const ps = fc._getOrCreatePeer('z-remote')!
+    const stalePc = fc._buildPC('z-remote', ps) as unknown as FakePC
+    ps.pc = stalePc as unknown as RTCPeerConnection
     stalePc.signalingState = 'stable'
 
-    await fc._onSignal({ from: 'z-remote', payload: { type: 'offer', sdp: 'v=0-renegotiate' } })
+    await fc._onSignal({ from: 'z-remote', payload: { type: 'offer', sdp: 'v=0-renegotiate' } as SignalPayload })
     await flush()
 
     expect(sentTypes(signal)).toContain('answer')
@@ -292,11 +321,11 @@ async function bootConnectedPeer(peerId = 'a-local', remoteId = 'z-remote') {
   const { fc, ws, signal } = await bootFabric(peerId)
   ws._message({ channel: 'signal', from: remoteId, payload: { type: 'join', session: 'sess-1' } })
   await flush()
-  const pc = FakePC.last
+  const pc = FakePC.last!
   const dc = pc._dc
   dc._open()
-  expect(fc._peers.get(remoteId).state).toBe('connected')
-  return { fc, ws, signal, pc, dc, ps: fc._peers.get(remoteId) }
+  expect(fc._peers.get(remoteId)!.state).toBe('connected')
+  return { fc, ws, signal, pc, dc, ps: fc._peers.get(remoteId)! }
 }
 
 describe('FabricClient — persistent reconnect with exponential back-off', () => {
@@ -426,8 +455,21 @@ describe('FabricClient — persistent reconnect with exponential back-off', () =
 
 // ── 3. RELAY SYMMETRY ───────────────────────────────────────────────────────
 
+interface FakePeerState {
+  id: string
+  state: PeerConnState
+  dc: RTCDataChannel | null
+  pc: RTCPeerConnection | null
+  relayTimer: ReturnType<typeof setTimeout> | null
+  pendingCandidates: RTCIceCandidateInit[]
+  reset(): void
+  reinitTimer: ReturnType<typeof setTimeout> | null
+  reinitDelay: number
+  left: boolean
+}
+
 /** A plain peer-state literal, as the other relay tests use. */
-function relayPeerLiteral(id, state) {
+function relayPeerLiteral(id: string, state: PeerConnState): FakePeerState {
   return {
     id, state, dc: null, pc: null,
     relayTimer: null, reinitTimer: null, reinitDelay: 0, left: false,
@@ -458,8 +500,8 @@ describe('FabricClient — relay-circuit symmetry', () => {
     const fc = makeFabric('local-peer')
     await fc.join()
 
-    const pickups = []
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const pickups: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         pickups.push(String(url))
         return { ok: true, json: async () => ({ blobs: [] }) }
@@ -468,7 +510,7 @@ describe('FabricClient — relay-circuit symmetry', () => {
     }))
 
     fc._peers.set('z-remote', relayPeerLiteral('z-remote', 'connecting'))
-    fc._relayPollTimer = 999
+    fc._relayPollTimer = 999 as unknown as ReturnType<typeof setInterval>
 
     await fc._relayPoll()
 
@@ -483,7 +525,7 @@ describe('FabricClient — relay-circuit symmetry', () => {
     await fc.join()
 
     fc._peers.set('z-remote', relayPeerLiteral('z-remote', 'connected'))
-    fc._relayPollTimer = 999
+    fc._relayPollTimer = 999 as unknown as ReturnType<typeof setInterval>
     await fc._relayPoll()
     expect(fc._relayPollTimer).toBeNull()
 
@@ -495,11 +537,11 @@ describe('FabricClient — relay-circuit symmetry', () => {
     await fc._ensureDepositKey()
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote-peer',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote-peer',
       session: 'sess-1', data: 'over-the-circuit',
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b-1', from: 'remote-peer', blob_b64, epk }] }) }
       }
@@ -511,10 +553,10 @@ describe('FabricClient — relay-circuit symmetry', () => {
     ps.relayTimer = setTimeout(() => {}, 60_000)
     fc._peers.set('remote-peer', ps)
 
-    const states = []
-    fc.addEventListener('state', ({ detail }) => states.push(detail))
-    const received = []
-    fc.addEventListener('message', ({ detail }) => received.push(detail))
+    const states: FabricStateDetail[] = []
+    fc.addEventListener('state', (ev) => states.push((ev as CustomEvent<FabricStateDetail>).detail))
+    const received: FabricMessageDetail[] = []
+    fc.addEventListener('message', (ev) => received.push((ev as CustomEvent<FabricMessageDetail>).detail))
 
     await fc._relayPoll()
 
@@ -536,11 +578,11 @@ describe('FabricClient — relay-circuit symmetry', () => {
     await fc._ensureDepositKey()
 
     const { blob_b64, epk } = makeRelayBlob({
-      recipientBoxPubB64: fc._boxPubKeyB64, to: 'local-peer', from: 'remote-peer',
+      recipientBoxPubB64: fc._boxPubKeyB64!, to: 'local-peer', from: 'remote-peer',
       session: 'sess-1', data: 'late-blob',
     })
 
-    vi.stubGlobal('fetch', vi.fn(async (url) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => {
       if (String(url).includes('pickup')) {
         return { ok: true, json: async () => ({ blobs: [{ id: 'b-2', from: 'remote-peer', blob_b64, epk }] }) }
       }
