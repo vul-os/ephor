@@ -1,0 +1,327 @@
+#!/usr/bin/env node
+/**
+ * check-lint-config.mjs — CI gate that proves the lint config actually does
+ * what it claims, instead of trusting that it says the right words.
+ *
+ * Why this exists: two real failures across this 13-repo programme would
+ * both have been caught here.
+ *   1. A repo ran untyped `tseslint.configs.recommended` while reporting full
+ *      file coverage — "352 files linted, 0 errors" looks identical whether
+ *      type-aware rules (no-floating-promises, no-misused-promises, the
+ *      no-unsafe-* family) are wired up or entirely absent.
+ *   2. A repo's package.json had `"typescript": "^6.0.3"`; npm resolved
+ *      7.0.2, on which typescript-eslint cannot load at all (native rewrite,
+ *      classic Compiler API gone). Install succeeded, lint enforced nothing.
+ *
+ * So every assertion here is BEHAVIOURAL: it runs the real tools and checks
+ * what they actually did, never what the config file merely says.
+ *   - Do NOT grep eslint.config.js for "recommendedTypeChecked" — a config
+ *     can name that preset and still resolve no type information.
+ *   - Do NOT assert on no-unused-vars — it fires untyped and proves nothing
+ *     about type-awareness. no-floating-promises requires real type info
+ *     (it has to know probeAsync() returns a Promise), so it's the one rule
+ *     in the recommended-type-checked set that can't false-positive its way
+ *     to a pass.
+ *
+ * ---------------------------------------------------------------------------
+ * PIER FORK NOTE (this file is console/'s copy): pier has TWO independent
+ * frontend roots — client/ (npm, plain TS) and console/ (pnpm, Svelte). This
+ * copy is pointed at console/ and, unlike client/'s copy, its probe fixture
+ * is a `.svelte` FILE, not a `.ts` file — deliberately.
+ *
+ * console/eslint.config.js applies typescript-eslint's recommendedTypeChecked
+ * to `src/**\/*.ts` AND `**\/*.svelte` in the SAME config block, via
+ * svelte-eslint-parser + `parserOptions.parser: tseslint.parser` +
+ * `projectService: true`. A `.ts` fixture would only prove the plain-TS path
+ * — which client/'s copy already proves, on a different eslint.config.js —
+ * and would say nothing about whether type info actually reaches INSIDE a
+ * `.svelte` `<script lang="ts">` block. That bridge is the one piece of
+ * config that is unique to console and the one most likely to silently
+ * break (e.g. if `parserOptions.parser` were dropped, or svelte-eslint-parser
+ * stopped forwarding to it): the file would still lint as valid Svelte
+ * markup, `.svelte` files would still show up in `eslint .`'s file count for
+ * assertion C, and only a rule that genuinely needs resolved type
+ * information would go silent. A `.ts` fixture cannot catch that. So this
+ * fixture is `.svelte` with a `<script lang="ts">` floating promise — the
+ * harder, more specific path that this repo actually needs to prove live.
+ * Verified manually before wiring this in: `no-floating-promises` fires on
+ * `src/__lint_config_gate_probe.svelte` under the real config.
+ * ---------------------------------------------------------------------------
+ */
+
+import { ESLint } from 'eslint'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// ============================================================================
+// CONFIG — the only block a sibling repo should need to edit.
+// ============================================================================
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
+
+const CONFIG = {
+  // Root of the frontend project — where eslint.config.js, tsconfig.json and
+  // package.json for the app live, and the cwd ESLint runs from.
+  webRoot: path.resolve(SCRIPT_DIR, '..'),
+
+  // Directory (relative to webRoot) that tsconfig.app.json's "include"
+  // covers: `["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]`. Fixture is
+  // a .svelte file — see the file-header note on why.
+  fixtureDir: 'src',
+  fixtureName: '__lint_config_gate_probe.svelte',
+
+  // Repo root to walk for package.json files (assertion B). Pier's repo root
+  // is one level up from console/ — this also picks up client/package.json
+  // and the root package.json in the same sweep, so running this assertion
+  // from BOTH client/ and console/ copies is intentionally redundant: either
+  // one alone would already catch a bad pin anywhere in the tree.
+  repoRoot: path.resolve(SCRIPT_DIR, '..', '..'),
+
+  // Directory names to prune anywhere in the walk (assertion B).
+  excludeDirNames: new Set(['node_modules', 'dist', 'dist-lib', 'dist-harness', 'build', 'target', '.git', 'out']),
+
+  // Minimum number of files `eslint .` must report linting from webRoot
+  // (assertion C). Measured today: `eslint .` from console/ lints 33 files
+  // (11 .svelte + 15 .ts + configs; 0 errors, 4 warnings).
+  coverageFloor: 25,
+}
+
+// A genuine floating promise inside a `<script lang="ts">` block. If
+// @typescript-eslint/no-floating-promises does not fire on this file,
+// type-aware linting is not reaching inside .svelte script blocks.
+const FIXTURE_SOURCE = `<script lang="ts">
+  async function probeAsync(): Promise<number> {
+    return 1
+  }
+
+  function probeFloating() {
+    probeAsync()
+  }
+</script>
+
+<div>probe</div>
+`
+
+const failures = []
+let lastPing = Date.now()
+
+/** Watchdog heartbeat: print progress at least every ~30s of wall time. */
+function tick(label) {
+  const now = Date.now()
+  if (now - lastPing >= 15_000) {
+    console.log(`  ... ${label}`)
+    lastPing = now
+  }
+}
+
+function fail(id, message) {
+  failures.push({ id, message })
+  console.log(`FAIL [${id}] ${message}`)
+}
+
+function pass(id, message) {
+  console.log(`PASS [${id}] ${message}`)
+}
+
+// ============================================================================
+// Assertion A — type-awareness is live.
+// ============================================================================
+async function assertTypeAwarenessLive() {
+  console.log('\n-- Assertion A: type-aware linting actually resolves type information --')
+
+  const fixturePath = path.join(CONFIG.webRoot, CONFIG.fixtureDir, CONFIG.fixtureName)
+
+  if (existsSync(fixturePath)) {
+    fail(
+      'A',
+      `stale probe fixture already present at ${fixturePath}. Refusing to run — ` +
+        `a previous run may have crashed before cleanup. Remove it by hand and re-run.`,
+    )
+    return
+  }
+
+  let written = false
+  try {
+    mkdirSync(path.dirname(fixturePath), { recursive: true })
+    writeFileSync(fixturePath, FIXTURE_SOURCE)
+    written = true
+    tick('probe fixture written, linting it')
+
+    const eslint = new ESLint({ cwd: CONFIG.webRoot })
+    const relPath = path.relative(CONFIG.webRoot, fixturePath)
+    const results = await eslint.lintFiles([relPath])
+    const messages = results.flatMap((r) => r.messages)
+    const hit = messages.find((m) => m.ruleId === '@typescript-eslint/no-floating-promises')
+
+    if (hit) {
+      pass('A', '@typescript-eslint/no-floating-promises fired on the probe fixture (.svelte <script lang="ts">) — type info is live inside Svelte script blocks.')
+    } else {
+      const ruleIds = [...new Set(messages.map((m) => m.ruleId).filter(Boolean))]
+      fail(
+        'A',
+        'no-floating-promises did NOT fire on a genuine floating promise inside a .svelte <script lang="ts"> block. ' +
+          `Type-aware linting is not actually reaching Svelte script blocks (rules that did fire: ${ruleIds.join(', ') || 'none'}). ` +
+          `Checked file: ${relPath}`,
+      )
+    }
+  } finally {
+    if (written) {
+      rmSync(fixturePath, { force: true })
+    }
+  }
+}
+
+// ============================================================================
+// Assertion B — TypeScript is pinned exactly, and node_modules agrees.
+// ============================================================================
+const EXACT_SEMVER = /^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/
+
+function walkForPackageJsons(dir, out = []) {
+  let entries
+  try {
+    entries = readdirSync(dir, { withFileTypes: true })
+  } catch {
+    return out
+  }
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) {
+      if (CONFIG.excludeDirNames.has(entry.name)) continue
+      walkForPackageJsons(full, out)
+    } else if (entry.isFile() && entry.name === 'package.json') {
+      out.push(full)
+    }
+  }
+  return out
+}
+
+function resolveInstalledTypescriptVersion(startDir) {
+  // Walk upward from the package.json's own directory looking for
+  // node_modules/typescript — handles both a locally-installed typescript
+  // and a hoisted workspace install, without assuming a workspace exists.
+  let dir = startDir
+  for (let i = 0; i < 6; i++) {
+    const candidate = path.join(dir, 'node_modules', 'typescript', 'package.json')
+    if (existsSync(candidate)) {
+      try {
+        const pkg = JSON.parse(readFileSync(candidate, 'utf8'))
+        return pkg.version
+      } catch {
+        return null
+      }
+    }
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
+function assertTypescriptPinned() {
+  console.log('\n-- Assertion B: typescript is pinned to an exact version, and node_modules agrees --')
+
+  const packageJsons = walkForPackageJsons(CONFIG.repoRoot)
+  tick(`scanning ${packageJsons.length} package.json files`)
+
+  let checked = 0
+  let ok = true
+
+  for (const pkgPath of packageJsons) {
+    let pkg
+    try {
+      pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
+    } catch (err) {
+      fail('B', `${pkgPath}: could not parse as JSON (${err.message})`)
+      ok = false
+      continue
+    }
+
+    const depFields = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']
+    let spec = null
+    for (const field of depFields) {
+      if (pkg[field] && typeof pkg[field].typescript === 'string') {
+        spec = pkg[field].typescript
+        break
+      }
+    }
+    if (spec === null) continue // this package.json has no typescript dependency at all
+
+    checked++
+    const rel = path.relative(CONFIG.repoRoot, pkgPath)
+
+    if (!EXACT_SEMVER.test(spec)) {
+      fail('B', `${rel}: typescript is "${spec}" — not an exact pin (ranges/carets/wildcards are how a repo silently resolves an untested TS major).`)
+      ok = false
+      continue
+    }
+
+    const resolved = resolveInstalledTypescriptVersion(path.dirname(pkgPath))
+    if (resolved === null) {
+      fail('B', `${rel}: typescript is pinned to "${spec}" but no installed node_modules/typescript was found to verify it against.`)
+      ok = false
+      continue
+    }
+    if (resolved !== spec) {
+      fail('B', `${rel}: package.json pins typescript "${spec}" but the resolved/installed version is "${resolved}" — stale node_modules or lockfile.`)
+      ok = false
+      continue
+    }
+
+    pass('B', `${rel}: typescript exactly pinned at "${spec}", and node_modules/typescript resolves to the same version.`)
+  }
+
+  if (checked === 0) {
+    fail('B', `no package.json under ${CONFIG.repoRoot} declares a typescript dependency at all — expected at least one (${path.relative(CONFIG.repoRoot, CONFIG.webRoot)}/package.json).`)
+    ok = false
+  }
+
+  return ok
+}
+
+// ============================================================================
+// Assertion C — ESLint actually lints a real number of files.
+// ============================================================================
+async function assertCoverageFloor() {
+  console.log('\n-- Assertion C: ESLint actually lints a real number of files --')
+
+  const eslint = new ESLint({ cwd: CONFIG.webRoot, errorOnUnmatchedPattern: false })
+  const results = await eslint.lintFiles(['.'])
+  tick(`eslint . returned ${results.length} results`)
+
+  const lintedCount = results.length
+
+  if (lintedCount < CONFIG.coverageFloor) {
+    fail(
+      'C',
+      `eslint . linted only ${lintedCount} file(s), below the floor of ${CONFIG.coverageFloor}. ` +
+        `A glob that stops matching still exits 0 with zero files linted — this is the exact ` +
+        `failure mode this assertion exists to catch.`,
+    )
+  } else {
+    pass('C', `eslint . linted ${lintedCount} file(s) (floor: ${CONFIG.coverageFloor}).`)
+  }
+}
+
+// ============================================================================
+// main
+// ============================================================================
+async function main() {
+  console.log(`check-lint-config: webRoot=${CONFIG.webRoot}`)
+
+  await assertTypeAwarenessLive()
+  assertTypescriptPinned()
+  await assertCoverageFloor()
+
+  console.log('')
+  if (failures.length > 0) {
+    console.log(`check-lint-config: ${failures.length} failure(s).`)
+    process.exitCode = 1
+  } else {
+    console.log('check-lint-config: all assertions passed.')
+  }
+}
+
+main().catch((err) => {
+  console.error('check-lint-config: crashed —', err)
+  process.exitCode = 1
+})
