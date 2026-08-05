@@ -29,12 +29,16 @@ export default defineConfig([
     rules: {
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-      // Best-effort teardown/cleanup (`try { pc.close() } catch {}`) appears 9x
+      // Best-effort teardown/cleanup (`try { pc.close() } catch {}`) appears 8x
       // across call/rtc.ts and call/fabricSignaling.ts: closing an already-closed
       // RTCPeerConnection/BroadcastChannel/track is expected, not exceptional, and
       // there is nothing useful to do with the error at a cleanup call site. This
       // is the option the rule ships for exactly that idiom, not a blanket
-      // disable — empty if/for/while blocks elsewhere still error.
+      // disable — empty if/for/while blocks elsewhere still error. (A 9th
+      // site, rtc.ts's `this._audioCtx?.close()`, was moved OFF this idiom
+      // during the type-aware lint pass: AudioContext.close() is async, so a
+      // sync try/catch never actually caught its rejection — it now uses
+      // `.catch()` instead, see rtc.ts's leave().)
       'no-empty': ['error', { allowEmptyCatch: true }],
     },
   },

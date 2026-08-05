@@ -166,7 +166,7 @@ class PeerConn {
           // Tear down and rebuild forcing TURN relay — Pier relay fallback.
           console.warn('[call] ICE failed; retrying via TURN relay for', this.remotePeerId)
           this.usingRelay = true
-          this._rebuild(true)
+          this._rebuild(true).catch((e) => console.warn('[call] ICE rebuild failed', e))
         } else {
           this.call._notifyPeer(this.remotePeerId)
         }
@@ -175,7 +175,7 @@ class PeerConn {
         this._iceFailTimer = setTimeout(() => {
           if (this.pc && (this.pc.iceConnectionState === 'disconnected' || this.pc.iceConnectionState === 'failed')) {
             this.usingRelay = true
-            this._rebuild(true)
+            this._rebuild(true).catch((e) => console.warn('[call] ICE rebuild failed', e))
           }
         }, ICE_FAIL_GRACE_MS)
       }
@@ -226,7 +226,7 @@ class PeerConn {
 
   async handleSignal(msg: CallSignalMessage): Promise<void> {
     if (msg.kind === 'sdp') {
-      const desc = msg.data as unknown as RTCSessionDescriptionInit
+      const desc = msg.data as RTCSessionDescriptionInit
       try {
         const offerCollision =
           desc.type === 'offer' && (this._makingOffer || this.pc!.signalingState !== 'stable')
@@ -246,7 +246,7 @@ class PeerConn {
       }
     } else if (msg.kind === 'ice') {
       try {
-        if (!this._ignoreOffer) await this.pc!.addIceCandidate(msg.data as unknown as RTCIceCandidateInit)
+        if (!this._ignoreOffer) await this.pc!.addIceCandidate(msg.data as RTCIceCandidateInit)
       } catch (err) {
         console.warn('ice handle failed', err)
       }
@@ -256,7 +256,10 @@ class PeerConn {
   replaceVideoTrack(newTrack: MediaStreamTrack): void {
     if (!this.pc) return
     const sender = this.pc.getSenders().find((s) => s.track && s.track.kind === 'video')
-    if (sender) sender.replaceTrack(newTrack)
+    // replaceTrack() is async and can reject (e.g. mid-renegotiation); a
+    // rejection here must not vanish as an unhandled rejection during a live
+    // call — surface it so callers at least see the swap failed.
+    if (sender) sender.replaceTrack(newTrack).catch((e) => console.warn('[call] replaceVideoTrack failed', e))
   }
 
   close(): void {
@@ -530,7 +533,7 @@ class Call extends Emitter<CallEvents> {
       if (!pc.pc) continue
       const existingScreenSender = pc.pc.getSenders().find((s) => (s as ScreenSender)._isScreen)
       if (existingScreenSender) {
-        existingScreenSender.replaceTrack(screenTrack)
+        existingScreenSender.replaceTrack(screenTrack).catch((e) => console.warn('[call] screen-share replaceTrack failed', e))
       } else {
         const sender = pc.pc.addTrack(screenTrack, displayStream) as ScreenSender
         sender._isScreen = true
@@ -585,7 +588,11 @@ class Call extends Emitter<CallEvents> {
     this.session = null
     try { this.localStream?.getTracks().forEach((t) => t.stop()) } catch {}
     this.localStream = null
-    try { this._audioCtx?.close() } catch {}
+    // AudioContext.close() is ASYNC (unlike the other teardown calls in this
+    // method) — a synchronous try/catch here does not actually catch a
+    // rejection, so this uses .catch() instead of the try/catch idiom used
+    // for the genuinely-synchronous teardown calls around it.
+    this._audioCtx?.close().catch(() => { /* already closed / browser refused — non-fatal on teardown */ })
     this._audioCtx = null
     this._setState('closed')
   }
