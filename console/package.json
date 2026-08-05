@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "lint": "eslint .",
     "check:lint-config": "node scripts/check-lint-config.mjs",
     "check:brand": "bash scripts/check-brand-isolation.sh",
     "check:brand:mutate": "bash scripts/mutation-test-brand-isolation.sh",
