@@ -297,7 +297,11 @@ function readCache(): EndpointPair | null {
   try {
     const raw = typeof localStorage !== 'undefined' && localStorage.getItem(_lsKey)
     if (!raw) return null
-    const v = JSON.parse(raw)
+    // Boundary cast: this is exactly what writeCache() below wrote, but
+    // localStorage is an untyped string store and a poisoned/foreign value
+    // is exactly the case the isSafeEndpointScheme() validation below exists
+    // to catch, so the assumed shape is deliberately loose (Partial).
+    const v = JSON.parse(raw) as Partial<EndpointPair>
     if (v && typeof v === 'object') {
       // Validate on read: a poisoned cache must not feed an unsafe base URL into
       // the credentialed probe. Anything that isn't '' or a well-formed
@@ -517,7 +521,15 @@ if (typeof window !== 'undefined' && window.addEventListener) {
     if (_reselectTimer !== null) clearTimeout(_reselectTimer)
     _reselectTimer = setTimeout(() => {
       _reselectTimer = null
-      selectEndpoint({ force: true })
+      // offlineBootstrap.ts's own selectEndpoint() call already guards with
+      // .catch(() => {}); this call site didn't. NOTE: selectEndpoint() has a
+      // separate, deeper issue this .catch() does not address — if probe()
+      // ever throws (not just resolves false), `_state.selecting` is left
+      // holding the rejected promise forever (it's only cleared on the
+      // success path), so every subsequent call returns that same rejected
+      // promise until reload. Out of scope here (a state-machine bug, not an
+      // unhandled-promise one) — flagged for a follow-up.
+      selectEndpoint({ force: true }).catch(() => {})
     }, RESELECT_DEBOUNCE_MS)
   }
   window.addEventListener('online', reselect)
