@@ -29,7 +29,7 @@ import { SignalingClient, type SignalPayload, type SignedPreKeyAnnouncement } fr
 import { fetchIce, resolveStunFallback } from './call/ice.js'
 import {
   generateBoxKeyPair, sealRelayBlob, openRelayBlob,
-  bytesToB64, b64ToBytes,
+  b64ToBytes,
   relayBlobVersion, sealRelayBlobV2, parseRelayBlobV2, openRelayBlobV2,
   type BoxKeyPair,
 } from './relayBox.js'

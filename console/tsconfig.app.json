@@ -20,7 +20,14 @@
      */
     "allowJs": true,
     "checkJs": true,
-    "moduleDetection": "force"
+    "moduleDetection": "force",
+    /* Measured in isolation before enabling (see lint-eslint branch history):
+       noUncheckedIndexedAccess surfaced 2 errors in 2 files, exactOptionalPropertyTypes
+       surfaced 0. Both are cheap here, unlike client/ where exactOptionalPropertyTypes
+       hits a kotva-pinned file and noUncheckedIndexedAccess surfaces real
+       behavioural-judgement call sites, so client/ keeps neither. */
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
   },
   "include": ["src/**/*.ts", "src/**/*.js", "src/**/*.svelte"]
 }

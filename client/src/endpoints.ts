@@ -73,7 +73,7 @@ let _allowedProbeHosts: string[] = []
 // Hosts learned from a trusted BackendTarget via seedFromResolveBackend() (the
 // cloud control plane's /api/resolve/backend response). These are as trusted as
 // injected/env endpoints for the purpose of the credentialed-probe allowlist.
-let _seededHosts: string[] = []
+const _seededHosts: string[] = []
 
 // How long a health-probe may take before the endpoint is considered down.
 const HEALTH_TIMEOUT_MS = 2_500

@@ -68,7 +68,7 @@ function makeRegistration(): FakeRegistration {
     _fireUpdateFound(newWorker: FakeWorker) {
       installing = newWorker
       reg.installing = newWorker
-      listeners.updatefound && listeners.updatefound()
+      if (listeners.updatefound) listeners.updatefound()
     },
     _installing() { return installing },
   }

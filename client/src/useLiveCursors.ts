@@ -126,7 +126,7 @@ export function useLiveCursors({ fabric, localIdentity, color }: UseLiveCursorsO
 
     fabric.addEventListener('message', onMessage)
     return () => fabric.removeEventListener('message', onMessage)
-  }, [fabric]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fabric])
 
   // Internal: send a cursor frame immediately or schedule one.
   const _sendCursor = useCallback((payload: CursorPayload) => {

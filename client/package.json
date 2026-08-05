@@ -153,16 +153,20 @@
     }
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@types/node": "^20.19.43",
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^6.0.1",
+    "eslint": "^10.8.0",
+    "globals": "^17.9.0",
     "jsdom": "^29.1.1",
     "license-checker-rseidelsohn": "^5.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "typescript": "^5.9.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.66.0",
     "vite": "^8.0.1",
     "vitest": "^4.1.7",
     "xlsx": "^0.18.5"
