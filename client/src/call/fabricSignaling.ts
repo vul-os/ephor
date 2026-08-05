@@ -74,6 +74,18 @@ function _newPeerId(identity: CallIdentity | null | undefined): string {
   return identity?.peerId || (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()))
 }
 
+// Mirrors endpoints.ts's readEnv() / ice.ts's _readEnv(): import.meta.env is
+// typed as an open-ended dictionary (ImportMetaEnv's index signature is
+// `any`), so the cast is applied once here rather than left implicit at the
+// call site — the same pattern already used by this file's two siblings.
+function _readEnv(name: string): string {
+  try {
+    return (import.meta && import.meta.env && (import.meta.env as Record<string, string>)[name]) || ''
+  } catch {
+    return ''
+  }
+}
+
 /**
  * Resolve a peering WebSocket URL from the environment.
  *
@@ -90,11 +102,7 @@ function _resolveSignalingUrl(): string | null {
     const injected = typeof window !== 'undefined' && window.__VULOS_ENDPOINTS__
     if (injected && injected.signalingUrl) return injected.signalingUrl
 
-    const envUrl =
-      (typeof import.meta !== 'undefined' &&
-        import.meta.env &&
-        import.meta.env.VITE_SIGNALING_URL) ||
-      ''
+    const envUrl = _readEnv('VITE_SIGNALING_URL')
     if (envUrl) return envUrl
 
     // Derive from the page origin — works when the SDK is loaded from the OS
@@ -193,7 +201,11 @@ async function networkSession(sessionId: string, identity: CallIdentity | null, 
   sc.addEventListener('signaling-open', () => {
     setState('connected')
     // Announce ourselves so peers already in the session learn about us.
-    sc.signal('join', null, { identity })
+    // signal() is async (signs the frame); fire-and-forget from this sync
+    // listener, but a signing failure must not vanish silently (see
+    // signaling.js:335 in the pinned substrate for the bug this guards
+    // against).
+    sc.signal('join', null, { identity }).catch(err => console.warn('[fabricSignaling] join signal error:', err))
   })
 
   sc.addEventListener('signaling-close', () => {
@@ -222,8 +234,8 @@ async function networkSession(sessionId: string, identity: CallIdentity | null, 
     const msg: CallSignalMessage = {
       kind: payload.type,    // 'sdp', 'ice', 'screen-share', etc.
       from,
-      to: (payload.to as string | null | undefined) || null,
-      data: (payload.data as Record<string, unknown> | undefined) || {},
+      to: payload.to || null,
+      data: payload.data || {},
       identity: (payload.identity as CallIdentity | undefined) || null,
     }
     em.emit('message', msg)
@@ -258,7 +270,10 @@ async function networkSession(sessionId: string, identity: CallIdentity | null, 
         if (data?.sdp)       extra.sdp       = data.sdp
         if (data?.candidate) extra.candidate = data.candidate
       }
-      sc.signal(msg.kind, msg.to || null, extra)
+      // Fire-and-forget: send() is a sync void method per the CallSession
+      // interface, matching networkSession's WS transport underneath — but a
+      // signing failure still needs to reach the console instead of vanishing.
+      sc.signal(msg.kind, msg.to || null, extra).catch(err => console.warn('[fabricSignaling] send signal error:', err))
     },
 
     on: em.on.bind(em),
@@ -314,7 +329,7 @@ function bcSession(sessionId: string, identity: CallIdentity | null): CallSessio
       return
     }
     if (m.to && m.to !== peerId) return
-    em.emit('message', m as CallSignalMessage)
+    em.emit('message', m)
   }
 
   // Announce after the current microtask — identical timing to the WS path.
