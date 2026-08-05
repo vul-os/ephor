@@ -19,12 +19,16 @@ export default defineConfig([
     files: ['src/**/*.ts', '**/*.svelte', 'vite.config.ts'],
     extends: [
       js.configs.recommended,
-      ...tseslint.configs.recommended,
+      ...tseslint.configs.recommendedTypeChecked,
     ],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',
       globals: { ...globals.browser },
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     rules: {
       'no-unused-vars': 'off',
