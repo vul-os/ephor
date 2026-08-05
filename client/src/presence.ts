@@ -337,7 +337,7 @@ export function usePresence({ fabric, localIdentity = null }: UsePresenceOptions
       pm.leave()
       pmRef.current = null
     }
-  }, [fabric]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fabric])
 
   return { roster, manager: pmRef.current }
 }

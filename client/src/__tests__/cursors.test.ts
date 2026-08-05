@@ -17,7 +17,7 @@
  *   • Malformed cursor frames do not crash
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { peerColor, type CursorPayload } from '../useLiveCursors.js'
 
 // ── peerColor tests (pure function, no hooks) ─────────────────────────────────
@@ -94,13 +94,6 @@ describe('peerColor()', () => {
 // parsing 'cursors' channel frames and updating the cursor map.
 
 describe('cursor channel frame parsing', () => {
-  /** Minimal EventTarget-based FakeFabric */
-  class FakeFabric extends EventTarget {
-    _deliver(from: string, data: unknown) {
-      this.dispatchEvent(new CustomEvent('message', { detail: { from, data } }))
-    }
-  }
-
   interface CursorFrame {
     channel?: string
     payload?: Partial<CursorPayload>
