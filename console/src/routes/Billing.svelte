@@ -1,6 +1,6 @@
 <script lang="ts">
   import { client, ApiError } from '../lib/api';
-  import type { PrepaidAccount, ReceiptDto, TopUp, UsageDto, ResourceKind } from '../lib/types';
+  import type { PrepaidAccount, ReceiptDto, TopUp, UsageDto } from '../lib/types';
   import { RESOURCE_KINDS } from '../lib/types';
   import { ledgerMoney, kindLabel, kindQuantity, shortHex, formatDate, money } from '../lib/format';
 
