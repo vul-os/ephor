@@ -84,8 +84,9 @@ export async function fetchIce(
   try {
     const r = await fetch(endpoint, fetchOptions)
     if (r.ok) {
-      const body = await r.json()
-      const servers = body[responseKey]
+      // Boundary cast: the host's ICE endpoint response shape.
+      const body = await r.json() as Record<string, unknown>
+      const servers = body[responseKey] as RTCIceServer[] | undefined
       if (Array.isArray(servers) && servers.length) return servers
     }
   } catch { /* ignore — fall through to the configured fallback */ }
