@@ -172,7 +172,7 @@
           <div class="reveal reveal-{i + 3}">
             <StatCard
               label={kindLabel(k)}
-              value={kindQuantity(k, usageTotals[k] ?? 0).split(' ')[0]}
+              value={kindQuantity(k, usageTotals[k] ?? 0).split(' ')[0] ?? ''}
               unit={kindQuantity(k, usageTotals[k] ?? 0).split(' ').slice(1).join(' ')}
             />
           </div>

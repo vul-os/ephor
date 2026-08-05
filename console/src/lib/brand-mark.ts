@@ -27,7 +27,9 @@ const ID_ATTR = /\bid="([^"]+)"/g;
  */
 export function scopeSvgIds(svg: string, uid: string): string {
   const ids = new Set<string>();
-  for (const match of svg.matchAll(ID_ATTR)) ids.add(match[1]);
+  // Capture group 1 is `[^"]+` (one-or-more, non-optional), so a match always
+  // has it; the `!` documents that guarantee for noUncheckedIndexedAccess.
+  for (const match of svg.matchAll(ID_ATTR)) ids.add(match[1]!);
   if (ids.size === 0) return svg;
 
   let out = svg;
