@@ -111,8 +111,11 @@ function loadOrCreateLocalIdentity(): ResolvedLocalIdentity {
   try {
     const stored = localStorage.getItem('presence_identity')
     if (stored) {
-      const parsed = JSON.parse(stored)
-      if (parsed.accountId && parsed.displayName) return parsed
+      // Boundary cast: exactly what the localStorage.setItem() below wrote
+      // last time, validated (not just trusted) with the accountId/
+      // displayName check on the next line before it's used.
+      const parsed = JSON.parse(stored) as Partial<ResolvedLocalIdentity>
+      if (parsed.accountId && parsed.displayName) return parsed as ResolvedLocalIdentity
     }
   } catch { /* ignore */ }
   const identity: ResolvedLocalIdentity = {
@@ -173,11 +176,11 @@ export class PresenceManager extends EventTarget {
     this._stopped = false
 
     // Listen for presence frames on the fabric message channel.
-    this._onFabricMessage = (ev: Event) => this._handleMessage(ev as CustomEvent)
+    this._onFabricMessage = (ev: Event) => this._handleMessage(ev as CustomEvent<{ from: string, data: string | ArrayBuffer }>)
     this._fabric.addEventListener('message', this._onFabricMessage)
 
     // Also re-broadcast on new peer connections so late joiners see us immediately.
-    this._onFabricState = (ev: Event) => this._handleState(ev as CustomEvent)
+    this._onFabricState = (ev: Event) => this._handleState(ev as CustomEvent<{ state: string }>)
     this._fabric.addEventListener('state', this._onFabricState)
   }
 
@@ -245,7 +248,7 @@ export class PresenceManager extends EventTarget {
       text = typeof data === 'string' ? data : new TextDecoder().decode(data)
     } catch { return }
     let frame: PresenceFrame
-    try { frame = JSON.parse(text) } catch { return }
+    try { frame = JSON.parse(text) as PresenceFrame } catch { return }
     if (frame.channel !== PRESENCE_CHANNEL) return
     const p = frame.payload
     if (!p || !p.accountId || p.accountId === this._local.accountId) return
@@ -328,7 +331,7 @@ export function usePresence({ fabric, localIdentity = null }: UsePresenceOptions
     const pm = new PresenceManager({ fabric, localIdentity })
     pmRef.current = pm
 
-    const onRoster = (ev: Event) => setRoster((ev as CustomEvent).detail)
+    const onRoster = (ev: Event) => setRoster((ev as CustomEvent<Array<(LocalPresence | RosterPeer) & { isSelf?: boolean }>>).detail)
     pm.addEventListener('roster', onRoster)
     pm.join()
 
