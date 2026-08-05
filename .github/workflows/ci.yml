@@ -28,6 +28,18 @@ jobs:
       - name: Install
         run: npm ci
 
+      # The actual lint gate: this is the step that fails on a real ESLint
+      # error in client/src. check:lint-config below only proves the CONFIG
+      # is wired correctly (type-awareness, TS pin, coverage floor) — it
+      # never reads errorCount/warningCount, so it cannot fail on a finding.
+      - name: Lint
+        run: npm run lint
+
+      # tsconfig.json (not tsconfig.dts.json, which only emits .d.ts) is the
+      # program that actually includes src/**/*.ts.
+      - name: Typecheck
+        run: npm run typecheck
+
       # Behavioural gate for the lint config itself: proves type-aware rules
       # actually resolve type information (a config can say
       # recommendedTypeChecked and still not resolve types), that typescript
@@ -248,6 +260,13 @@ jobs:
       # testing what the repo pins (same reason the Rust job passes --locked).
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      # The actual lint gate: this is the step that fails on a real ESLint
+      # error in console/src. check:lint-config below only proves the CONFIG
+      # is wired correctly (type-awareness, TS pin, coverage floor) — it
+      # never reads errorCount/warningCount, so it cannot fail on a finding.
+      - name: Lint
+        run: pnpm lint
 
       # Same behavioural lint-config gate as the client job (client/'s own
       # eslint.config.js and this one are independent; each needs its own
