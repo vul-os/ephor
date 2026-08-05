@@ -16,6 +16,7 @@
   let topUpAmount = $state(50);
   let topUpRail = $state<'stablecoin' | 'card'>('stablecoin');
   let topUpBusy = $state(false);
+  let topUpError = $state<string | null>(null);
 
   let runningBilling = $state(false);
   let runError = $state<string | null>(null);
@@ -29,39 +30,67 @@
   );
 
   $effect(() => {
-    (async () => {
-      const a = await client.getPrepaidAccounts();
-      accounts = a;
-      selectedPayer = a[0]?.payer_hex ?? '';
-      loading = false;
+    // The async IIFE now catches its own errors (below) and never rejects;
+    // `void` documents the fire-and-forget $effect body instead of a dead
+    // .catch() — $effect callbacks themselves cannot be async.
+    void (async () => {
+      try {
+        const a = await client.getPrepaidAccounts();
+        accounts = a;
+        selectedPayer = a[0]?.payer_hex ?? '';
+      } catch (e) {
+        // Genuine bug fix: this used to have no catch at all, so a failed
+        // initial load left `loading` true forever (a permanently-stuck
+        // skeleton) and surfaced only as an unhandled promise rejection.
+        console.error('[Billing] failed to load prepaid accounts:', e);
+      } finally {
+        loading = false;
+      }
     })();
   });
 
   async function loadPayerData(payerHex: string) {
     if (!payerHex) return;
-    const [u, r, t] = await Promise.all([
-      client.getUsage(payerHex),
-      client.getReceiptsForPayer(payerHex),
-      client.getTopUps(payerHex),
-    ]);
-    usage = u;
-    receipts = r.receipts;
-    auditCaveat = r.one_directional_audit_caveat;
-    topups = t;
+    try {
+      const [u, r, t] = await Promise.all([
+        client.getUsage(payerHex),
+        client.getReceiptsForPayer(payerHex),
+        client.getTopUps(payerHex),
+      ]);
+      usage = u;
+      receipts = r.receipts;
+      auditCaveat = r.one_directional_audit_caveat;
+      topups = t;
+    } catch (e) {
+      // Same class of bug as the accounts load above: this call had no
+      // catch of its own and no caller-side one either (see the $effect
+      // below), so a per-payer load failure vanished as an unhandled
+      // rejection with the UI stuck on stale/empty data.
+      console.error('[Billing] failed to load payer data:', e);
+    }
   }
 
   $effect(() => {
-    if (selectedPayer) loadPayerData(selectedPayer);
+    // loadPayerData() now wraps its own body in try/catch (see above) and
+    // never rejects; `void` documents that instead of an always-dead .catch().
+    if (selectedPayer) void loadPayerData(selectedPayer);
   });
 
   async function doTopUp() {
     if (!selectedAccount || topUpBusy) return;
     topUpBusy = true;
+    topUpError = null;
     try {
       await client.topUp(selectedAccount.payer_hex, Math.round(topUpAmount * 1_000_000), topUpRail);
       accounts = await client.getPrepaidAccounts();
       topups = await client.getTopUps(selectedAccount.payer_hex);
       topUpOpen = false;
+    } catch (e) {
+      // Genuine bug fix: this had a `finally` but no `catch` — a failed
+      // top-up correctly reset topUpBusy but told the operator nothing,
+      // vanishing as an unhandled rejection instead. Mirrors runBilling()'s
+      // runError pattern just below.
+      topUpError = e instanceof ApiError ? e.message : 'Could not process the top-up.';
     } finally {
       topUpBusy = false;
     }
@@ -182,9 +211,15 @@
                 aria-busy={topUpBusy}
                 onsubmit={(e) => {
                   e.preventDefault();
-                  doTopUp();
+                  // doTopUp() now catches its own errors into topUpError
+                  // (see script above) and never rejects; `void` documents
+                  // the fire-and-forget instead of a dead .catch().
+                  void doTopUp();
                 }}
               >
+                {#if topUpError}
+                  <div class="note note-danger" role="alert"><span aria-hidden="true">✕</span><span>{topUpError}</span></div>
+                {/if}
                 <div class="field">
                   <label for="amount">Amount ({selectedAccount.currency})</label>
                   <input id="amount" type="number" min="1" step="1" bind:value={topUpAmount} disabled={topUpBusy} />
