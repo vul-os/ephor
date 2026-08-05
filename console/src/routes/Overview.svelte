@@ -22,19 +22,30 @@
   const uptimeHours = Math.floor((uptimeMs % 86_400_000) / 3_600_000);
 
   $effect(() => {
-    (async () => {
+    // The async IIFE now catches its own errors and never rejects; `void`
+    // documents the fire-and-forget $effect body ($effect callbacks
+    // themselves cannot be async) instead of a dead .catch().
+    void (async () => {
       loading = true;
-      const [d, c, r, a] = await Promise.all([
-        client.getDescriptor(),
-        client.getConformance(),
-        client.getReceipts(),
-        client.getPrepaidAccounts(),
-      ]);
-      descriptor = d;
-      conformance = c;
-      receipts = r;
-      accounts = a;
-      loading = false;
+      try {
+        const [d, c, r, a] = await Promise.all([
+          client.getDescriptor(),
+          client.getConformance(),
+          client.getReceipts(),
+          client.getPrepaidAccounts(),
+        ]);
+        descriptor = d;
+        conformance = c;
+        receipts = r;
+        accounts = a;
+      } catch (e) {
+        // Genuine bug fix: this had no error handling at all, so a failed
+        // load left `loading` true forever (a permanently-stuck skeleton)
+        // and surfaced only as an unhandled promise rejection.
+        console.error('[Overview] failed to load coordinator posture:', e);
+      } finally {
+        loading = false;
+      }
     })();
   });
 
