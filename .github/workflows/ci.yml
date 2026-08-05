@@ -28,6 +28,15 @@ jobs:
       - name: Install
         run: npm ci
 
+      # Behavioural gate for the lint config itself: proves type-aware rules
+      # actually resolve type information (a config can say
+      # recommendedTypeChecked and still not resolve types), that typescript
+      # is pinned exactly with node_modules agreeing (a caret let
+      # typescript-eslint silently fail to load once before), and asserts a
+      # real file-coverage floor.
+      - name: Lint config gate (type-awareness, TS pin, coverage floor)
+        run: npm run check:lint-config
+
       - name: Build
         run: npm run build
 
@@ -239,6 +248,15 @@ jobs:
       # testing what the repo pins (same reason the Rust job passes --locked).
       - name: Install
         run: pnpm install --frozen-lockfile
+
+      # Same behavioural lint-config gate as the client job (client/'s own
+      # eslint.config.js and this one are independent; each needs its own
+      # proof). Console's probe is a .svelte file specifically, because the
+      # thing unique to this config is type info reaching INSIDE a .svelte
+      # <script lang="ts"> block via svelte-eslint-parser +
+      # parserOptions.parser.
+      - name: Lint config gate (type-awareness, TS pin, coverage floor)
+        run: pnpm check:lint-config
 
       - name: Type check
         run: pnpm check
