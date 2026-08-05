@@ -11,21 +11,41 @@
   let copied = $state(false);
   let copyError = $state(false);
   let copyTimer: ReturnType<typeof setTimeout> | undefined;
+  let rotateError = $state<string | null>(null);
 
   $effect(() => {
-    (async () => {
-      keys = await client.getKeys();
-      loading = false;
+    // The async IIFE now catches its own errors (below) and never rejects;
+    // `void` documents the fire-and-forget $effect body instead of a dead
+    // .catch() — $effect callbacks themselves cannot be async.
+    void (async () => {
+      try {
+        keys = await client.getKeys();
+      } catch (e) {
+        // Genuine bug fix: this used to have no catch at all, so a failed
+        // initial load left `loading` true forever (a permanently-stuck
+        // skeleton) and surfaced only as an unhandled promise rejection.
+        console.error('[Keys] failed to load keys:', e);
+      } finally {
+        loading = false;
+      }
     })();
   });
 
   async function rotate() {
     rotating = true;
+    rotateError = null;
     try {
       const res = await client.rotateKeys();
       lastRotation = res;
       keys = await client.getKeys();
       confirmOpen = false;
+    } catch (e) {
+      // Not one of the linter's own findings (onclick={rotate} isn't
+      // analyzed as a call site the same way addEventListener/$effect are),
+      // but the same bug as Billing.svelte's doTopUp() before this branch:
+      // try/finally with no catch reset `rotating` but told the operator
+      // nothing on failure. Fixed while in this file for the same reason.
+      rotateError = e instanceof Error ? e.message : 'Could not rotate keys.';
     } finally {
       rotating = false;
     }
@@ -164,6 +184,9 @@
                     descriptor. The old key is <strong>not</strong> destroyed — it moves to history below so
                     anything that referenced it stays traceable.
                   </p>
+                  {#if rotateError}
+                    <p><strong>Rotation failed:</strong> {rotateError}</p>
+                  {/if}
                   <div class="confirm-actions">
                     <button type="button" class="btn" disabled={rotating} onclick={() => (confirmOpen = false)}>
                       Cancel

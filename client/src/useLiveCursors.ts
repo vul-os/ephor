@@ -110,7 +110,7 @@ export function useLiveCursors({ fabric, localIdentity, color }: UseLiveCursorsO
       let text: string
       try { text = typeof data === 'string' ? data : new TextDecoder().decode(data) } catch { return }
       let frame: CursorFrame
-      try { frame = JSON.parse(text) } catch { return }
+      try { frame = JSON.parse(text) as CursorFrame } catch { return }
       if (frame.channel !== CURSOR_CHANNEL) return
       const p = frame.payload
       if (!p || !p.accountId) return

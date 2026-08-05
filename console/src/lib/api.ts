@@ -72,11 +72,13 @@ export class RealAdminClient implements AdminClient {
       },
     });
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: res.statusText }));
+      const body = await res.json().catch(() => ({ error: res.statusText })) as { error?: string };
       throw new ApiError(res.status, body.error ?? res.statusText);
     }
     if (res.status === 204) return undefined as T;
-    return res.json();
+    // Boundary cast: req<T>()'s whole contract is "the caller names the
+    // response shape" (every call site below passes an explicit <T>).
+    return res.json() as Promise<T>;
   }
 
   getDescriptor() {
@@ -170,7 +172,7 @@ const PAYER_B = '02fd91ee7c6b5a493827160f5e4d3c2b1a09f8e7d6c5b4a392817060504a3c2
 const PAYER_C = '77aa66bb55cc44dd33ee22ff11009988776655443322110099887766554433';
 
 function clone<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v));
+  return JSON.parse(JSON.stringify(v)) as T;
 }
 
 function fakeSig(seed: string): string {

@@ -34,18 +34,29 @@
   };
 
   $effect(() => {
-    (async () => {
-      const t = await client.getTariff();
-      tariff = t;
-      if (t) {
-        currency = t.schedule.currency;
-        for (const k of RESOURCE_KINDS) {
-          prices[k] = t.schedule.prices[k] ?? 0;
-          freeAllowance[k] = t.schedule.free_allowance[k] ?? 0;
+    // The async IIFE now catches its own errors (below) and never rejects;
+    // `void` documents the fire-and-forget $effect body instead of a dead
+    // .catch() — $effect callbacks themselves cannot be async.
+    void (async () => {
+      try {
+        const t = await client.getTariff();
+        tariff = t;
+        if (t) {
+          currency = t.schedule.currency;
+          for (const k of RESOURCE_KINDS) {
+            prices[k] = t.schedule.prices[k] ?? 0;
+            freeAllowance[k] = t.schedule.free_allowance[k] ?? 0;
+          }
+          periodDays = t.schedule.period_seconds ? Math.round(t.schedule.period_seconds / 86400) : 30;
         }
-        periodDays = t.schedule.period_seconds ? Math.round(t.schedule.period_seconds / 86400) : 30;
+      } catch (e) {
+        // Genuine bug fix: this used to have no catch at all, so a failed
+        // load left `loading` true forever (a permanently-stuck skeleton)
+        // and surfaced only as an unhandled promise rejection.
+        console.error('[Tariff] failed to load tariff:', e);
+      } finally {
+        loading = false;
       }
-      loading = false;
     })();
   });
 

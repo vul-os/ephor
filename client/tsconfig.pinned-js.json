@@ -1,0 +1,15 @@
+{
+  "_comment": "Standalone type-check program for signaling.js / rendezvousSignaling.js ONLY, used by eslint.config.js to run type-aware lint rules on them. These two files are deliberately not in tsconfig.json's include (see kotva-client.pin.json) — this file exists purely so typescript-eslint's `parserOptions.project` has a real TS program to resolve types against, without pulling these two JS files into the main build's type-check surface.",
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["src/signaling.js", "src/rendezvousSignaling.js"]
+}

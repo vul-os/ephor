@@ -43,7 +43,10 @@
   }
 
   $effect(() => {
-    loadDescriptor();
+    // loadDescriptor() already wraps its own body in try/catch/finally
+    // (loadError, above) and never rejects; `void` documents the deliberate
+    // fire-and-forget instead of a dead .catch().
+    void loadDescriptor();
   });
 
   let pendingVisibility = $derived({ class: visClass, level: visLevel });
