@@ -1296,23 +1296,12 @@ export class FabricClient extends EventTarget {
       // RTCDataChannel.send is 4 separate overloads (one per member of
       // FabricSendData); TS does not distribute a union argument across
       // them, so the call is typed through the union-accepting shape instead.
-      //
-      // KNOWN BUG, DELIBERATELY NOT FIXED: extracting `.send` like this loses
-      // its `this` binding. On a REAL RTCDataChannel this throws "Illegal
-      // invocation" (native WebIDL operations require the correct receiver).
-      // This is exactly what src/__tests__/fabric.flow.test.ts's two
-      // pre-existing failures ("send() delivers to an open data channel" /
-      // "sendTo() unicasts...") demonstrate — the fake data channel's own
-      // `send(data) { this.sent.push(data) }` fails with "Cannot read
-      // properties of undefined (reading 'sent')" for this same reason. The
-      // correct fix — call through `(ps.dc as { send(d: FabricSendData): void
-      // }).send(data)`, a method call that preserves `this` — was verified
-      // working locally but is NOT applied here: it would flip those 2 tests
-      // from failing to passing, and the task pinning this branch's baseline
-      // at exactly 327 passing / 329 total requires them to stay failing.
-      // eslint-disable-next-line @typescript-eslint/unbound-method -- see comment above; real bug, deliberately unfixed pending a baseline update
-      const send = ps.dc.send as (d: FabricSendData) => void
-      send(data)
+      // Calling through this cast (rather than extracting `.send` as an
+      // unbound function reference) preserves `this`, which matters because
+      // native WebIDL operations like RTCDataChannel.send require the
+      // correct receiver — an unbound call throws "Illegal invocation" on a
+      // real RTCDataChannel.
+      (ps.dc as { send(d: FabricSendData): void }).send(data)
     } else if (ps.state === 'relay') {
       // Relay path: encode and deposit. _relayDeposit() wraps its entire body
       // in try/catch and never rejects; `void` documents the deliberate
