@@ -138,7 +138,9 @@ function checkMergedCellRoundTrip(): CheckResult[] {
   const ws = fortuneToWorksheet(original)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, original.name)
-  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' })
+  // xlsx's own type declarations return `any` from write(); { type: 'array' }
+  // is documented to produce an ArrayBuffer.
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as ArrayBuffer
 
   results.push(assert('merged-cell export: produces !merges in worksheet', (ws['!merges'] || []).length === 2))
 
