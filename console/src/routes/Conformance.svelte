@@ -6,9 +6,20 @@
   let loading = $state(true);
 
   $effect(() => {
-    (async () => {
-      report = await client.getConformance();
-      loading = false;
+    // The async IIFE now catches its own errors (below) and never rejects;
+    // `void` documents the fire-and-forget $effect body instead of a dead
+    // .catch() — $effect callbacks themselves cannot be async.
+    void (async () => {
+      try {
+        report = await client.getConformance();
+      } catch (e) {
+        // Genuine bug fix: this used to have no catch at all, so a failed
+        // load left `loading` true forever (a permanently-stuck skeleton)
+        // and surfaced only as an unhandled promise rejection.
+        console.error('[Conformance] failed to load report:', e);
+      } finally {
+        loading = false;
+      }
     })();
   });
 
