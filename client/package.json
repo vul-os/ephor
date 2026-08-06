@@ -15,6 +15,7 @@
     "kotva:check": "node scripts/check-kotva-parity.mjs",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck:scripts": "tsc -p scripts/tsconfig.json --noEmit",
     "check:lint-config": "node scripts/check-lint-config.mjs",
     "kotva:pin": "node scripts/check-kotva-parity.mjs --repin",
     "pretest:e2e": "npm run build && npm run build:harness",
