@@ -25,7 +25,7 @@
  * Pure JS/JSX — no CGO, no native deps.
  */
 
-import { SignalingClient, type SignalPayload, type SignedPreKeyAnnouncement } from './signaling.js'
+import { SignalingClient, type SignalPayload, type SignedPreKeyClaim } from './signaling.js'
 import { fetchIce, resolveStunFallback } from './call/ice.js'
 import {
   generateBoxKeyPair, sealRelayBlob, openRelayBlob,
@@ -75,7 +75,7 @@ export interface OneTimePreKeyClaim {
 
 /** Response shape of POST /api/peering/prekeys/claim (Contract A). */
 export interface PreKeyClaimResult {
-  signed_prekey?: SignedPreKeyAnnouncement
+  signed_prekey?: SignedPreKeyClaim
   one_time_prekey?: OneTimePreKeyClaim | null
 }
 
@@ -125,7 +125,7 @@ export interface SignalingTransport extends EventTarget {
   signal(type: string, toId: string | null, data?: Partial<SignalPayload>): Promise<void>
   hasPeerKey(peerId: string): boolean
   getPeerBoxKey(peerId: string): string | null
-  getPeerSignedPreKey(peerId: string): SignedPreKeyAnnouncement | null
+  getPeerSignedPreKey(peerId: string): SignedPreKeyClaim | null
   isPeerV2Capable(peerId: string): boolean
   verifyPeerSignedPreKey(peerId: string, spk: { pub: string, sig: string }): Promise<boolean>
   verifyPeerSig(peerId: string, message: string, sigB64: string): Promise<boolean | null>
@@ -196,7 +196,7 @@ export class FabricClient extends EventTarget {
   /** base64 raw X25519 box public key */
   _boxPubKeyB64: string | null
   _preKeys: PreKeyStore | null
-  _signedPreKeyPublic: SignedPreKeyAnnouncement | null
+  _signedPreKeyPublic: SignedPreKeyClaim | null
   _relayedBytesOut: number
   _relayedBytesIn: number
   _signaling: SignalingTransport
@@ -333,7 +333,7 @@ export class FabricClient extends EventTarget {
       // Publish the X3DH signed prekey {id,pub,sig} so peers can establish a
       // FORWARD-SECRET (v2) relay session.  The pub is signed by our ECDSA
       // identity; peers verify it before use (prekeys.go VerifySignedPreKey).
-      getSignedPreKey: (): SignedPreKeyAnnouncement | null => this._signedPreKeyPublic,
+      getSignedPreKey: (): SignedPreKeyClaim | null => this._signedPreKeyPublic,
       // ── E2E peer authentication (security audit MEDIUM) ────────────────────
       // Wire the per-session ECDSA signing key into the signaling layer so that
       // all outgoing offer/answer/ice frames are signed.  The canonical signing
@@ -541,7 +541,9 @@ export class FabricClient extends EventTarget {
       // DTLS fingerprint; signing the full payload pins it end-to-end.
       await this._signaling.signal('offer', remoteId, {
         sdp: pc.localDescription!.sdp,
-        pubKey: this._depositPubKeyB64,
+        // SignalData.pubKey is `string | undefined` upstream (no null variant);
+        // this._depositPubKeyB64 is `string | null` (no key generated yet).
+        pubKey: this._depositPubKeyB64 ?? undefined,
       })
       this._setPeerState(remoteId, ps, 'connecting')
     } catch (err) {
@@ -676,7 +678,8 @@ export class FabricClient extends EventTarget {
         // also pins the answerer's DTLS fingerprint against MITM swap.
         await this._signaling.signal('answer', from, {
           sdp: pc.localDescription!.sdp,
-          pubKey: this._depositPubKeyB64,
+          // Same string|null → string|undefined boundary as the offer path above.
+          pubKey: this._depositPubKeyB64 ?? undefined,
         })
         this._setPeerState(from, ps, 'connecting')
       } catch (err) {
