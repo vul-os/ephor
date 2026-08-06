@@ -308,8 +308,22 @@ function assertTypescriptPinned() {
 
 // ============================================================================
 // Assertion C — ESLint actually lints a real number of files.
+// Assertion D — that same real lint run reports zero errors.
+//
+// C and D share one `eslint.lintFiles(['.'])` call (the real, full-tree run)
+// rather than each running lint separately — the point of D is that this
+// exact `results` array was already being computed and discarded down to
+// `results.length`. `errorCount`/`warningCount`/`messages` were sitting right
+// there on every element the whole time; nothing ever read them.
+//
+// Warnings are deliberately NOT gated here. client/ currently carries ~383
+// pre-existing warnings; failing on warning count would turn this gate red
+// immediately, for reasons unrelated to whatever a given change actually
+// did. Errors are the correctness bar (a rule configured as `error` in
+// eslint.config.js means "this must not ship"); warnings are advisory and
+// are surfaced in the PASS message for visibility only, not enforced.
 // ============================================================================
-async function assertCoverageFloor() {
+async function assertCoverageFloorAndZeroErrors() {
   console.log('\n-- Assertion C: ESLint actually lints a real number of files --')
 
   const eslint = new ESLint({ cwd: CONFIG.webRoot, errorOnUnmatchedPattern: false })
@@ -329,6 +343,32 @@ async function assertCoverageFloor() {
   } else {
     pass('C', `eslint . linted ${lintedCount} file(s) (floor: ${CONFIG.coverageFloor}).`)
   }
+
+  console.log('\n-- Assertion D: that same lint run reports zero errors --')
+
+  const totalErrors = results.reduce((sum, r) => sum + r.errorCount, 0)
+
+  if (totalErrors > 0) {
+    /** @type {string[]} */
+    const offending = []
+    for (const result of results) {
+      if (result.errorCount === 0) continue
+      const rel = path.relative(CONFIG.webRoot, result.filePath)
+      for (const message of result.messages) {
+        if (message.severity !== 2) continue // 1 = warning, 2 = error
+        offending.push(`    ${rel}:${message.line}:${message.column}  ${message.ruleId ?? '(no ruleId)'}  ${message.message}`)
+      }
+    }
+    fail(
+      'D',
+      `eslint . reported ${totalErrors} error(s) across ${results.filter((r) => r.errorCount > 0).length} file(s). ` +
+        `Running the real lint and discarding everything but results.length is how this gate stayed green through a genuine ` +
+        `ESLint error before. Offending finding(s):\n${offending.join('\n')}`,
+    )
+  } else {
+    const totalWarnings = results.reduce((sum, r) => sum + r.warningCount, 0)
+    pass('D', `eslint . reported 0 errors across ${lintedCount} file(s) (${totalWarnings} warning(s) present, not gated by this assertion).`)
+  }
 }
 
 // ============================================================================
@@ -339,7 +379,7 @@ async function main() {
 
   await assertTypeAwarenessLive()
   assertTypescriptPinned()
-  await assertCoverageFloor()
+  await assertCoverageFloorAndZeroErrors()
 
   console.log('')
   if (failures.length > 0) {
