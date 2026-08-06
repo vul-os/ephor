@@ -1,5 +1,5 @@
 /**
- * signaling.js — authenticated signaling client.
+ * signaling.ts — authenticated signaling client.
  *
  * Opens a WebSocket to a host signaling stream
  * (GET /api/peering/stream) and multiplexes offer/answer/ICE frames
@@ -106,6 +106,143 @@ const MAX_CLOCK_SKEW_MS = 5_000
 //   migration shim.
 const TOKEN_SUBPROTOCOL_PREFIX = 'vula.token.'
 
+// ─── Wire types ───────────────────────────────────────────────────────────────
+
+/** The signed prekey {id, pub, sig} as announced/claimed on the wire (base64 fields). */
+export interface SignedPreKeyClaim {
+  id: string
+  pub: string
+  sig: string
+}
+
+export type SignalFrameType = 'offer' | 'answer' | 'ice' | 'join' | 'leave'
+
+/**
+ * The signal `type`/kind carried on the wire. `SignalFrameType`'s five
+ * literals are the ones {@link SignalingClient._processSignal}'s security
+ * pipeline understands and special-cases (TOFU key/box/prekey import,
+ * anti-downgrade join pinning, offer/answer/ice signature + freshness +
+ * replay checks). Consumers layered on top of this envelope (e.g. a call
+ * UI multiplexing 'sdp' / 'screen-share' / other app-level kinds over the
+ * same "signal" channel) need to carry their own kinds through the same
+ * `type` field without fighting the compiler.
+ *
+ * `SignalFrameType | (string & {})` is deliberate over a bare `string`: it
+ * still autocompletes/typechecks the five known literals at call sites
+ * (`signal('offr', ...)` is still a compile error), while also accepting
+ * any other string. This is a TYPE-LEVEL widening only — see the security
+ * note below; it does not change what `_processSignal` does with a given
+ * `type` value at runtime.
+ */
+export type SignalKind = SignalFrameType | (string & {})
+
+/**
+ * A SignalPayload as it appears on the wire. Every field beyond `type` is
+ * optional because this shape also describes UNTRUSTED input freshly parsed
+ * from a WebSocket message or a rendezvous envelope — nothing about it is
+ * guaranteed until the checks in {@link SignalingClient._processSignal} pass.
+ *
+ * ── Security note on `type: SignalKind` (widened from a closed union) ──────
+ * This widening is TYPE-LEVEL ONLY. `_processSignal` already treated `p.type`
+ * as an unchecked runtime string before this change — incoming frames are
+ * `JSON.parse`d off the wire and cast (`as SignalPayload`), so a malicious
+ * peer/server could already send any `type` value regardless of what this
+ * interface declared; the closed union only ever constrained code in *this*
+ * module constructing outgoing frames via the typed `signal()` API. There
+ * was never a runtime switch that rejected an unrecognised `type` — unknown
+ * kinds already fell through to the same `dispatchEvent('signal', ...)` at
+ * the bottom of `_processSignal`, same as after this change. The five
+ * type-specific branches (TOFU import, anti-downgrade pinning, sig/nonce/ts
+ * verification) are still keyed on exact `===` comparisons against the five
+ * literal strings and are UNCHANGED by this widening — an app-level kind
+ * like `'sdp'` or `'screen-share'` still cannot enter the offer/answer/ice
+ * signature-verification branch (it isn't `'offer' | 'answer' | 'ice'`), and
+ * still cannot enter the join TOFU/anti-downgrade branches (it isn't
+ * `'join'`). See the mutation tests in replay-timestamp.test.ts ("rejects a
+ * frame with a tampered signature" / "rejects an exact replay") that plant
+ * an invalid signature and a replayed nonce and assert they are still
+ * rejected after this widening.
+ */
+export interface SignalPayload {
+  type: SignalKind
+  session?: string
+  /** targeted delivery (optional; omit/null = broadcast) */
+  to?: string | null
+  /** offer / answer SDP */
+  sdp?: string
+  candidate?: RTCIceCandidateInit
+  /** replay-protection nonce (required when sig present) */
+  nonce?: string
+  /** signed epoch-ms timestamp (required when sig present) */
+  ts?: number
+  /** base64 ECDSA P-256 signature over the canonical payload */
+  sig?: string
+  /** sender's raw ECDSA public key, base64 (offer/answer only) */
+  pubKey?: string
+  /** published on 'join': base64 raw ECDSA P-256 deposit-signing public key */
+  depositPubKey?: string | null
+  /** published on 'join': base64 raw X25519 box (encryption) public key */
+  boxPubKey?: string | null
+  /** published on 'join': this peer's signed prekey for the v2 (X3DH) relay path */
+  signedPreKey?: SignedPreKeyClaim | null
+  /** published on 'join': signed forward-secrecy capability commitment */
+  supportsV2?: boolean
+  /**
+   * app-level extension point: an opaque payload body a consumer layered on
+   * top of this envelope (e.g. a call UI) threads through unchanged for its
+   * own kinds ('sdp', 'ice' data, 'screen-share', ...). Deliberately OUTSIDE
+   * `_canonical`'s signed field set (see `_canonical` below) — a consumer
+   * that needs a `data` sub-field authenticated must mirror the relevant
+   * piece onto a top-level signed field (as `sdp`/`candidate`/`pubKey`
+   * already are), same as before this field existed.
+   */
+  data?: unknown
+  /**
+   * app-level extension point: opaque caller identity a consumer threads
+   * alongside its own signal kinds (typically 'join'). Like `data`, this is
+   * NOT part of `_canonical`'s signed message — it carries no security
+   * weight and is not verified by `_processSignal`.
+   */
+  identity?: unknown
+}
+
+/** The `detail` shape of the CustomEvent dispatched as `signal` (see `_processSignal`). */
+export interface SignalEventDetail {
+  from: string
+  payload: SignalPayload
+}
+
+/** The `detail` shape of the CustomEvent dispatched as `offline` (see `_scheduleReconnect`). */
+export interface OfflineEventDetail {
+  attempts: number
+}
+
+/**
+ * The `detail` shape of the CustomEvent dispatched as `error`. Both failure
+ * modes below previously vanished as unhandled promise rejections; they now
+ * surface here so a consumer can decide what to do (surface a banner, retry,
+ * log to telemetry) instead of the join / signal silently never completing.
+ */
+export interface ErrorEventDetail {
+  /** which internal step failed */
+  context: 'join-sign-failed' | 'process-signal-failed'
+  error: unknown
+}
+
+/** The data a caller supplies to {@link SignalingClient.signal} / `_buildSignalPayload`. */
+export interface SignalData {
+  sdp?: string
+  candidate?: RTCIceCandidateInit
+  pubKey?: string
+  /** see {@link SignalPayload.data} — passed through unchanged, not signed */
+  data?: unknown
+  /** see {@link SignalPayload.identity} — passed through unchanged, not signed */
+  identity?: unknown
+}
+
+/** Signs a canonical string with this client's ECDSA identity, returning a base64 signature. */
+export type SignFrameFn = (msg: string) => Promise<string>
+
 // ─── Canonical signing message ────────────────────────────────────────────────
 //
 // Deterministic JSON string signed over for offer/answer/ice frames.
@@ -117,8 +254,21 @@ const TOKEN_SUBPROTOCOL_PREFIX = 'vula.token.'
 // For offer/answer, including `sdp` also pins the DTLS fingerprint.
 //
 // @internal — exported only for tests via peer-auth.test.js which re-implements it.
-function _canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }) {
-  const msg = { type, session, to: to ?? null, from, nonce, ts }
+function _canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey }: {
+  type: SignalKind
+  session?: string
+  to?: string | null
+  from: string
+  nonce?: string
+  ts?: number
+  sdp?: string
+  candidate?: RTCIceCandidateInit
+  pubKey?: string
+}): string {
+  const msg: {
+    type: SignalKind, session?: string, to: string | null, from: string, nonce?: string, ts?: number,
+    sdp?: string, candidate?: RTCIceCandidateInit, pubKey?: string
+  } = { type, session, to: to ?? null, from, nonce, ts }
   if (sdp !== undefined) msg.sdp = sdp
   if (candidate !== undefined) msg.candidate = candidate
   if (pubKey !== undefined) msg.pubKey = pubKey
@@ -161,7 +311,15 @@ function _canonical({ type, session, to, from, nonce, ts, sdp, candidate, pubKey
 // `boxPubKey`/`depositPubKey` are normalised to null when absent.
 //
 // @internal — re-implemented by tests to construct/tamper signed joins.
-function _canonicalJoin({ session, from, depositPubKey, boxPubKey, supportsV2, nonce, ts }) {
+function _canonicalJoin({ session, from, depositPubKey, boxPubKey, supportsV2, nonce, ts }: {
+  session?: string
+  from: string
+  depositPubKey?: string | null
+  boxPubKey?: string | null
+  supportsV2?: boolean
+  nonce?: string
+  ts?: number
+}): string {
   return JSON.stringify({
     type: 'join',
     session,
@@ -174,42 +332,128 @@ function _canonicalJoin({ session, from, depositPubKey, boxPubKey, supportsV2, n
   })
 }
 
-export class SignalingClient extends EventTarget {
+/** Constructor options for {@link SignalingClient}. */
+export interface SignalingClientOptions {
+  /** WebSocket URL, e.g. "ws://localhost:8080/api/peering/stream" */
+  signalingUrl: string
+  /** fabric session / document id */
+  sessionId: string
+  /** this client's identity token (injected by auth) */
+  peerId: string
+  /** Bearer JWT (if auth is enabled) */
+  authToken?: string | null
   /**
-   * @param {object} opts
-   * @param {string}   opts.signalingUrl     - WebSocket URL, e.g. "ws://localhost:8080/api/peering/stream"
-   * @param {string}   opts.sessionId        - fabric session / document id
-   * @param {string}   opts.peerId           - this client's identity token (injected by auth)
-   * @param {string}  [opts.authToken]       - Bearer JWT (if auth is enabled)
-   * @param {'subprotocol'|'query'} [opts.tokenTransport='subprotocol']
-   *        - how the auth JWT is delivered. 'subprotocol' (default) sends it in
-   *          the Sec-WebSocket-Protocol header so it never appears in the URL.
-   *          'query' is a legacy migration shim that appends ?token=<jwt> for
-   *          backends that cannot yet read the header — see the server contract
-   *          note at the top of this file.
-   * @param {number}  [opts.maxAttempts]     - max reconnect attempts before 'offline' (default 10)
-   * @param {() => (string|null)} [opts.getDepositPubKey]
-   *        - optional callback returning this peer's base64 raw deposit signing
-   *          public key. When it returns a non-null value, the key is published
-   *          in the "join" frame so the server can bind it to the authenticated
-   *          peerId and verify deposit signatures.
-   * @param {() => (string|null)} [opts.getBoxPubKey]
-   *        - optional callback returning this peer's base64 raw X25519 box
-   *          (encryption) public key. When non-null it is published in the
-   *          "join" frame as `boxPubKey` and stored TOFU by receivers so they
-   *          can encrypt relay-fallback payloads to this peer end-to-end (the
-   *          relay server never sees the box private key, so it cannot read the
-   *          relayed content). Mirrors the depositPubKey exchange.
-   * @param {((msg: string) => Promise<string>)|null} [opts.signFrame]
-   *        - optional async callback that signs a canonical string and returns a
-   *          base64 ECDSA signature. When provided, all outgoing offer/answer/ice
-   *          frames are signed. Typically wired to FabricClient._signDeposit().
-   * @param {boolean} [opts.requirePeerAuth=false]
-   *        - when true, offer/answer/ice frames from peers with no stored public
-   *          key are dropped (no TOFU fallback for unknown peers). Frames from
-   *          peers with a stored key are ALWAYS verified regardless of this flag.
-   *          Set to true in FabricClient for E2E peer authentication.
+   * how the auth JWT is delivered. 'subprotocol' (default) sends it in
+   * the Sec-WebSocket-Protocol header so it never appears in the URL.
+   * 'query' is a legacy migration shim that appends ?token=<jwt> for
+   * backends that cannot yet read the header — see the server contract
+   * note at the top of this file.
    */
+  tokenTransport?: 'subprotocol' | 'query'
+  /** max reconnect attempts before 'offline' (default 10) */
+  maxAttempts?: number
+  /**
+   * optional callback returning this peer's base64 raw deposit signing
+   * public key. When it returns a non-null value, the key is published
+   * in the "join" frame so the server can bind it to the authenticated
+   * peerId and verify deposit signatures.
+   */
+  getDepositPubKey?: (() => string | null) | null
+  /**
+   * optional callback returning this peer's base64 raw X25519 box
+   * (encryption) public key. When non-null it is published in the
+   * "join" frame as `boxPubKey` and stored TOFU by receivers so they
+   * can encrypt relay-fallback payloads to this peer end-to-end (the
+   * relay server never sees the box private key, so it cannot read the
+   * relayed content). Mirrors the depositPubKey exchange.
+   */
+  getBoxPubKey?: (() => string | null) | null
+  /** optional callback returning this peer's signed prekey for the v2 (X3DH) relay path */
+  getSignedPreKey?: (() => SignedPreKeyClaim | null) | null
+  /**
+   * optional async callback that signs a canonical string and returns a
+   * base64 ECDSA signature. When provided, all outgoing offer/answer/ice
+   * frames are signed. Typically wired to FabricClient._signDeposit().
+   */
+  signFrame?: SignFrameFn | null
+  /**
+   * when true, offer/answer/ice frames from peers with no stored public
+   * key are dropped (no TOFU fallback for unknown peers). Frames from
+   * peers with a stored key are ALWAYS verified regardless of this flag.
+   * Set to true in FabricClient for E2E peer authentication.
+   */
+  requirePeerAuth?: boolean
+}
+
+/** The synchronous, unsigned base join payload plus the fields the signing step needs. */
+interface JoinBase {
+  join: SignalPayload & { type: 'join', session: string }
+  depositPubKey: string | null
+  boxPubKey: string | null
+  supportsV2: boolean
+}
+
+export class SignalingClient extends EventTarget {
+  private _url: string
+  private _session: string
+  private _peerId: string
+  private _authToken: string | null | undefined
+  private _tokenTransport: 'subprotocol' | 'query'
+  private _getDepositPubKey: (() => string | null) | null | undefined
+  private _getBoxPubKey: (() => string | null) | null | undefined
+  private _getSignedPreKey: (() => SignedPreKeyClaim | null) | null | undefined
+  private _signFrame: SignFrameFn | null | undefined
+  private _requirePeerAuth: boolean
+  private _ws: WebSocket | null
+  private _reconnectDelay: number
+  private _reconnectAttempts: number
+  private _maxAttempts: number
+  private _stopped: boolean
+  private _degraded: boolean
+
+  // ── E2E peer key registry (TOFU) ─────────────────────────────────────────
+  // Maps peerId → imported CryptoKey (ECDSA P-256 public key).
+  // Populated on receiving 'join' frames that carry depositPubKey.
+  // Also populated on first offer/answer receipt when the frame carries pubKey.
+  // First key seen wins; subsequent different keys for the same peer are ignored.
+  _peerKeys: Map<string, CryptoKey>
+
+  // ── E2E peer box-key registry (TOFU) ─────────────────────────────────────
+  // Maps peerId → base64 raw X25519 public key, announced via the peer's
+  // 'join' frame (boxPubKey).  Used by FabricClient to encrypt relay-fallback
+  // payloads to the peer.  First key seen wins (same TOFU model as _peerKeys).
+  _peerBoxKeys: Map<string, string>
+
+  // ── E2E peer signed-prekey registry (TOFU + ECDSA-verified) ──────────────
+  // Maps peerId → { id, pub, sig } (base64), announced via the peer's 'join'
+  // frame (signedPreKey).  Stored ONLY after the signature verifies against the
+  // peer's ECDSA deposit key (which must already be stored from depositPubKey above).
+  // Fail closed: a signed prekey we cannot verify is dropped, so a malicious
+  // server cannot inject a prekey it controls to weaken FS.
+  _peerSignedPreKeys: Map<string, SignedPreKeyClaim>
+
+  // ── Anti-downgrade: pinned v2 (forward-secrecy) capability ───────────────
+  // Maps peerId → true once we hold CRYPTOGRAPHIC PROOF the peer supports the
+  // forward-secret v2 (X3DH) relay path.  Proof comes from any of:
+  //   (a) a join whose ECDSA signature over a `supportsV2:true` commitment
+  //       verifies (see _canonicalJoin),
+  //   (b) a successfully ECDSA-verified signedPreKey (join frame or claim) —
+  //       a v1-only legacy peer never produces a validly-signed prekey.
+  // Once pinned, FabricClient MUST NOT seal to this peer over v1 static-static:
+  // a missing/stripped signed prekey for a pinned peer is a DOWNGRADE ATTACK by
+  // the untrusted server, and the sender fails closed instead of dropping FS.
+  // Peers that never present a signed v2 commitment stay unpinned → genuine
+  // legacy v1 peers keep interoperating.
+  _peerV2Capable: Map<string, true>
+
+  // ── Replay protection: bounded seen-(from,nonce) cache ───────────────────
+  // Stores composite keys "<from>:<nonce>" for every successfully-verified
+  // signed frame.  FIFO eviction when the Map exceeds NONCE_CACHE_MAX entries
+  // (Map preserves insertion order; keys().next().value is the oldest entry).
+  // Only populated after a successful signature check — unsigned frames on the
+  // requirePeerAuth=false path are not cached, avoiding cache poisoning.
+  _seenNonces: Map<string, true>
+
   constructor({
     signalingUrl,
     sessionId,
@@ -222,7 +466,7 @@ export class SignalingClient extends EventTarget {
     getSignedPreKey = null,
     signFrame = null,
     requirePeerAuth = false,
-  }) {
+  }: SignalingClientOptions) {
     super()
 
     // ── Credential-transport guard (security: plaintext token leak) ──────────
@@ -258,62 +502,20 @@ export class SignalingClient extends EventTarget {
     this._stopped = false
     this._degraded = false
 
-    // ── E2E peer key registry (TOFU) ─────────────────────────────────────────
-    // Maps peerId → imported CryptoKey (ECDSA P-256 public key).
-    // Populated on receiving 'join' frames that carry depositPubKey.
-    // Also populated on first offer/answer receipt when the frame carries pubKey.
-    // First key seen wins; subsequent different keys for the same peer are ignored.
-    /** @type {Map<string, CryptoKey>} */
     this._peerKeys = new Map()
-
-    // ── E2E peer box-key registry (TOFU) ─────────────────────────────────────
-    // Maps peerId → base64 raw X25519 public key, announced via the peer's
-    // 'join' frame (boxPubKey).  Used by FabricClient to encrypt relay-fallback
-    // payloads to the peer.  First key seen wins (same TOFU model as _peerKeys).
-    /** @type {Map<string, string>} */
     this._peerBoxKeys = new Map()
-
-    // ── E2E peer signed-prekey registry (TOFU + ECDSA-verified) ──────────────
-    // Maps peerId → { id, pub, sig } (base64), announced via the peer's 'join'
-    // frame (signedPreKey).  Stored ONLY after the signature verifies against the
-    // peer's ECDSA deposit key, so a forged signed prekey is rejected (the JS
-    // analog of prekeys.go VerifySignedPreKey).  Enables the forward-secret v2
-    // (X3DH) relay path: senders run X3DHInitiate against this signed prekey.
-    /** @type {Map<string, { id: string, pub: string, sig: string }>} */
     this._peerSignedPreKeys = new Map()
-
-    // ── Anti-downgrade: pinned v2 (forward-secrecy) capability ───────────────
-    // Maps peerId → true once we hold CRYPTOGRAPHIC PROOF the peer supports the
-    // forward-secret v2 (X3DH) relay path.  Proof comes from any of:
-    //   (a) a join whose ECDSA signature over a `supportsV2:true` commitment
-    //       verifies (see _canonicalJoin),
-    //   (b) a successfully ECDSA-verified signedPreKey (join frame or claim) —
-    //       a v1-only legacy peer never produces a validly-signed prekey.
-    // Once pinned, FabricClient MUST NOT seal to this peer over v1 static-static:
-    // a missing/stripped signed prekey for a pinned peer is a DOWNGRADE ATTACK by
-    // the untrusted server, and the sender fails closed instead of dropping FS.
-    // Peers that never present a signed v2 commitment stay unpinned → genuine
-    // legacy v1 peers keep interoperating.
-    /** @type {Map<string, true>} */
     this._peerV2Capable = new Map()
-
-    // ── Replay protection: bounded seen-(from,nonce) cache ───────────────────
-    // Stores composite keys "<from>:<nonce>" for every successfully-verified
-    // signed frame.  FIFO eviction when the Map exceeds NONCE_CACHE_MAX entries
-    // (Map preserves insertion order; keys().next().value is the oldest entry).
-    // Only populated after a successful signature check — unsigned frames on the
-    // requirePeerAuth=false path are not cached, avoiding cache poisoning.
-    /** @type {Map<string, true>} */
     this._seenNonces = new Map()
   }
 
   /** Connect (or reconnect) to the signaling WebSocket. */
-  connect() {
+  connect(): void {
     if (this._stopped) return
 
     // Default: carry the JWT as a WebSocket subprotocol so it never lands in the
     // URL (and thus access logs / Referer / history). 'query' is a legacy shim.
-    let ws
+    let ws: WebSocket
     if (this._authToken && this._tokenTransport === 'subprotocol') {
       ws = new WebSocket(this._url, [TOKEN_SUBPROTOCOL_PREFIX + this._authToken])
     } else if (this._authToken && this._tokenTransport === 'query') {
@@ -323,7 +525,7 @@ export class SignalingClient extends EventTarget {
     }
     this._ws = ws
 
-    ws.addEventListener('open', async () => {
+    ws.addEventListener('open', () => {
       this._reconnectDelay = RECONNECT_BASE_MS
       this._reconnectAttempts = 0
       this._degraded = false
@@ -332,19 +534,42 @@ export class SignalingClient extends EventTarget {
       // signFrame is null the join is sent SYNCHRONOUSLY (no await reached), so a
       // consumer that inspects the socket right after 'open' sees it immediately.
       if (this._signFrame) {
-        this._buildJoinPayload().then((join) => this._send(join))
+        // A signing failure here (signFrame throws/rejects — e.g. the caller's
+        // key is locked, revoked, or the WebCrypto call fails) previously
+        // vanished as an unhandled rejection: no join frame is ever sent, so
+        // this peer never appears to the rest of the session, and nothing told
+        // the caller why. Route it to an 'error' event instead so the consumer
+        // (FabricClient / app) can react — retry, surface a banner, close the
+        // session — rather than the join silently never happening.
+        this._buildJoinPayload()
+          .then((join) => this._send(join))
+          .catch((err: unknown) => {
+            this.dispatchEvent(new CustomEvent<ErrorEventDetail>('error', {
+              detail: { context: 'join-sign-failed', error: err },
+            }))
+          })
       } else {
         this._send(this._buildJoinBase().join)
       }
     })
 
-    ws.addEventListener('message', async (ev) => {
-      let frame
-      try { frame = JSON.parse(ev.data) } catch { return }
+    ws.addEventListener('message', (ev: MessageEvent<string>) => {
+      let frame: { channel?: string, from?: string, payload?: SignalPayload }
+      try { frame = JSON.parse(ev.data) as typeof frame } catch { return }
       if (frame.channel !== SIGNAL_CHANNEL) return
       // Delegate to the transport-agnostic processor: the server stamps `from`,
-      // so `frame.from` is the sender peerId.
-      await this._processSignal(frame.from, frame.payload)
+      // so `frame.from` is the sender peerId. _processSignal is defensive
+      // (every risky step below has its own try/catch) so this is a
+      // defense-in-depth backstop, not the primary error path — but the
+      // listener itself must stay non-async (a thrown/rejected async listener
+      // becomes an unhandled rejection the WebSocket has no way to surface),
+      // so the async work is invoked and its rejection routed to 'error' here.
+      this._processSignal(frame.from as string, frame.payload as SignalPayload)
+        .catch((err: unknown) => {
+          this.dispatchEvent(new CustomEvent<ErrorEventDetail>('error', {
+            detail: { context: 'process-signal-failed', error: err },
+          }))
+        })
     })
 
     ws.addEventListener('close', () => {
@@ -371,10 +596,10 @@ export class SignalingClient extends EventTarget {
    * whether frames arrive over the host box's WebSocket or a relay's rendezvous
    * signal queue.
    *
-   * @param {string} senderPeerId - the sender's application peer id
-   * @param {object} p            - the SignalPayload (offer/answer/ice/join/leave)
+   * @param senderPeerId - the sender's application peer id
+   * @param p            - the SignalPayload (offer/answer/ice/join/leave)
    */
-  async _processSignal(senderPeerId, p) {
+  async _processSignal(senderPeerId: string, p: SignalPayload): Promise<void> {
     // Only deliver frames addressed to this session and this peer (or broadcast).
     if (!p) return
     if (p.session && p.session !== this._session) return
@@ -450,7 +675,7 @@ export class SignalingClient extends EventTarget {
             nonce: p.nonce,
             ts: p.ts,
           })
-          let valid = false
+          let valid: boolean
           try { valid = await this._verifyFrame(ecdsaKey, canonical, p.sig) } catch { valid = false }
           // Freshness: bound the validity of a captured join so a stale signed
           // join cannot be replayed indefinitely (mirrors offer/answer/ice).
@@ -460,7 +685,8 @@ export class SignalingClient extends EventTarget {
           const replay = this._seenNonces.has(_nonceKey)
           if (valid && fresh && !replay) {
             if (this._seenNonces.size >= NONCE_CACHE_MAX) {
-              this._seenNonces.delete(this._seenNonces.keys().next().value)
+              const oldest = this._seenNonces.keys().next().value
+              if (oldest !== undefined) this._seenNonces.delete(oldest)
             }
             this._seenNonces.set(_nonceKey, true)
             this._peerV2Capable.set(senderPeerId, true)   // PIN: no downgrade hereafter
@@ -476,7 +702,7 @@ export class SignalingClient extends EventTarget {
       // If the server stamps the wrong `from`, the canonical message differs
       // from what was signed → mismatch → frame dropped.
       if (p.type === 'offer' || p.type === 'answer' || p.type === 'ice') {
-        let verifyKey = this._peerKeys.get(senderPeerId) || null
+        let verifyKey: CryptoKey | null = this._peerKeys.get(senderPeerId) || null
 
         // offer/answer frames carry the sender's pubkey so we can verify even
         // before their 'join' was received (handles out-of-order delivery).
@@ -536,7 +762,8 @@ export class SignalingClient extends EventTarget {
           }
           // FIFO eviction: oldest entry is keys().next().value in insertion order
           if (this._seenNonces.size >= NONCE_CACHE_MAX) {
-            this._seenNonces.delete(this._seenNonces.keys().next().value)
+            const oldest = this._seenNonces.keys().next().value
+            if (oldest !== undefined) this._seenNonces.delete(oldest)
           }
           this._seenNonces.set(_nonceKey, true)
         } else if (this._requirePeerAuth) {
@@ -549,19 +776,27 @@ export class SignalingClient extends EventTarget {
         // compatibility (fabricSignaling.js / BroadcastChannel paths).
       }
 
-    this.dispatchEvent(new CustomEvent('signal', { detail: { from: senderPeerId, payload: p } }))
+    this.dispatchEvent(new CustomEvent<SignalEventDetail>('signal', { detail: { from: senderPeerId, payload: p } }))
   }
 
   /**
-   * Send a signal payload to a specific peer (or broadcast to session).
+   * Send a signal payload to a specific peer, or broadcast to the session
+   * when `toId` is `null`.
+   *
+   * `type` accepts the five core protocol kinds ('offer'/'answer'/'ice' — the
+   * ones with dedicated verification in `_processSignal` — plus 'join'/
+   * 'leave') or any app-level kind a consumer layered on this envelope wants
+   * to multiplex over the same channel (see {@link SignalKind}). Sending an
+   * app-level kind through here does NOT get the offer/answer/ice signature
+   * pipeline or the join anti-downgrade pipeline — those remain keyed on the
+   * exact literal `type` values in `_processSignal`, unchanged by this being
+   * a wider parameter type.
    *
    * When `signFrame` is configured, the payload is signed with a per-frame
    * nonce using ECDSA P-256.  The nonce is included in both the canonical
    * signing message and the sent payload so recipients can verify.
-   *
-   * @returns {Promise<void>}
    */
-  async signal(type, toId, data = {}) {
+  async signal(type: SignalKind, toId: string | null, data: SignalData = {}): Promise<void> {
     this._send(await this._buildSignalPayload(type, toId, data))
   }
 
@@ -572,13 +807,13 @@ export class SignalingClient extends EventTarget {
    * the returned payload as an opaque blob rather than a WS frame. The canonical
    * signed bytes are identical on both paths, so peer authentication is unchanged.
    *
-   * @param {string} type - offer | answer | ice
-   * @param {string} toId - recipient peerId
-   * @param {object} data - { sdp?, candidate?, pubKey? }
-   * @returns {Promise<object>} the (possibly signed) SignalPayload
+   * @param type - one of the five core protocol kinds, or an app-defined kind
+   * @param toId - recipient peerId, or `null` to broadcast
+   * @param data - { sdp?, candidate?, pubKey?, data?, identity? }
+   * @returns the (possibly signed) SignalPayload
    */
-  async _buildSignalPayload(type, toId, data = {}) {
-    const payload = { type, session: this._session, to: toId, ...data }
+  async _buildSignalPayload(type: SignalKind, toId: string | null, data: SignalData = {}): Promise<SignalPayload> {
+    const payload: SignalPayload = { type, session: this._session, to: toId, ...data }
 
     if (this._signFrame) {
       const nonce = crypto.randomUUID()
@@ -615,9 +850,9 @@ export class SignalingClient extends EventTarget {
    * signed join: over WS it is a room broadcast; over rendezvous it is deposited
    * onto the session's shared discovery board.
    *
-   * @returns {Promise<object>} the (possibly signed) join payload
+   * @returns the (possibly signed) join payload
    */
-  async _buildJoinPayload() {
+  async _buildJoinPayload(): Promise<SignalPayload> {
     const { join, depositPubKey, boxPubKey, supportsV2 } = this._buildJoinBase()
     if (this._signFrame) {
       const nonce = crypto.randomUUID()
@@ -642,13 +877,11 @@ export class SignalingClient extends EventTarget {
    * Build the UNSIGNED base join object plus the derived key fields the signing
    * step needs. Synchronous, so the WebSocket open handler can send an unsigned
    * join without awaiting (preserving the historical synchronous-send behaviour).
-   *
-   * @returns {{ join: object, depositPubKey: string|null, boxPubKey: string|null, supportsV2: boolean }}
    */
-  _buildJoinBase() {
+  _buildJoinBase(): JoinBase {
     // Publish the deposit signing public key (when available) so the server can
     // bind it to our authenticated peerId and verify relay deposit signatures.
-    const join = { type: 'join', session: this._session }
+    const join: SignalPayload & { type: 'join', session: string } = { type: 'join', session: this._session }
     const depositPubKey = this._getDepositPubKey?.() ?? null
     if (depositPubKey) join.depositPubKey = depositPubKey
     const boxPubKey = this._getBoxPubKey?.() ?? null
@@ -673,7 +906,7 @@ export class SignalingClient extends EventTarget {
   }
 
   /** Cleanly stop reconnecting and close the socket. */
-  close() {
+  close(): void {
     this._stopped = true
     if (this._ws) {
       this._send({ type: 'leave', session: this._session })
@@ -689,11 +922,8 @@ export class SignalingClient extends EventTarget {
    * 'join' frame or TOFU import on an offer/answer).
    *
    * Used by FabricClient to decide whether to enforce a relay-blob signature.
-   *
-   * @param {string} fromPeerId
-   * @returns {boolean}
    */
-  hasPeerKey(fromPeerId) {
+  hasPeerKey(fromPeerId: string): boolean {
     return this._peerKeys.has(fromPeerId)
   }
 
@@ -702,11 +932,8 @@ export class SignalingClient extends EventTarget {
    * announced in that peer's 'join' frame, or null if none is known yet.
    *
    * Used by FabricClient to seal relay-fallback payloads end-to-end.
-   *
-   * @param {string} peerId
-   * @returns {string|null}
    */
-  getPeerBoxKey(peerId) {
+  getPeerBoxKey(peerId: string): string | null {
     return this._peerBoxKeys.get(peerId) ?? null
   }
 
@@ -715,11 +942,8 @@ export class SignalingClient extends EventTarget {
    * (announced in their 'join' frame), or null if none is known/verified yet.
    *
    * Used by FabricClient to establish a forward-secret (X3DH/v2) relay session.
-   *
-   * @param {string} peerId
-   * @returns {{ id: string, pub: string, sig: string }|null}
    */
-  getPeerSignedPreKey(peerId) {
+  getPeerSignedPreKey(peerId: string): SignedPreKeyClaim | null {
     return this._peerSignedPreKeys.get(peerId) ?? null
   }
 
@@ -729,11 +953,8 @@ export class SignalingClient extends EventTarget {
    * verified signed prekey (join frame or claim).  Once true it never reverts —
    * a subsequently-missing signed prekey for this peer is a downgrade ATTACK, not
    * a legacy peer, and FabricClient must fail closed rather than seal over v1.
-   *
-   * @param {string} peerId
-   * @returns {boolean}
    */
-  isPeerV2Capable(peerId) {
+  isPeerV2Capable(peerId: string): boolean {
     return this._peerV2Capable.get(peerId) === true
   }
 
@@ -742,12 +963,8 @@ export class SignalingClient extends EventTarget {
    * `peerId`. Returns false if no key is held or the signature is invalid (fail
    * closed). Used for prekeys obtained via the claim endpoint (Contract A), which
    * did not pass through the join-frame verification path.
-   *
-   * @param {string} peerId
-   * @param {{ pub: string, sig: string }} signedPreKey
-   * @returns {Promise<boolean>}
    */
-  async verifyPeerSignedPreKey(peerId, signedPreKey) {
+  async verifyPeerSignedPreKey(peerId: string, signedPreKey: { pub: string, sig: string }): Promise<boolean> {
     const key = this._peerKeys.get(peerId)
     if (!key || !signedPreKey || typeof signedPreKey.pub !== 'string' || typeof signedPreKey.sig !== 'string') {
       return false
@@ -770,15 +987,15 @@ export class SignalingClient extends EventTarget {
    * Verify a relay-deposit blob signature using the stored public key for
    * `fromPeerId` (populated via signaling join / TOFU).
    *
-   * @param {string} fromPeerId
-   * @param {string} message   — the exact canonical string that was signed
-   * @param {string} sigB64    — base64 ECDSA P-256 DER signature
-   * @returns {Promise<boolean|null>}
+   * @param fromPeerId
+   * @param message   — the exact canonical string that was signed
+   * @param sigB64    — base64 ECDSA P-256 DER signature
+   * @returns
    *   true  — valid signature
    *   false — invalid signature (impersonation / tamper → drop blob)
    *   null  — no key stored for this peer (caller applies its own policy)
    */
-  async verifyPeerSig(fromPeerId, message, sigB64) {
+  async verifyPeerSig(fromPeerId: string, message: string, sigB64: string): Promise<boolean | null> {
     const key = this._peerKeys.get(fromPeerId)
     if (!key) return null
     return this._verifyFrame(key, message, sigB64)
@@ -786,7 +1003,7 @@ export class SignalingClient extends EventTarget {
 
   // ─── private ───────────────────────────────────────────────────────────────
 
-  _send(payload) {
+  private _send(payload: SignalPayload): void {
     if (!this._ws || this._ws.readyState !== WebSocket.OPEN) return
     const frame = JSON.stringify({
       channel: SIGNAL_CHANNEL,
@@ -795,7 +1012,7 @@ export class SignalingClient extends EventTarget {
     this._ws.send(frame)
   }
 
-  _scheduleReconnect() {
+  private _scheduleReconnect(): void {
     this._reconnectAttempts++
 
     // Once the budget is exhausted, emit a terminal 'offline' event so
@@ -803,7 +1020,7 @@ export class SignalingClient extends EventTarget {
     if (this._reconnectAttempts >= this._maxAttempts) {
       if (!this._degraded) {
         this._degraded = true
-        this.dispatchEvent(new CustomEvent('offline', {
+        this.dispatchEvent(new CustomEvent<OfflineEventDetail>('offline', {
           detail: { attempts: this._reconnectAttempts },
         }))
       }
@@ -823,14 +1040,13 @@ export class SignalingClient extends EventTarget {
    * Import a base64-encoded raw ECDSA P-256 public key as a CryptoKey for
    * verification only.
    *
-   * @param {string} b64PubKey  — base64 raw public key (65 bytes uncompressed)
-   * @returns {Promise<CryptoKey>}
+   * @param b64PubKey  — base64 raw public key (65 bytes uncompressed)
    */
-  async _importPeerKey(b64PubKey) {
+  async _importPeerKey(b64PubKey: string): Promise<CryptoKey> {
     const raw = Uint8Array.from(atob(b64PubKey), c => c.charCodeAt(0))
     return crypto.subtle.importKey(
       'raw',
-      raw,
+      raw as BufferSource,
       { name: 'ECDSA', namedCurve: 'P-256' },
       false,
       ['verify'],
@@ -842,12 +1058,10 @@ export class SignalingClient extends EventTarget {
    * `pubKey`.  Returns false on any error (malformed sig, wrong key, etc.)
    * so callers can treat it as a boolean rejection.
    *
-   * @param {CryptoKey} pubKey
-   * @param {string}    canonical  — deterministic JSON string that was signed
-   * @param {string}    sigB64     — base64 ECDSA signature
-   * @returns {Promise<boolean>}
+   * @param canonical  — deterministic JSON string that was signed
+   * @param sigB64     — base64 ECDSA signature
    */
-  async _verifyFrame(pubKey, canonical, sigB64) {
+  async _verifyFrame(pubKey: CryptoKey, canonical: string, sigB64: string): Promise<boolean> {
     return this._verifyRaw(pubKey, new TextEncoder().encode(canonical), sigB64)
   }
 
@@ -855,20 +1069,15 @@ export class SignalingClient extends EventTarget {
    * Verify a base64 ECDSA P-256 signature over RAW message bytes using `pubKey`.
    * Used both for canonical-string frame sigs and for the signed-prekey sig
    * (which is over the 32-byte X25519 public key). Returns false on any error.
-   *
-   * @param {CryptoKey} pubKey
-   * @param {Uint8Array} msgBytes
-   * @param {string} sigB64
-   * @returns {Promise<boolean>}
    */
-  async _verifyRaw(pubKey, msgBytes, sigB64) {
+  async _verifyRaw(pubKey: CryptoKey, msgBytes: Uint8Array, sigB64: string): Promise<boolean> {
     try {
       const sigBuf = Uint8Array.from(atob(sigB64), c => c.charCodeAt(0))
       return await crypto.subtle.verify(
         { name: 'ECDSA', hash: 'SHA-256' },
         pubKey,
         sigBuf,
-        msgBytes,
+        msgBytes as BufferSource,
       )
     } catch {
       return false
