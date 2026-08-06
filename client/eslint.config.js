@@ -88,132 +88,43 @@ export default defineConfig([
     },
   },
 
-  // signaling.js and rendezvousSignaling.js are DELIBERATELY unconverted JS —
-  // see kotva-client.pin.json: pier speaks a wider signaling protocol than
-  // kotva's core (extra signal kinds, toId: null broadcast, extra data/identity
-  // fields) so these stay JS with a hand-written .d.ts sidecar rather than
-  // being forced into kotva's narrower TS types. Lint as plain JS; do not
-  // convert.
-  {
-    files: ['src/**/*.js'],
-    extends: [js.configs.recommended],
-    languageOptions: {
-      ecmaVersion: 2023,
-      sourceType: 'module',
-      globals: { ...globals.browser, ...globals.node },
-    },
-    rules: {
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
-    },
-  },
-
-  // signaling.js / rendezvousSignaling.js are not part of tsconfig.json's
-  // `include` (only src/**/*.ts is), so the typed block above never resolves
-  // type information for them. tsconfig.pinned-js.json is a standalone,
-  // eslint-only TS program covering just these two files (allowJs+checkJs) —
-  // that's what actually makes type-aware rules (specifically
-  // no-floating-promises / no-misused-promises) run against them.
-  // `parserOptions.project` (classic mode) is used here instead of
-  // `projectService`'s `allowDefaultProject`: the latter was tried first and
-  // measured to be order-dependent across a full `eslint .` run — sometimes
-  // "was not found by the project service", sometimes fine, depending on
-  // what else in the same run touched the project service first. `project`
-  // pointed at a dedicated tsconfig had no such flakiness across 10
-  // consecutive full-repo runs. Verified empirically: without this block
-  // these two get ZERO type-aware findings, not because they're clean, but
-  // because nothing typed them. Findings are reported in the branch notes,
-  // not fixed — both files are kotva-client.pin.json byte-pinned (see the
-  // exclusion block below).
-  {
-    files: ['src/signaling.js', 'src/rendezvousSignaling.js'],
-    extends: [...tseslint.configs.recommendedTypeChecked],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.pinned-js.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-  },
-
   // The 8 modules kotva-client.pin.json byte-hashes against kotva's
   // bindings/js/src, enforced by `npm run kotva:check`. A fix here can only
   // land upstream in kotva and then be re-synced via `npm run kotva:pin` —
   // editing the copy in this repo would itself be the drift the pin exists to
   // catch. Rules are turned off per the specific finding ESLint actually
-  // reported, not blanket-suppressed:
-  //   prefer-const                        — chunkProof.ts (3: loop-local
-  //                                          `let`s never reassigned)
-  //   no-unused-vars                      — rendezvousSignaling.js (2: unused
-  //                                          bindings)
-  //   no-useless-assignment                — signaling.js (1: dead store)
-  //   @typescript-eslint/no-explicit-any   — rendezvous.ts (2: `any` usages)
-  //
-  // Added when type-aware linting was turned on (see the two typed blocks
-  // above). Every finding below was read and is reported in the branch notes
-  // — NONE was fixed, because these 8 files cannot be edited:
-  //   @typescript-eslint/no-unused-vars    — rendezvousSignaling.js (2): the
-  //       SAME 2 bindings the base no-unused-vars above already covers,
-  //       re-flagged under the typed rule name because the typed block below
-  //       layers recommendedTypeChecked on top of it. Not a new finding.
+  // reported, not blanket-suppressed. Re-measured after re-pinning to kotva
+  // main @ db96b9f (see kotva-client.pin.json): that sync incidentally
+  // narrowed rendezvous.ts's two `Promise<any>` return types to
+  // `Promise<unknown>` with explicit casts at the JSON-parse boundary, and
+  // rewrote chunkProof.ts's three reassigned-`let` destructures as fresh
+  // `const`s — both fixed findings this list used to carry (`no-explicit-any`
+  // / `no-unsafe-assignment` / `no-unsafe-member-access` / `no-unsafe-return`
+  // for rendezvous.ts, `prefer-const` for chunkProof.ts). prekeys.ts,
+  // rendezvous.ts, secureTransport.ts, and errors.ts now report ZERO findings
+  // — verified via `npx eslint <file>` on each — so only the two files below
+  // still need an exemption:
   //   @typescript-eslint/no-unnecessary-type-assertion
-  //     — chunkProof.ts (21), relayBox.ts (4), rendezvous.ts (1): redundant
-  //       `!`/`as X` where the target already has that type.
-  //   @typescript-eslint/no-unsafe-assignment / -member-access / -return
-  //     — rendezvous.ts (3/2/2 — JSON.parse'd fetch responses used untyped);
-  //       signaling.js / rendezvousSignaling.js (41+6 / 10+20 / 1 — plain JS
-  //       with no JSDoc types, so typescript-eslint's default-project
-  //       fallback resolves most locals as `any` or unresolvable).
-  //   @typescript-eslint/no-unsafe-argument / no-unsafe-call / require-await
-  //     — signaling.js (12) / rendezvousSignaling.js (29): same plain-JS
-  //       cause. no-unsafe-call (1, signaling.js:659) and require-await (1,
-  //       signaling.js:326, the async WS 'open' listener discussed in the
-  //       branch notes) are single occurrences of the same root cause.
-  //   @typescript-eslint/no-floating-promises / no-misused-promises — each of
-  //     the 5 findings was read individually (see branch notes), NOT
-  //     rubber-stamped off: signaling.js:335 is a GENUINE BUG —
-  //     `this._buildJoinPayload().then((join) => this._send(join))` has no
-  //     rejection handler, so a signing failure (WebCrypto ECDSA sign, inside
-  //     _buildJoinPayload → signFrame) on the very first join silently drops
-  //     it and the peer never announces itself. signaling.js:326/341 are the
-  //     same `ws.addEventListener('open'/'message', async () => ...)` shape —
-  //     326 is this exact bug surfacing through the DOM listener-return-type
-  //     check; 341's `await this._processSignal(...)` is unguarded at the
-  //     call site too and worth the same scrutiny upstream.
-  //     rendezvousSignaling.js:202/203/310 are NOT bugs: `_loopBoard()` /
-  //     `_loopInbox()` are `while (!this._stopped)` background loops that
-  //     wrap every iteration in try/catch and never let the outer promise
-  //     reject; `connect()` (called from the :310 setTimeout) wraps its
-  //     entire body in try/catch and calls `_scheduleReconnect()` on failure
-  //     instead of rejecting. A line-scoped eslint-disable-next-line comment
-  //     is not possible without editing the pinned bytes, so all 5 are
-  //     silenced here, file-wide across the pinned set, with the per-line
-  //     reasoning kept here instead of inline.
+  //     — chunkProof.ts (21), relayBox.ts (4): redundant `!`/`as X` where the
+  //       target already has that type.
+  //
+  // signaling.ts and rendezvousSignaling.ts (adopted from kotva's real
+  // TypeScript source in place of the former hand-written JS transliteration
+  // + .d.ts sidecar) are likewise NOT in this files list: `npx eslint
+  // src/signaling.ts src/rendezvousSignaling.ts` under the plain
+  // `src/**/*.ts` block above (recommendedTypeChecked, no overrides) reports
+  // zero findings — verified empirically, not assumed — so they need no
+  // exemption either. The signaling.js:335 unhandled-join-rejection bug this
+  // list used to document (a signFrame failure silently dropped the join
+  // frame) is fixed upstream as of kotva commit 86b5bbe: _buildJoinPayload()
+  // .then() now has a .catch() that dispatches an 'error' CustomEvent instead.
   {
     files: [
       'src/chunkProof.ts',
       'src/relayBox.ts',
-      'src/prekeys.ts',
-      'src/rendezvous.ts',
-      'src/secureTransport.ts',
-      'src/errors.ts',
-      'src/signaling.js',
-      'src/rendezvousSignaling.js',
     ],
     rules: {
-      'prefer-const': 'off',
-      'no-unused-vars': 'off',
-      'no-useless-assignment': 'off',
-      '@typescript-eslint/no-explicit-any': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
-      '@typescript-eslint/no-unsafe-assignment': 'off',
-      '@typescript-eslint/no-unsafe-member-access': 'off',
-      '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/no-unsafe-argument': 'off',
-      '@typescript-eslint/no-unsafe-call': 'off',
-      '@typescript-eslint/require-await': 'off',
-      '@typescript-eslint/no-floating-promises': 'off',
-      '@typescript-eslint/no-misused-promises': 'off',
     },
   },
 
