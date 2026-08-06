@@ -1,0 +1,36 @@
+{
+  // Type-checks the CI scripts surface (check-lint-config.mjs and
+  // check-kotva-parity.mjs) WITHOUT dragging script files into client's own
+  // tsconfig.json — that file's "include" governs the library's public
+  // source (src/**/*.ts, src/**/*.tsx), and a CI helper script has no
+  // business being part of that program. Kept as a sibling tsconfig instead
+  // of folding in.
+  //
+  // allowJs + checkJs type-check the .mjs sources directly via JSDoc
+  // annotations — no build step, no renaming to .ts. See the files
+  // themselves for why they must stay .mjs (run directly by node from CI
+  // and package.json).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+
+    "allowJs": true,
+    "checkJs": true,
+
+    "declaration": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true
+  },
+  "include": ["check-lint-config.mjs", "check-kotva-parity.mjs"]
+}
