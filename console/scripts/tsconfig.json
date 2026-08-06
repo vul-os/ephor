@@ -1,0 +1,36 @@
+{
+  // Type-checks the CI gate scripts surface (currently just
+  // check-lint-config.mjs) WITHOUT dragging script files into
+  // tsconfig.app.json/tsconfig.node.json — those programs govern the
+  // Svelte app's own source and Vite config, and a CI helper script has no
+  // business being part of either. Kept as a sibling tsconfig instead of
+  // folding in.
+  //
+  // allowJs + checkJs type-check the .mjs source directly via JSDoc
+  // annotations — no build step, no renaming to .ts. See the file itself
+  // for why it must stay .mjs (run directly by node from CI and
+  // package.json).
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "moduleDetection": "force",
+    "types": ["node"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+
+    "allowJs": true,
+    "checkJs": true,
+
+    "declaration": false,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true
+  },
+  "include": ["check-lint-config.mjs"]
+}
