@@ -29,9 +29,10 @@ jobs:
         run: npm ci
 
       # The actual lint gate: this is the step that fails on a real ESLint
-      # error in client/src. check:lint-config below only proves the CONFIG
-      # is wired correctly (type-awareness, TS pin, coverage floor) — it
-      # never reads errorCount/warningCount, so it cannot fail on a finding.
+      # error in client/src. check:lint-config below is a second, independent
+      # proof of the same thing (assertion D there sums errorCount across its
+      # own full-tree lint run) plus config-correctness assertions this step
+      # does not make (type-awareness, TS pin, coverage floor).
       - name: Lint
         run: npm run lint
 
@@ -51,8 +52,10 @@ jobs:
       # actually resolve type information (a config can say
       # recommendedTypeChecked and still not resolve types), that typescript
       # is pinned exactly with node_modules agreeing (a caret let
-      # typescript-eslint silently fail to load once before), and asserts a
-      # real file-coverage floor.
+      # typescript-eslint silently fail to load once before), a real
+      # file-coverage floor, and (assertion D) that the same full-tree lint
+      # run it uses for the coverage floor reports zero errorCount — not just
+      # a plausible file count.
       - name: Lint config gate (type-awareness, TS pin, coverage floor)
         run: npm run check:lint-config
 
@@ -269,9 +272,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # The actual lint gate: this is the step that fails on a real ESLint
-      # error in console/src. check:lint-config below only proves the CONFIG
-      # is wired correctly (type-awareness, TS pin, coverage floor) — it
-      # never reads errorCount/warningCount, so it cannot fail on a finding.
+      # error in console/src. check:lint-config below is a second, independent
+      # proof of the same thing (assertion D there sums errorCount across its
+      # own full-tree lint run) plus config-correctness assertions this step
+      # does not make (type-awareness, TS pin, coverage floor).
       - name: Lint
         run: pnpm lint
 
@@ -280,7 +284,8 @@ jobs:
       # proof). Console's probe is a .svelte file specifically, because the
       # thing unique to this config is type info reaching INSIDE a .svelte
       # <script lang="ts"> block via svelte-eslint-parser +
-      # parserOptions.parser.
+      # parserOptions.parser. Assertion D confirms the same full-tree lint run
+      # used for the coverage floor also reports zero errorCount.
       - name: Lint config gate (type-awareness, TS pin, coverage floor)
         run: pnpm check:lint-config
 
