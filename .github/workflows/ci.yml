@@ -284,6 +284,13 @@ jobs:
       - name: Lint config gate (type-awareness, TS pin, coverage floor)
         run: pnpm check:lint-config
 
+      # scripts/tsconfig.json is a separate program covering the CI gate
+      # script (check-lint-config.mjs) via allowJs+checkJs+JSDoc — it was
+      # unchecked JavaScript before this, despite being the logic the gate
+      # above is trusted through.
+      - name: Typecheck (scripts)
+        run: pnpm run typecheck:scripts
+
       - name: Type check
         run: pnpm check
 
