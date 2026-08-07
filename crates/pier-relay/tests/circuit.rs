@@ -195,10 +195,10 @@ async fn peer_loop(
                         let full = address.clone().with_p2p(*swarm.local_peer_id()).unwrap_or(address);
                         listeners.lock().unwrap().push(full);
                     }
-                    SwarmEvent::Behaviour(PeerBehaviourEvent::Ping(ev)) => {
-                        if ev.result.is_ok() {
-                            *ping_ok.lock().unwrap() = true;
-                        }
+                    SwarmEvent::Behaviour(PeerBehaviourEvent::Ping(ev))
+                        if ev.result.is_ok() =>
+                    {
+                        *ping_ok.lock().unwrap() = true;
                     }
                     _ => {}
                 }

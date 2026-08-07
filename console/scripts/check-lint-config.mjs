@@ -295,10 +295,33 @@ function assertTypescriptPinned() {
       continue
     }
 
+    // Whether this package.json belongs to the workspace this copy of the gate
+    // is running FOR, as opposed to a sibling it merely swept up.
+    const isOwnWorkspace =
+      path.resolve(path.dirname(pkgPath)) === path.resolve(CONFIG.webRoot)
+
     const resolved = resolveInstalledTypescriptVersion(path.dirname(pkgPath))
     if (resolved === null) {
-      fail('B', `${rel}: typescript is pinned to "${spec}" but no installed node_modules/typescript was found to verify it against.`)
-      ok = false
+      // Not installed. That is only a failure for our own workspace.
+      //
+      // Assertion B does two different things: it checks every package.json in
+      // the tree pins typescript exactly (a property of the file, readable
+      // anywhere), and it checks the pin agrees with what is actually
+      // installed (a property of node_modules, only knowable where the install
+      // happened). CI installs one workspace per job — client/ in the client
+      // job, console/ in the console job — so demanding an install for every
+      // package.json meant each job failed on the other's, and this gate could
+      // not pass in CI at all no matter what the code did.
+      //
+      // The exact-pin check above still runs for every package.json, so a bad
+      // pin anywhere is still caught from either copy. Only the agrees-with-
+      // node_modules half is scoped to where it can actually be evaluated.
+      if (isOwnWorkspace) {
+        fail('B', `${rel}: typescript is pinned to "${spec}" but no installed node_modules/typescript was found to verify it against. This is ${path.relative(CONFIG.repoRoot, CONFIG.webRoot)}/ — its dependencies must be installed before this gate runs.`)
+        ok = false
+        continue
+      }
+      pass('B', `${rel}: typescript exactly pinned at "${spec}" (not installed here — that half is checked by the gate that runs from ${rel.replace(/package\.json$/, '')}).`)
       continue
     }
     if (resolved !== spec) {
